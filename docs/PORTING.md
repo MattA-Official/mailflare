@@ -184,7 +184,7 @@ Tick in the PR that lands it. Add rows for anything discovered.
 - [x] 7 Admin: email
 - [x] 8 Admin: administration
 - [x] 9 Calendar and booking
-- [ ] 10 Drive, contacts and assistant
+- [x] 10 Drive, contacts and assistant
 - [x] 11 Server clean-up and tests
   - [x] Licence gate, Resend, SES, B2/S3, Node runtime, other dialects, self-update merge removed
   - [x] Unit tests ported: `legacy/tests/*.test.mjs` run under vitest as `tests/unit/*.test.mjs`
@@ -306,6 +306,17 @@ Tick in the PR that lands it. Add rows for anything discovered.
 - Settings (workstream 5): signing out a mobile device and revoking an API key confirm in a modal
   instead of `window.confirm`. The MFA QR code is rendered with qrcode's core and SVG renderer
   (`server/lib/auth/qr-svg.ts`) because its PNG renderer cannot load on Workers.
+
+- (10) Drive uploads: `PUT /api/drive/upload/{id}` pipes the request body through a
+  `FixedLengthStream` before `uploadPart`, because R2 rejects the stream Nitro hands the handler
+  ("Provided readable stream must have a known length"). Request and response shapes are unchanged.
+- (10) The email assistant is `AgentAside` (mounted in the dashboard layout) with its toggle in
+  `AppNavbar`, shown only in the mail and calendar sections (`nav: 'mail' | 'calendar'`), as upstream
+  showed it only beside mail and calendar. State lives in `useAssistant()`, which replaces
+  `use-assistant-availability`; upstream's localStorage keys are kept. Assistant replies render
+  through `marked` + DOMPurify with raw HTML and images dropped.
+- (10) `ContactsContactAvatar` is a plain `<img>` with an initials fallback rather than upstream's
+  progressive avatar, matching the shell's decision for `UAvatar`.
 
 ## Open items
 

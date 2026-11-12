@@ -16,6 +16,7 @@ withDefaults(defineProps<{ title?: string, search?: boolean, banner?: boolean }>
     </template>
     <template #right>
       <slot name="right" />
+      <AgentAssistantToggle />
     </template>
   </UDashboardNavbar>
   <AppDnsSkippedBanner v-if="banner ?? search" />

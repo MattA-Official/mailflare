@@ -104,6 +104,7 @@ watch(() => [countsLoaded.value, allCounts.value.folders.inbox.unread] as const,
     </UDashboardSidebar>
 
     <slot />
+    <AgentAside v-if="user" />
 
     <AppShortcuts v-if="user" />
     <ComposeHost />
