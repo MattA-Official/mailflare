@@ -192,21 +192,22 @@ Tick in the PR that lands it. Add rows for anything discovered.
     for `better-sqlite3` and D1 (over `node:sqlite`), `cloudflare:workers` and `useEvent`; bundling
     tests go through `helpers/esbuild.mjs` so `#lib`, `#db`, `#handlers` and `~` resolve. Tests for
     deleted features were dropped, and assertions about the licence gate now assert there is none.
-  - [ ] UI test ports, waiting for the owning workstream (upstream file in `legacy/tests`, to be
-    rewritten against the Vue code; drop any whose behaviour the port changed on purpose):
-    - 1 Shell: `route-title`, `layout-mail-search-provider`, `folder-client-cache` and
-      `message-detail-cache` (`app/utils` versions use Nuxt's fetch, so upstream's fetch mocks no
-      longer fit), the React parts of `i18n` (provider, selector, root layout `lang`/`dir`)
-    - 2 Sign-in: `landing-account-auth`, `current-user-permission-reset`
-    - 3 Reading mail: `authentication-details`, `message-details`, `seed-raw`, `message-action-redirect`,
-      `message-actions-overflow`, `message-list-unread`, `message-selection-navigation`,
-      `message-thread-cache`, `recipient-display`, `reply-recipients`, `send-view-status`,
-      `sender-check-notice`, and the "only the primary mailbox repaints on a profile rename" case of
-      `mailbox-identity-scope` (`avatar-preview-skip` is moot: the progressive avatar is not ported)
-    - 4 Composing: `compose-ai-review-behavior`, `compose-insert-link`, the `resolveSendViewRoute`
-      cases of `send-notice`
-    - 6 Settings: mail: `import-staging`, `domain-routing-permissions`
-    - 7 Admin: email: `domain-add-retry`
+  - [x] UI test ports: upstream's component tests rewritten in vitest against the Vue code (same file
+    names under `tests/unit`). App modules are bundled with esbuild and Nuxt's auto-imports are
+    provided on `globalThis`; components are compiled with `vue/compiler-sfc` and mounted in jsdom
+    with Nuxt UI stubbed (`tests/unit/helpers/app-module.mjs`). Changed or dropped on purpose:
+    - `landing-account-auth`: dropped, `/` redirects to `/inbox` and there is no landing page.
+    - `layout-mail-search-provider`: the provider checks are moot (search state is module level with no
+      provider); only "useMailSearch works anywhere" and the debounce are kept.
+    - `i18n`: the React provider, selector and SSR layout cases became `i18n-language.test.mjs`
+      (`useLanguage` sets `<html lang dir>` on the client; the app does not server-render).
+    - `message-selection-navigation`: mounts the real `MessagesSplitLayout` with the list, routed page
+      and bulk bar stubbed, so it covers the layout owning selection and page, not the list rendering.
+    - `domain-add-retry`: MX replacement is confirmed through a callback (a dialog) instead of
+      `window.confirm`, and declining resolves null instead of throwing; the prompt-text cases are gone.
+    - `compose-ai-review-behavior`: also edits the form while the review is open, since the port has
+      nothing else that would trigger an autosave there.
+    - `avatar-preview-skip`: moot, the progressive avatar is not ported.
 - [ ] 12 Verification and cutover
 
 ## Shell conventions (workstream 1)
