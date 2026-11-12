@@ -328,6 +328,7 @@
 	"notification.newEmail": "New email",
 	"notification.from": "From {sender}",
 	"notification.dismiss": "Dismiss notification",
+	"notification.open": "Open",
 	"attachment.image": "Image",
 	"attachment.video": "Video",
 	"attachment.audio": "Audio",

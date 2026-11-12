@@ -13,14 +13,11 @@ const { data, status, refresh } = useAsyncData('inbox', () => api<{ messages: Me
 <template>
   <UDashboardPanel id="inbox">
     <template #header>
-      <UDashboardNavbar :title="t('navigation.inbox')">
-        <template #leading>
-          <UDashboardSidebarCollapse />
-        </template>
+      <AppNavbar :title="t('navigation.inbox')" search>
         <template #right>
           <UButton icon="i-lucide-refresh-cw" color="neutral" variant="ghost" :loading="status === 'pending'" @click="refresh()" />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
     <template #body>
       <UEmpty v-if="!data?.messages.length" icon="i-lucide-inbox" :title="t('navigation.inbox')" description="No messages yet." />

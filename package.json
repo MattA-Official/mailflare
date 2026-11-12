@@ -27,6 +27,7 @@
     "@nuxthub/core": "^0.10.12",
     "@simplewebauthn/browser": "^14.0.0",
     "@simplewebauthn/server": "^14.1.0",
+    "@vueuse/core": "^15.0.0",
     "ai": "^7.0.170",
     "bcryptjs": "^3.0.3",
     "css-tree": "^3.2.1",
