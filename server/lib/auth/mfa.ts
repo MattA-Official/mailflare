@@ -1,11 +1,11 @@
 import { eq, sql } from "drizzle-orm";
-import QRCode from "qrcode";
 import { getDb } from "#db";
 import { mfaRecoveryCodes, users } from "#db/schema";
 import { getBranding } from "#lib/branding/service";
 import { consumeRecoveryCode, countUnusedRecoveryCodes, issueRecoveryCodes } from "#lib/auth/recovery-codes";
 import { deleteUserSessions } from "#lib/auth/session";
 import { buildOtpauthUrl, generateTotpSecret, verifyTotp } from "#lib/auth/totp";
+import { renderQrSvg } from "#lib/auth/qr-svg";
 import type { MfaEnrollment, MfaStatus } from "#lib/auth/mfa-types";
 
 export async function getMfaStatus(env: CloudflareEnv, user: { id: string; totpEnabled: boolean; totpConfirmedAt: Date | null }): Promise<MfaStatus> {
@@ -27,7 +27,7 @@ export async function beginMfaEnrollment(env: CloudflareEnv, user: { id: string;
 	await db.update(users).set({ totpSecret: secret, totpEnabled: false, totpConfirmedAt: null }).where(eq(users.id, user.id));
 	const { appName } = await getBranding(env);
 	const otpauthUrl = buildOtpauthUrl({ issuer: appName, account: user.email, secret });
-	const qrSvg = await QRCode.toString(otpauthUrl, { type: "svg", margin: 1, errorCorrectionLevel: "M" });
+	const qrSvg = renderQrSvg(otpauthUrl, { margin: 1, errorCorrectionLevel: "M" });
 	return { secret, otpauthUrl, qrSvg };
 }
 
