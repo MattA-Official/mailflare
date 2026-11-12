@@ -172,14 +172,14 @@ admin `agent` page is `/agent`; workstream 10's are `/agent/review/[id]` and `/a
 Tick in the PR that lands it. Add rows for anything discovered.
 
 - [x] Foundation: Worker entry, bindings, server port, migrations, shell, CI, deploy
-- [ ] 1 Shell and shared UI (first part landed: layout, navs, account menu, shortcuts, realtime, shared state; still to come: attachment card/viewer, progressive avatar, reorderable nav, web manifest)
+- [x] 1 Shell and shared UI
 - [ ] 2 Sign-in and onboarding
 - [x] 3 Reading mail: every folder list and reader, custom folders, the drafts list, the split view, bulk and row actions, swipe on phones, follow-ups, the HTML renderer. Shared for others: `MessagesFolderPage` + `~/utils/messages/folder-configs`, `MessagesEmailHtmlRenderer`, `useConversationView` / `useTwoColumnReading` / `useLatestMessagesFirst` / `useShowFullRecipientAddresses` in `app/composables/messages` (for settings). Unit tests for `app/utils/messages` are left to 11
 - [ ] 4 Composing: composer, toasts and /compose done (`useCompose()`, `<ComposeHost>` in the dashboard layout; shared: `ComposeFollowUpMenu`, `ComposeScheduleSendSheet`, `~/utils/compose/*`). Left: `/drafts/[messageId]` and the quote renderer, once reading mail's `MessagesFolderPage` and `MessagesEmailHtmlRenderer` land
 - [ ] 5 Settings: account and security
 - [ ] 6 Settings: mail
 - [x] 7 Admin: email
-- [ ] 8 Admin: administration
+- [x] 8 Admin: administration
 - [x] 9 Calendar and booking
 - [ ] 10 Drive, contacts and assistant
 - [ ] 11 Server clean-up and tests
@@ -202,6 +202,12 @@ Tick in the PR that lands it. Add rows for anything discovered.
   `useShortcuts().registerShortcut` so they appear in the cheat sheet.
 - The new-message popup is a Nuxt UI toast. Realtime, the session reset and service worker
   registration are client plugins.
+- Mail sidebar rows reorder by press and hold (`NavReorderableList`, upstream's storage keys
+  `mailflare:nav:layout` and `mailflare:nav:layout:folders`), including moving rows in and out of
+  "More...". Reordering is off in the collapsed icon rail.
+- Attachment card and viewer and the previous-message block belong to workstream 3
+  (`app/components/messages`). Upstream's progressive avatar is not ported: `UAvatar` already shows a
+  fallback until the image loads.
 
 ## Deviations from upstream
 
@@ -240,6 +246,14 @@ Tick in the PR that lands it. Add rows for anything discovered.
 - `/` redirects to `/inbox` instead of showing upstream's marketing landing page.
 - The realtime upgrade, email, queue and cron handlers live in `server/worker.ts`; behaviour is
   upstream's.
+- (8) The admin overview's update card keeps only the database half (pending migrations). The
+  upstream-merge half dispatched a GitHub workflow that cannot work for a rewritten fork.
+- (8) No licence overlay or seat counter on /accounts, no licence-required state on /branding and no
+  licences card on /admin: the fork has no licence gate.
+- (8) /accounts/[id] is a parent route with Details, Password, Permissions and Mailboxes tabs in the
+  panel toolbar, instead of upstream's side menu. The admin assistant page is `pages/agent/index.vue`
+  so the review pages under /agent/* stay siblings, not children.
+- (8) Browser `confirm()` prompts (revoke API key, restore backup) are Nuxt UI modals.
 - Calendar and booking (/calendar, /booking) use the dashboard layout with `nav: 'calendar'`. The
   upcoming list is its own resizable `UDashboardPanel` on wide screens and a slideover (list button in
   the navbar) below `lg`, instead of upstream's phone-menu drawer. The Bookings/Calendar switch sits
