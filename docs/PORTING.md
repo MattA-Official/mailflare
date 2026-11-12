@@ -6,7 +6,7 @@ The plan, the rules every thread follows, and the status board. Read [CLAUDE.md]
 
 The port is complete and deployed at https://mail.flytower.dev (Worker `flytower-mail`, Cloudflare
 account Flytower). Every workstream below is ticked. `legacy/` (upstream's Next.js app at v0.5.4) was
-deleted at cutover; it remains on the `main` branch and at https://github.com/hieunc229/mailflare, and
+deleted at cutover; it remains at `cee65a5`, on the `upstream` branch (upstream's `main`, synced daily) and at https://github.com/hieunc229/mailflare, and
 paths below that start `legacy/` mean upstream's tree. `nuxt` is the default branch.
 
 ## Decisions (made by Matt unless marked)
@@ -340,8 +340,7 @@ Last ported upstream commit: `be1343b` fix: clear all 88 vp lint errors (React e
 <!-- upstream-ported: be1343b7cf938030450ba05a92c90227ffa51aba -->
 
 The marker above is the last commit of hieunc229/mailflare's `main` whose changes are in `nuxt`. The
-port started from `cee65a5` (v0.5.4, the tree in `legacy/`). `legacy/` is not updated as upstream
-moves; read upstream's current source from the `upstream` branch or with
+port started from `cee65a5` (v0.5.4, the tree that was `legacy/`). Read upstream's current source from the `upstream` branch or with
 `git show origin/upstream:<path>`.
 
 - **`upstream` branch.** `.github/workflows/sync-upstream.yml` fast-forwards it to upstream's `main`
