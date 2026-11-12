@@ -2,7 +2,6 @@
 // Two-panel frame shared by sign-in, setup, onboarding and password reset pages.
 // Ported from legacy/src/components/auth/auth-shell.tsx. Pages using it set `layout: false`.
 import type { AuthShellStep } from '~/types/auth/flows'
-import { DEFAULT_BRANDING, loadAuthBranding } from '~/utils/auth/branding'
 
 const props = defineProps<{
   icon: string
@@ -11,13 +10,13 @@ const props = defineProps<{
   steps?: AuthShellStep[]
 }>()
 
-const branding = ref(DEFAULT_BRANDING)
-const iconUrl = ref('/icon-96.png')
+const { appName, iconUrl: brandingIconUrl } = useBranding()
+const iconUrl = ref(brandingIconUrl.value)
 const iconFailed = ref(false)
 
-onMounted(async () => {
-  branding.value = await loadAuthBranding()
-  if (branding.value.hasCustomIcon) iconUrl.value = '/api/branding/icon'
+watch(brandingIconUrl, (url) => {
+  iconUrl.value = url
+  iconFailed.value = false
 })
 
 function onIconError() {
@@ -35,7 +34,7 @@ useHead({ title: () => props.title })
         <div class="flex items-center gap-2">
           <UIcon v-if="iconFailed" :name="icon" class="size-8 text-primary" />
           <img v-else :src="iconUrl" alt="" class="size-8 object-contain" @error="onIconError">
-          <span class="truncate font-semibold text-highlighted">{{ branding.appName }}</span>
+          <span class="truncate font-semibold text-highlighted">{{ appName }}</span>
         </div>
 
         <div class="mt-10 sm:mt-6 lg:mt-8">
