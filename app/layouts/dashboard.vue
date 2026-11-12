@@ -36,6 +36,7 @@ const mailItems = computed<NavigationMenuItem[]>(() => [
             <UButton :label="collapsed ? undefined : t('navigation.compose')" icon="i-lucide-pen-line" to="/compose" block :square="collapsed" />
             <UNavigationMenu :items="mailItems" orientation="vertical" :collapsed="collapsed" tooltip />
           </template>
+          <DriveNav v-else-if="nav === 'drive'" :collapsed="collapsed" />
         </slot>
       </template>
 
