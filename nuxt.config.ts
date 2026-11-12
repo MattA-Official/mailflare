@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url'
+import { getSecurityHeaders } from './server/lib/security/headers'
 
 // Mailflare on Nuxt, deployed as a single Cloudflare Worker.
 // The upstream Next.js app lives in ./legacy for reference while the port is in progress.
@@ -30,6 +31,13 @@ export default defineNuxtConfig({
       // NEXT_PUBLIC_TURNSTILE_SITE_KEY). The server checks tokens only when TURNSTILE_SECRET_KEY is set.
       turnstileSiteKey: '',
     },
+  },
+  // Upstream's security headers (CSP, HSTS, COOP, frame and referrer policy) on every response, as its
+  // next.config.ts set them. Nitro also writes them to .output/public/_headers for static assets.
+  // Routes that send their own headers (attachments, Drive, JMAP) keep theirs.
+  routeRules: {
+    '/**': { headers: Object.fromEntries(getSecurityHeaders().map(({ key, value }) => [key, value])) },
+    '/sw.js': { headers: { 'cache-control': 'no-cache' } },
   },
   // Icons used in the app are bundled into the client, so nothing is fetched from Iconify at runtime.
   icon: { clientBundle: { scan: true }, serverBundle: 'local' },
