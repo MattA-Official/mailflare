@@ -174,7 +174,7 @@ Tick in the PR that lands it. Add rows for anything discovered.
 - [ ] 5 Settings: account and security
 - [ ] 6 Settings: mail
 - [x] 7 Admin: email
-- [ ] 8 Admin: administration
+- [x] 8 Admin: administration
 - [x] 9 Calendar and booking
 - [ ] 10 Drive, contacts and assistant
 - [ ] 11 Server clean-up and tests
@@ -201,6 +201,14 @@ Tick in the PR that lands it. Add rows for anything discovered.
 - `/` redirects to `/inbox` instead of showing upstream's marketing landing page.
 - The realtime upgrade, email, queue and cron handlers live in `server/worker.ts`; behaviour is
   upstream's.
+- (8) The admin overview's update card keeps only the database half (pending migrations). The
+  upstream-merge half dispatched a GitHub workflow that cannot work for a rewritten fork.
+- (8) No licence overlay or seat counter on /accounts, no licence-required state on /branding and no
+  licences card on /admin: the fork has no licence gate.
+- (8) /accounts/[id] is a parent route with Details, Password, Permissions and Mailboxes tabs in the
+  panel toolbar, instead of upstream's side menu. The admin assistant page is `pages/agent/index.vue`
+  so the review pages under /agent/* stay siblings, not children.
+- (8) Browser `confirm()` prompts (revoke API key, restore backup) are Nuxt UI modals.
 - Calendar and booking (/calendar, /booking) use the dashboard layout with `nav: 'calendar'`. The
   upcoming list is its own resizable `UDashboardPanel` on wide screens and a slideover (list button in
   the navbar) below `lg`, instead of upstream's phone-menu drawer. The Bookings/Calendar switch sits
