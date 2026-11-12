@@ -171,7 +171,7 @@ Tick in the PR that lands it. Add rows for anything discovered.
 - [ ] 2 Sign-in and onboarding
 - [ ] 3 Reading mail
 - [ ] 4 Composing
-- [ ] 5 Settings: account and security
+- [x] 5 Settings: account and security
 - [ ] 6 Settings: mail
 - [ ] 7 Admin: email
 - [ ] 8 Admin: administration
@@ -185,6 +185,9 @@ Tick in the PR that lands it. Add rows for anything discovered.
 - `/` redirects to `/inbox` instead of showing upstream's marketing landing page.
 - The realtime upgrade, email, queue and cron handlers live in `server/worker.ts`; behaviour is
   upstream's.
+- Settings (workstream 5): signing out a mobile device and revoking an API key confirm in a modal
+  instead of `window.confirm`. The MFA QR code is rendered with qrcode's core and SVG renderer
+  (`server/lib/auth/qr-svg.ts`) because its PNG renderer cannot load on Workers.
 
 ## Open items
 
