@@ -187,6 +187,14 @@ const stepUpOpen = computed({
     choiceOpen.value = true
   },
 })
+// Removal is destructive, so the dialog opens with Cancel focused (as upstream's Radix dialog did).
+const removeCancel = useTemplateRef<{ $el: HTMLElement }>('removeCancel')
+const removeContent = {
+  onOpenAutoFocus: (event: Event) => {
+    event.preventDefault()
+    nextTick(() => removeCancel.value?.$el?.focus())
+  },
+}
 const removeOpen = computed({ get: () => confirmRemove.value !== null, set: (v) => { if (!v) confirmRemove.value = null } })
 const renameOpen = computed({ get: () => rename.value !== null, set: (v) => { if (!v) rename.value = null } })
 </script>
@@ -288,13 +296,13 @@ const renameOpen = computed({ get: () => rename.value !== null, set: (v) => { if
       </template>
     </UModal>
 
-    <UModal v-model:open="removeOpen" :title="t('passkey.removeTitle')" :description="t('passkey.removeDescription', { name: confirmRemove?.name ?? '' })">
+    <UModal v-model:open="removeOpen" :content="removeContent" :title="t('passkey.removeTitle')" :description="t('passkey.removeDescription', { name: confirmRemove?.name ?? '' })">
       <template v-if="warnsLastSecondFactor" #body>
         <UAlert color="warning" variant="subtle" icon="i-lucide-triangle-alert" role="alert" :description="t('passkey.removeLastSecondFactorWarning')" />
       </template>
       <template #footer>
         <div class="flex w-full justify-end gap-2">
-          <UButton color="neutral" variant="outline" :label="t('common.cancel')" @click="confirmRemove = null" />
+          <UButton ref="removeCancel" color="neutral" variant="outline" :label="t('common.cancel')" @click="confirmRemove = null" />
           <UButton color="error" :label="t('passkey.remove')" @click="startRemove" />
         </div>
       </template>

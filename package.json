@@ -13,11 +13,14 @@
     "lint": "eslint .",
     "typecheck": "nuxt typecheck",
     "test": "vitest run",
+    "test:e2e": "playwright test",
     "db:generate": "nuxt db generate",
     "db:bundle": "node scripts/generate-migration-bundle.mjs",
     "routes:generate": "node scripts/generate-route-stubs.mjs",
     "prepare:gen": "bun run db:bundle && bun run routes:generate",
-    "seed:local": "node scripts/seed-local.mjs"
+    "seed:local": "node scripts/seed-local.mjs",
+    "auth:recovery-link": "node scripts/passkey-recovery-link.mjs",
+    "vapid:generate": "node scripts/generate-vapid-keys.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.115",
@@ -51,6 +54,7 @@
     "@cloudflare/workers-types": "^5.20261112.1",
     "@iconify-json/lucide": "^1.2.153",
     "@nuxt/eslint": "^1.17.0",
+    "@playwright/test": "1.63.0",
     "@types/css-tree": "^3.2.0",
     "@types/parse-srcset": "^1.0.0",
     "@types/qrcode": "^1.5.6",

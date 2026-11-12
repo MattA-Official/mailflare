@@ -1,4 +1,5 @@
 import { fileURLToPath } from 'node:url'
+import { getSecurityHeaders } from './server/lib/security/headers'
 
 // Mailflare on Nuxt, deployed as a single Cloudflare Worker.
 // The upstream Next.js app lives in ./legacy for reference while the port is in progress.
@@ -6,6 +7,10 @@ const D1_DATABASE_ID = '2c5e6a86-7940-44cc-9f11-2dc855d60cd9'
 const KV_NAMESPACE_ID = '7508952e90a94acca8e3b1cb27854e9f'
 const CACHE_NAMESPACE_ID = 'f35fc0ad21a5478ca13216230146e872'
 const WORKER_NAME = 'flytower-mail'
+// Preview-only resources for Worker Previews (see `previews` below).
+const PREVIEW_D1_DATABASE_ID = '6fc59f07-dc1d-43cc-b8ed-685968bd83c1'
+const PREVIEW_KV_NAMESPACE_ID = '35228e8c35d543c7ba6f0fac4ab6252b'
+const PREVIEW_CACHE_NAMESPACE_ID = '62a063fafcc846dfaad838866e96a347'
 const r = (path: string) => fileURLToPath(new URL(path, import.meta.url))
 
 export default defineNuxtConfig({
@@ -26,6 +31,13 @@ export default defineNuxtConfig({
       // NEXT_PUBLIC_TURNSTILE_SITE_KEY). The server checks tokens only when TURNSTILE_SECRET_KEY is set.
       turnstileSiteKey: '',
     },
+  },
+  // Upstream's security headers (CSP, HSTS, COOP, frame and referrer policy) on every response, as its
+  // next.config.ts set them. Nitro also writes them to .output/public/_headers for static assets.
+  // Routes that send their own headers (attachments, Drive, JMAP) keep theirs.
+  routeRules: {
+    '/**': { headers: Object.fromEntries(getSecurityHeaders().map(({ key, value }) => [key, value])) },
+    '/sw.js': { headers: { 'cache-control': 'no-cache' } },
   },
   // Icons used in the app are bundled into the client, so nothing is fetched from Iconify at runtime.
   icon: { clientBundle: { scan: true }, serverBundle: 'local' },
@@ -90,6 +102,35 @@ export default defineNuxtConfig({
             { queue: 'mailflare-inbound', max_batch_size: 5, max_retries: 3 },
             { queue: 'mailflare-outbound', max_batch_size: 5, max_retries: 3 },
             { queue: 'mailflare-agent', max_batch_size: 1, max_retries: 3 },
+          ],
+        },
+        // Worker Previews (pull request builds run `wrangler preview`). Previews inherit no bindings,
+        // so each one is repeated here against preview-only resources: production mail, files and
+        // queues are never touched from a branch. Queues have no consumer for previews, so mail
+        // processing, imports and webhook retries do not run there; sending is off (no EMAIL binding).
+        // The Durable Object gets its own namespace per Preview automatically. A fresh preview
+        // database opens on /setup, which applies the migrations.
+        previews: {
+          vars: { CF_EMAIL_WORKER_NAME: WORKER_NAME },
+          ai: { binding: 'AI' },
+          images: { binding: 'IMAGES' },
+          d1_databases: [{ binding: 'DB', database_name: 'mailflare-preview', database_id: PREVIEW_D1_DATABASE_ID }],
+          r2_buckets: [{ binding: 'BUCKET', bucket_name: 'mailflare-preview' }],
+          kv_namespaces: [
+            { binding: 'KV', id: PREVIEW_KV_NAMESPACE_ID },
+            { binding: 'CACHE', id: PREVIEW_CACHE_NAMESPACE_ID },
+          ],
+          durable_objects: { bindings: [{ name: 'REALTIME', class_name: 'RealtimeHub' }] },
+          queues: {
+            producers: [
+              { binding: 'INBOUND_QUEUE', queue: 'mailflare-preview-inbound' },
+              { binding: 'OUTBOUND_QUEUE', queue: 'mailflare-preview-outbound' },
+              { binding: 'AGENT_QUEUE', queue: 'mailflare-preview-agent' },
+            ],
+          },
+          ratelimits: [
+            { name: 'LOGIN_RATE_LIMIT', namespace_id: '1001', simple: { limit: 20, period: 60 } },
+            { name: 'AGENT_RATE_LIMIT', namespace_id: '1002', simple: { limit: 120, period: 60 } },
           ],
         },
       },
