@@ -26,6 +26,13 @@ watch(() => props.message.read, (value) => {
   locallyRead.value = value
 })
 
+// A note chip can point at this email while the card is collapsed.
+function reveal(event: Event) {
+  if ((event as CustomEvent<string>).detail === props.message.id) expanded.value = true
+}
+onMounted(() => window.addEventListener('mailflare:reveal-message', reveal))
+onBeforeUnmount(() => window.removeEventListener('mailflare:reveal-message', reveal))
+
 const sender = computed(() => getConversationSender(props.message, props.currentAccountName))
 const senderEmail = computed(() => getConversationSenderEmail(props.message))
 const remote = useRemoteContent(senderEmail, () => props.message.status === 'spam')
@@ -61,7 +68,7 @@ function toggle() {
 </script>
 
 <template>
-  <article class="bg-default px-3 transition-colors sm:px-6" :class="[!expanded && 'hover:bg-elevated/50', !anyPanelVisible && 'sm:pl-12']">
+  <article :data-message-id="message.id" class="bg-default px-3 transition-colors sm:px-6" :class="[!expanded && 'hover:bg-elevated/50', !anyPanelVisible && 'sm:pl-12']">
     <div class="w-full">
       <div class="flex w-full flex-wrap items-start gap-x-3 py-3 sm:pl-4">
         <button type="button" :aria-expanded="expanded" class="flex min-w-0 flex-1 basis-40 cursor-pointer items-center gap-3 text-left" @click="toggle">

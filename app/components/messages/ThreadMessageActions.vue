@@ -16,6 +16,7 @@ import {
 } from '~/utils/messages/message-actions-utils'
 import { toggleMessageStar } from '~/utils/messages/row-actions-utils'
 import type { ReplyMode } from '~/utils/messages/types'
+import { useConversationNotes } from '~/composables/messages/useConversationNotes'
 
 const props = withDefaults(defineProps<{
   message: ThreadMessage
@@ -29,6 +30,8 @@ const props = withDefaults(defineProps<{
 const emit = defineEmits<{ toggleDetails: [] }>()
 const { t } = useLanguage()
 const { openDraftComposer } = useCompose()
+const notes = useConversationNotes()
+const noteCount = computed(() => notes?.notes.value.filter(note => note.messageId === props.message.id).length ?? 0)
 const starred = ref(props.message.starred)
 const sourceOpen = ref(false)
 const pending = ref(false)
@@ -95,6 +98,7 @@ const menuItems = computed<DropdownMenuItem[][]>(() => {
     ...(canReplyAll.value ? [{ label: t('message.replyAll'), icon: 'i-lucide-reply-all', onSelect: () => void onReply('replyAll') }] : []),
     { label: t('message.forward'), icon: 'i-lucide-forward', onSelect: () => void onForward() },
     { label: t('message.showOriginal'), icon: 'i-lucide-file-code-2', onSelect: () => { sourceOpen.value = true } },
+    ...(notes ? [{ label: t('note.add'), icon: 'i-lucide-notebook-pen', onSelect: () => notes.startNote(message.id) }] : []),
   ]
   const second: DropdownMenuItem[] = [
     { label: message.read ? t('common.markUnread') : t('common.markRead'), icon: message.read ? 'i-lucide-mail' : 'i-lucide-mail-open', onSelect: () => void onMessageAction(message.read ? 'unread' : 'read') },
@@ -121,6 +125,18 @@ const menuItems = computed<DropdownMenuItem[][]>(() => {
         :aria-label="t('message.details')"
         :aria-expanded="detailsOpen"
         @click="emit('toggleDetails')"
+      />
+    </UTooltip>
+    <UTooltip v-if="notes && noteCount > 0" :text="t('note.count', { count: noteCount })">
+      <UButton
+        color="neutral"
+        variant="ghost"
+        size="sm"
+        icon="i-lucide-notebook-pen"
+        :label="String(noteCount)"
+        class="text-xs text-muted"
+        :aria-label="t('note.count', { count: noteCount })"
+        @click="notes.open.value = true"
       />
     </UTooltip>
     <UTooltip :text="starred ? t('message.removeStar') : t('message.star')">

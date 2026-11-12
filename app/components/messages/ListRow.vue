@@ -181,7 +181,7 @@ const swipeEnd = computed(() => ({
             {{ timestamp }}
           </span>
         </span>
-        <span class="mt-1 block truncate text-sm" :class="unread ? 'font-semibold text-highlighted' : 'text-toned'">{{ message.subject ?? t('list.noSubject') }}</span>
+        <span class="mt-1 block truncate text-sm" :class="unread ? 'font-semibold text-highlighted' : 'text-toned'"><MessagesNoteBadge :count="message.noteCount" />{{ message.subject ?? t('list.noSubject') }}</span>
         <span class="mt-0.5 block truncate text-xs leading-5 text-muted">{{ preview }}</span>
       </NuxtLink>
     </div>
@@ -221,7 +221,7 @@ const swipeEnd = computed(() => ({
           {{ timestamp }}
         </span>
       </span>
-      <span class="mt-1 block truncate text-sm" :class="unread ? 'font-semibold text-highlighted' : 'text-toned'">{{ message.subject ?? t('list.noSubject') }}</span>
+      <span class="mt-1 block truncate text-sm" :class="unread ? 'font-semibold text-highlighted' : 'text-toned'"><MessagesNoteBadge :count="message.noteCount" />{{ message.subject ?? t('list.noSubject') }}</span>
       <span class="mt-0.5 block truncate text-xs leading-5 text-muted">{{ preview }}</span>
     </NuxtLink>
   </div>
@@ -261,11 +261,15 @@ const swipeEnd = computed(() => ({
       {{ party }}
       <span v-if="threadCount > 1" class="ml-2 text-xs text-muted">{{ message.threadCount }}</span>
     </span>
-    <span class="truncate text-toned">
+    <span class="flex min-w-0 items-center text-toned">
+      <!-- A fixed slot keeps every subject aligned, with or without notes. -->
+      <span class="w-11 shrink-0">
+        <MessagesNotesPopover v-if="message.noteCount" :message-id="message.id" :count="message.noteCount" :preview="message.notePreview" />
+      </span>
       <NuxtLink
         :to="href"
         :aria-current="active ? 'true' : undefined"
-        class="after:absolute after:inset-0 focus-visible:outline-none"
+        class="min-w-0 truncate after:absolute after:inset-0 focus-visible:outline-none"
         @click="onMessageNavigate"
         @pointerenter="prefetch"
         @pointerleave="cancelPrefetch"

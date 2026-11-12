@@ -32,6 +32,23 @@ const cardProps = computed(() => ({
   ownAddresses: props.ownAddresses,
   showFullRecipientAddresses: props.showFullRecipientAddresses,
 }))
+
+// A note chip can point at an email hidden inside the collapsed middle.
+let revealTarget: string | null = null
+function reveal(event: Event) {
+  const id = (event as CustomEvent<string>).detail
+  if (expandedAll.value || !middleMessages.value.some(message => message.id === id)) return
+  revealTarget = id
+  expandedAll.value = true
+}
+onMounted(() => window.addEventListener('mailflare:reveal-message', reveal))
+onBeforeUnmount(() => window.removeEventListener('mailflare:reveal-message', reveal))
+watch(expandedAll, (value) => {
+  if (!value || revealTarget === null) return
+  const id = revealTarget
+  revealTarget = null
+  document.querySelector(`[data-message-id="${CSS.escape(id)}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+}, { flush: 'post' })
 </script>
 
 <template>

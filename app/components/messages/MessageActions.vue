@@ -24,6 +24,7 @@ import {
 } from '~/utils/messages/message-actions-utils'
 import type { ReplyableMessage, ReplyMode } from '~/utils/messages/types'
 import { requestUnsubscribe } from '~/utils/messages/unsubscribe-utils'
+import { useConversationNotes } from '~/composables/messages/useConversationNotes'
 
 const props = withDefaults(defineProps<{
   messageId: string
@@ -54,10 +55,13 @@ type InlineAction = {
   onSelect: () => void
   group: 'primary' | 'secondary'
   destructive?: boolean
+  /** A count shown on the button, such as the conversation's notes. */
+  badge?: number
 }
 
 const { t } = useLanguage()
 const router = useRouter()
+const notes = useConversationNotes()
 const { openDraftComposer, showNotice } = useCompose()
 const visibility = useMessageListVisibility()
 const { shortcutsEnabled } = useShortcuts()
@@ -278,6 +282,17 @@ const inlineActions = computed<InlineAction[]>(() => {
     onSelect: () => void runAction(read ? 'unread' : 'read'),
     group: 'primary',
   })
+  if (notes) {
+    const noteCount = notes.notes.value.length
+    actions.push({
+      id: 'notes',
+      label: noteCount > 0 ? t('note.count', { count: noteCount }) : t('note.add'),
+      icon: 'i-lucide-notebook-pen',
+      badge: noteCount,
+      onSelect: () => (notes.open.value ? (notes.open.value = false) : notes.startNote()),
+      group: 'secondary',
+    })
+  }
   actions.push({ id: 'reply', label: t('message.reply'), hint: t('actions.replyHint'), icon: 'i-lucide-reply', onSelect: () => void handleReply('reply'), group: 'secondary' })
   if (direction === 'inbound') {
     actions.push(status === 'spam'
@@ -347,12 +362,16 @@ const menuItems = computed<DropdownMenuItem[][]>(() => {
             variant="ghost"
             size="sm"
             square
-            class="size-8 shrink-0 justify-center rounded-full"
+            class="relative size-8 shrink-0 justify-center rounded-full"
             :icon="action.icon"
             :aria-label="action.label"
             :disabled="disabled"
             @click="action.onSelect"
-          />
+          >
+            <template v-if="action.badge" #trailing>
+              <span aria-hidden="true" class="absolute -top-0.5 -right-0.5 min-w-4 rounded-full bg-primary px-1 text-center text-[10px] leading-4 font-semibold text-inverted">{{ action.badge }}</span>
+            </template>
+          </UButton>
         </UTooltip>
       </template>
       <UDropdownMenu :items="menuItems" :content="{ align: 'end', sideOffset: 6, collisionPadding: 8 }" :ui="{ content: 'w-56 max-h-96' }">

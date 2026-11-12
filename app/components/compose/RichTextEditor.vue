@@ -6,6 +6,7 @@
 // data-mailflare-signature and quote markers and rewrite arbitrary email HTML in drafts.
 import { sanitizeEditorHtml, sanitizeEmailHtml } from '#lib/email/html'
 import type { TranslationKey } from '#lib/i18n/types'
+import { twMerge } from 'tailwind-merge'
 
 interface ToolbarCommand { command: string, labelKey: TranslationKey, icon: string, value?: string }
 
@@ -19,13 +20,19 @@ const COMMANDS: ToolbarCommand[] = [
   { command: 'formatBlock', labelKey: 'editor.quote', icon: 'i-lucide-quote', value: 'blockquote' },
 ]
 
-defineProps<{
+withDefaults(defineProps<{
   id: string
   /** Quoted or forwarded HTML shown folded under the editable area. */
   quotedHtml?: string | null
   disabled?: boolean
   placeholder?: string
-}>()
+  /** Extra classes on the editable area itself, e.g. a smaller min-height for short inputs. */
+  editableClass?: string
+  /** Set false to collapse the toolbar row, e.g. until the field is focused. */
+  toolbarVisible?: boolean
+  /** Extra classes on the toolbar row itself, e.g. removing its top border. */
+  toolbarClass?: string
+}>(), { quotedHtml: null, placeholder: undefined, editableClass: undefined, toolbarClass: undefined, toolbarVisible: true })
 const model = defineModel<string>({ required: true })
 const { t } = useLanguage()
 const editor = useTemplateRef<HTMLDivElement>('editor')
@@ -125,7 +132,7 @@ defineExpose({ focus: () => editor.value?.focus() })
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col">
-    <div class="sticky top-0 z-10 flex shrink-0 items-center gap-0.5 overflow-x-auto bg-default px-2 py-1 md:hidden">
+    <div class="sticky top-0 z-10 flex shrink-0 items-center gap-0.5 overflow-x-auto bg-default px-2 py-1 md:hidden" :class="!toolbarVisible && 'hidden'">
       <ComposeFormatButtons :commands="COMMANDS" :active="active" :disabled="disabled" @run="run" @link="openLink" />
     </div>
     <div class="relative flex min-h-0 flex-1 flex-col overflow-y-auto">
@@ -137,8 +144,7 @@ defineExpose({ focus: () => editor.value?.focus() })
         :aria-label="t('editor.messageBody')"
         :contenteditable="!disabled"
         :data-placeholder="placeholder"
-        class="compose-editor max-w-none min-h-32 grow shrink-0 px-4 py-3 text-sm text-highlighted outline-none empty:before:pointer-events-none empty:before:text-dimmed empty:before:content-[attr(data-placeholder)]"
-        :class="disabled && 'cursor-not-allowed opacity-60'"
+        :class="twMerge('compose-editor max-w-none min-h-32 grow shrink-0 px-4 py-3 text-sm text-highlighted outline-none empty:before:pointer-events-none empty:before:text-dimmed empty:before:content-[attr(data-placeholder)]', disabled && 'cursor-not-allowed opacity-60', editableClass)"
         @input="emit"
         @blur="emit"
         @paste="onPaste"
@@ -159,13 +165,21 @@ defineExpose({ focus: () => editor.value?.focus() })
       </div>
     </div>
     <slot name="footer" />
-    <div class="relative flex items-center gap-0.5 border-t border-default px-4 py-3 max-md:gap-2 max-md:border-t-0">
-      <slot name="toolbar-start" />
-      <div class="contents max-md:hidden">
-        <ComposeFormatButtons :commands="COMMANDS" :active="active" :disabled="disabled" @run="run" @link="openLink" />
+    <div
+      :inert="!toolbarVisible"
+      class="relative grid transition-[grid-template-rows] duration-200 ease-out motion-reduce:transition-none"
+      :style="{ gridTemplateRows: toolbarVisible ? '1fr' : '0fr' }"
+    >
+      <div class="min-h-0 overflow-hidden">
+        <div :class="twMerge('relative flex items-center gap-0.5 border-t border-default px-4 py-3 max-md:gap-2 max-md:border-t-0', toolbarClass)">
+          <slot name="toolbar-start" />
+          <div class="contents max-md:hidden">
+            <ComposeFormatButtons :commands="COMMANDS" :active="active" :disabled="disabled" @run="run" @link="openLink" />
+          </div>
+          <slot name="toolbar-end" />
+        </div>
       </div>
-      <slot name="toolbar-end" />
-      <div v-if="linkOpen" class="absolute bottom-full left-2 z-10 mb-1 flex items-center gap-2 rounded-lg border border-default bg-default p-2 shadow-lg">
+      <div v-if="linkOpen && toolbarVisible" class="absolute bottom-full left-2 z-10 mb-1 flex items-center gap-2 rounded-lg border border-default bg-default p-2 shadow-lg">
         <UInput
           v-model="linkUrl"
           placeholder="https://example.com"

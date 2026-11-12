@@ -25,6 +25,9 @@ import {
 } from '~/utils/messages/detail-utils'
 import { markMessageRead } from '~/utils/messages/mark-read'
 import { authFetch } from '~/utils/auth-client'
+import { formatRecipientAddressList, type RecipientAddressStyle } from '#lib/email/recipient-display'
+import type { NoteEmail } from '~/composables/messages/useConversationNotes'
+import { getConversationSender } from '~/utils/messages/conversation-thread-utils'
 import type { MessageAttachment, MessageDetailResponse } from '~/utils/messages/types'
 
 const props = defineProps<{ messageId: string }>()
@@ -186,10 +189,31 @@ function onRescheduled(next: string) {
   if (data.value) data.value = { ...data.value, scheduledAt: next }
 }
 
+// The emails on screen, named on the notes that are about one of them.
+const noteEmails = computed<NoteEmail[]>(() => {
+  const style: RecipientAddressStyle = showFullRecipientAddresses.value ? 'full' : 'address'
+  const noteRecipient = (item: { toAddr: string, ccAddr?: string | null }) => [item.toAddr, item.ccAddr]
+    .map(list => formatRecipientAddressList(list, style))
+    .filter(Boolean)
+    .join(', ') || undefined
+  const emails: NoteEmail[] = thread.messages.value.map(item => ({
+    id: item.id,
+    sender: getConversationSender(item, currentAccountName.value ?? undefined),
+    recipient: item.direction === 'outbound' ? noteRecipient(item) : undefined,
+    createdAt: item.createdAt,
+  }))
+  const current = message.value
+  if (current && !emails.some(item => item.id === current.id)) {
+    emails.push({ id: current.id, sender: fromName.value, recipient: current.direction === 'outbound' ? noteRecipient(current) : undefined, createdAt: current.createdAt })
+  }
+  return emails
+})
+
 useHead({ title: () => (message.value ? subject.value : t('common.loading')) })
 </script>
 
 <template>
+  <MessagesConversationNotesProvider :message-id="messageId" :conversation-key="message ? message.threadId ?? message.id : messageId" :emails="noteEmails">
   <UDashboardPanel id="message-reader" :ui="{ body: 'p-0 sm:p-0 gap-0' }">
     <template #header>
       <UDashboardNavbar :ui="{ left: 'min-w-0 flex-1 gap-3', root: 'gap-3 px-2 sm:px-2' }" :toggle="false">
@@ -247,6 +271,7 @@ useHead({ title: () => (message.value ? subject.value : t('common.loading')) })
 
       <div v-else>
         <h1 class="px-4 pb-2 pt-2 text-2xl text-highlighted sm:pr-6" :class="!anyPanelVisible ? 'sm:pl-16' : 'sm:pl-10'" :title="subject">{{ subject }}</h1>
+        <MessagesConversationNotes :inner-class="[!anyPanelVisible ? 'sm:pl-16' : 'sm:pl-10', 'px-4 pb-3 sm:pr-6'].join(' ')" />
 
         <MessagesConversationThread
           v-model:expanded-all="threadExpanded"
@@ -415,4 +440,5 @@ useHead({ title: () => (message.value ? subject.value : t('common.loading')) })
       </div>
     </template>
   </UDashboardPanel>
+  </MessagesConversationNotesProvider>
 </template>
