@@ -1,8 +1,14 @@
 <script setup lang="ts">
+const { appName, iconUrl } = useBranding()
+
 useHead({
-  titleTemplate: title => (title ? `${title} · Mailflare` : 'Mailflare'),
-  link: [{ rel: 'icon', href: '/api/branding/icon' }, { rel: 'apple-touch-icon', href: '/icon-192.png' }],
-  meta: [{ name: 'robots', content: 'noindex, nofollow, noarchive, nosnippet, noimageindex' }],
+  titleTemplate: title => (title ? `${title} - ${appName.value}` : appName.value),
+  link: [{ rel: 'icon', href: () => iconUrl.value }, { rel: 'apple-touch-icon', href: '/icon-192.png' }, { rel: 'manifest', href: '/manifest.webmanifest' }],
+  meta: [
+    { name: 'robots', content: 'noindex, nofollow, noarchive, nosnippet, noimageindex' },
+    { name: 'apple-mobile-web-app-capable', content: 'yes' },
+    { name: 'apple-mobile-web-app-title', content: () => appName.value },
+  ],
 })
 </script>
 

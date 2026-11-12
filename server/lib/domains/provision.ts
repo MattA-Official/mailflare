@@ -8,22 +8,15 @@ import {
 	getEmailRoutingCatchAll,
 } from "#lib/domains/catch-all-routing";
 import { isZoneApex } from "#lib/domains/utils";
-import { hasCloudflareCredentials, isNodeRuntime } from "#lib/runtime";
+import { hasCloudflareCredentials } from "#lib/cloudflare-api-utils";
 import type { DomainProvisioningChanges, DomainProvisioningResult } from "#lib/domains/types";
 import { removeMxRecords } from "#lib/domains/mx-records";
 import { rollbackDomainProvisioning } from "#lib/domains/rollback";
 import { ensureSendingSubdomain } from "#lib/domains/sending-subdomain";
 
-/** Node/Docker has no Email Worker; a catch-all PUT to one 404s (CF 2016). */
-export function shouldBindEmailCatchAllToWorker(
-	env?: Pick<CloudflareEnv, "MAILFLARE_RUNTIME">,
-): boolean {
-	return !isNodeRuntime(env);
-}
-
 /**
  * Zone id recorded for domains the app does not manage on Cloudflare (a
- * self-hosted install without API credentials). Every Cloudflare call that
+ * domain added with "Skip DNS setup", or no API credentials). Every Cloudflare call that
  * receives it is a no-op, and the DNS page shows records to set by hand.
  */
 export const MANUAL_ZONE_ID = "manual";
@@ -100,9 +93,7 @@ export async function provisionDomainOnCloudflare(
 			changes.enabledEmailRouting = !routingWasEnabled;
 			routingEnabled = routing.enabled ?? true;
 			routingStatus = routing.status;
-			if (shouldBindEmailCatchAllToWorker(env)) {
-				await ensureEmailRoutingCatchAllToWorker(env, zone.id);
-			}
+			await ensureEmailRoutingCatchAllToWorker(env, zone.id);
 		}
 
 		if (enableSending) {

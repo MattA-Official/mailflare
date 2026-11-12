@@ -1,4 +1,4 @@
-import { textToHtml } from "#lib/_app/rich-text-utils";
+import { textToHtml } from "#lib/compose/rich-text-utils";
 
 export function formatAgentDraftBody(body: string) {
 	const text = body.replace(/\r\n?/g, "\n").split("\n").map((line) => line

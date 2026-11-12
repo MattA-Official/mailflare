@@ -1,10 +1,9 @@
-import { and, desc, eq, inArray } from "drizzle-orm";
+import { and, count, desc, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "#lib/http/next-compat";
-import type { getDb } from "#db";
+import { getDb } from "#db";
 import { domains, mailboxes, users } from "#db/schema";
 import { assertAdmin } from "#lib/auth/admin";
 import { requireUser } from "#lib/auth/cookies";
-import { getLicenseEntitlements } from "#lib/licenses/service";
 import { getEnv } from "#lib/cloudflare";
 
 type Db = ReturnType<typeof getDb>;
@@ -107,13 +106,10 @@ export function accountListItemFromUser(user: {
 	};
 }
 
-/** Admin session on an installation licensed for Team-only mailbox sharing. */
+/** Admin session allowed to share inboxes. Upstream gated this on a Team licence; the fork has none. */
 export async function requireTeamSharingAdmin(request: Request) {
 	const access = await requireTeamAdmin(request);
 	if (access.error) return access;
-	if (!(await getLicenseEntitlements(access.env)).canShareMailboxes) {
-		return { ...access, error: NextResponse.json({ error: "A Team license is required to share inboxes" }, { status: 403 }) };
-	}
 	return access;
 }
 
@@ -122,15 +118,14 @@ export async function requireTeamAdmin(request: Request) {
 	try {
 		const user = await requireUser(env, request);
 		assertAdmin(user);
-		if (!(await getLicenseEntitlements(env)).canManageAccounts) {
-			return {
-				env,
-				user,
-				error: NextResponse.json({ error: "A Pro or Team license is required to manage accounts" }, { status: 403 }),
-			};
-		}
 		return { env, user, error: null };
 	} catch {
 		return { env, user: null, error: NextResponse.json({ error: "Forbidden" }, { status: 403 }) };
 	}
+}
+
+/** Enabled accounts, including the primary admin. */
+export async function countUsedAccountSeats(env: CloudflareEnv): Promise<number> {
+	const [row] = await getDb(env).select({ total: count() }).from(users).where(eq(users.disabled, false));
+	return row?.total ?? 0;
 }

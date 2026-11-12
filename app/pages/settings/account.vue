@@ -23,11 +23,7 @@ onMounted(async () => {
 <template>
   <UDashboardPanel id="settings-account">
     <template #header>
-      <UDashboardNavbar :title="t('settings.nav.account')">
-        <template #leading>
-          <UDashboardSidebarCollapse />
-        </template>
-      </UDashboardNavbar>
+      <AppNavbar :title="t('settings.nav.account')" />
     </template>
     <template #body>
       <div class="mx-auto w-full max-w-3xl">

@@ -9,11 +9,7 @@ useHead({ title: () => t('settingsPage.appPasswords.title') })
 <template>
   <UDashboardPanel id="settings-app-passwords">
     <template #header>
-      <UDashboardNavbar :title="t('settingsPage.appPasswords.title')">
-        <template #leading>
-          <UDashboardSidebarCollapse />
-        </template>
-      </UDashboardNavbar>
+      <AppNavbar :title="t('settingsPage.appPasswords.title')" />
     </template>
     <template #body>
       <div class="mx-auto w-full max-w-3xl space-y-4">

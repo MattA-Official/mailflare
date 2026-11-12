@@ -7,7 +7,6 @@ import { ensureEmailRoutingCatchAllToWorker } from "#lib/domains/catch-all-routi
 import type { DnsAuthRecord } from "#lib/domains/dns-audit";
 import {
 	isManualZone,
-	shouldBindEmailCatchAllToWorker,
 } from "#lib/domains/provision";
 import { ensureSendingSubdomain } from "#lib/domains/sending-subdomain";
 import type { DomainRow } from "#lib/domains/types";
@@ -37,9 +36,7 @@ export async function setupDomainDnsRecord(
 			const zone = await getZone(env, domain.zoneId);
 			const routingName = isZoneApex(domain.hostname, zone.name) ? undefined : domain.hostname;
 			const result = await enableEmailRouting(env, domain.zoneId, routingName);
-			if (shouldBindEmailCatchAllToWorker(env)) {
-				await ensureEmailRoutingCatchAllToWorker(env, domain.zoneId);
-			}
+			await ensureEmailRoutingCatchAllToWorker(env, domain.zoneId);
 			const routingEnabled = result.enabled ?? true;
 			await getDb(env)
 				.update(domains)

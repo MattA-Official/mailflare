@@ -7,6 +7,9 @@
 //   run inside waitUntil after the handler has returned, which is too late for setReject()/forward()
 //   and for per-message ack/retry.
 // - The RealtimeHub export, which must come from the Worker entrypoint.
+// @simplewebauthn/server pulls in @peculiar/x509, whose tsyringe container needs the Reflect
+// metadata API at import time. Without it every passkey route fails with a 500.
+import "reflect-metadata";
 import nitroHandler from "nitropack/presets/cloudflare/runtime/cloudflare-module";
 import {
 	processInboundMessage,

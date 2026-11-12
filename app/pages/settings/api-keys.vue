@@ -9,11 +9,7 @@ useHead({ title: () => t('apiKeys.title') })
 <template>
   <UDashboardPanel id="settings-api-keys">
     <template #header>
-      <UDashboardNavbar :title="t('apiKeys.title')">
-        <template #leading>
-          <UDashboardSidebarCollapse />
-        </template>
-      </UDashboardNavbar>
+      <AppNavbar :title="t('apiKeys.title')" />
     </template>
     <template #body>
       <div class="mx-auto w-full max-w-3xl">

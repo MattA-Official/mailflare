@@ -19,7 +19,7 @@ import { rollbackDomainProvisioning } from "#lib/domains/rollback";
 import type { DomainProvisioningChanges } from "#lib/domains/types";
 import { findSendingSubdomain } from "#lib/domains/sending-status";
 import { preflightDomain } from "#lib/domains/preflight";
-import { hasCloudflareCredentials } from "#lib/runtime";
+import { hasCloudflareCredentials } from "#lib/cloudflare-api-utils";
 
 export type DomainDnsView = {
 	routing: { records: CfDnsRecord[]; missing: CfDnsRecord[]; status?: string };
@@ -40,7 +40,7 @@ export async function addDomainForUser(
 	env: CloudflareEnv,
 	userId: string,
 	hostname: string,
-	options?: { enableRouting?: boolean; enableSending?: boolean; replaceMxRecords?: boolean; skipDns?: boolean; receivingProvider?: "none" | "cloudflare" | "resend" | "ses"; sendingProvider?: "none" | "cloudflare" | "resend" | "ses" },
+	options?: { enableRouting?: boolean; enableSending?: boolean; replaceMxRecords?: boolean; skipDns?: boolean; receivingProvider?: "none" | "cloudflare"; sendingProvider?: "none" | "cloudflare" },
 ): Promise<{
 	domain: typeof domains.$inferSelect;
 	dns: DomainDnsView;

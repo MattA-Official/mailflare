@@ -29,7 +29,12 @@ export async function PUT(request: Request, { params }: DriveItemParams) {
 	// R2 needs every part but the last to be the same size, and the size the client declared must add up.
 	const expected = partNumber < total ? partSize : ctx.item.size - (total - 1) * partSize;
 	if (!request.body || length !== expected) return NextResponse.json({ error: "Invalid part size" }, { status: 400 });
-	const part = await ctx.upload.uploadPart(partNumber, request.body);
+	// Under Nitro the request body reaches the handler as a stream of unknown length, which R2 refuses;
+	// a FixedLengthStream restores the length that was checked above.
+	const sized = new FixedLengthStream(length);
+	const piped = request.body.pipeTo(sized.writable);
+	const part = await ctx.upload.uploadPart(partNumber, sized.readable);
+	await piped;
 	await ctx.db.insert(driveUploadParts).values({ itemId: ctx.item.id, partNumber, etag: part.etag }).onConflictDoUpdate({ target: [driveUploadParts.itemId, driveUploadParts.partNumber], set: { etag: part.etag } });
 	await ctx.db.update(driveItems).set({ updatedAt: new Date() }).where(eq(driveItems.id, ctx.item.id));
 	return NextResponse.json({ partNumber, etag: part.etag });

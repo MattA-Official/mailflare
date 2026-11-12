@@ -1,7 +1,7 @@
 <script setup lang="ts">
 // Confirmation step before an AI-written draft is sent or scheduled.
 // Ported from legacy/src/components/agent/send-review.tsx.
-import { htmlToPlainText } from '#lib/_app/rich-text-utils'
+import { htmlToPlainText } from '#lib/compose/rich-text-utils'
 import { formatUserDate } from '#lib/time/utils'
 import type { ReviewSnapshot } from '~/types/agent/send-review'
 

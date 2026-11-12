@@ -8,7 +8,7 @@ import { messages } from "#db/schema";
 import { getCurrentUser } from "#lib/auth/cookies";
 import { getEnv } from "#lib/cloudflare";
 import { getMailboxAccessLevel, listAccessibleMailboxIds } from "#lib/mailboxes/access";
-import type { MessageFolder } from "#lib/_app/hooks-types";
+import type { MessageFolder } from "#lib/messages/message-types";
 import type { MessageNavigationEntry } from "./types";
 
 const folders: MessageFolder[] = ["inbox", "starred", "snoozed", "sent", "scheduled", "archived", "spam", "trash"];
