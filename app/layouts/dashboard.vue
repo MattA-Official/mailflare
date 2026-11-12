@@ -93,6 +93,7 @@ watch(() => [countsLoaded.value, allCounts.value.folders.inbox.unread] as const,
         </template>
         <NavAdmin v-else-if="nav === 'admin'" :collapsed="collapsed" />
         <NavSettings v-else-if="nav === 'settings'" :collapsed="collapsed" />
+        <DriveNav v-else-if="nav === 'drive'" :collapsed="collapsed" />
         <NavApps v-else :collapsed="collapsed" />
       </template>
 
@@ -105,6 +106,6 @@ watch(() => [countsLoaded.value, allCounts.value.folders.inbox.unread] as const,
     <slot />
 
     <AppShortcuts v-if="user" />
-    <!-- Composing workstream: mount <ComposeHost /> here. -->
+    <ComposeHost />
   </UDashboardGroup>
 </template>

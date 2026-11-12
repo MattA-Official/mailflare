@@ -91,3 +91,15 @@ describe('settings sidebar', () => {
     expect(hrefs(true)).toContain('/settings/mailboxes')
   })
 })
+
+describe('sidebar reordering', async () => {
+  const { moveItem, resolveLayout } = await import('~/utils/nav/reorder')
+  it('keeps saved order, drops unknown ids and appends new ones', () => {
+    expect(resolveLayout({ main: ['a', 'b', 'c'], more: ['d'] }, { main: ['c', 'x', 'a'], more: ['b', 'c'] }))
+      .toEqual({ main: ['c', 'a'], more: ['b', 'd'] })
+  })
+  it('moves an item between lists', () => {
+    expect(moveItem({ main: ['a', 'b'], more: ['c'] }, 'a', 'more', 'c')).toEqual({ main: ['b'], more: ['a', 'c'] })
+    expect(moveItem({ main: ['a', 'b'], more: ['c'] }, 'c', 'main', null)).toEqual({ main: ['a', 'b', 'c'], more: [] })
+  })
+})

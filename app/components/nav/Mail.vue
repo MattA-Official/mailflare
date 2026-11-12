@@ -7,6 +7,7 @@ import type { MessageFolder } from '~/types/messages'
 import { useEventListener } from '@vueuse/core'
 import { getMailboxFolders } from '~/utils/folders/client'
 import { moveMessagesFromNav, preloadMailboxPage } from '~/utils/messages/list-cache'
+import type { ReorderableListSpec } from '~/utils/nav/reorder'
 
 type CustomFolder = { id: string, name: string, color: FolderColor }
 type SystemLink = { href: string, labelKey: TranslationKey, icon: string, folder: MessageFolder, drop?: 'archive' | 'spam' | 'trash' }
@@ -62,16 +63,28 @@ const isActive = (href: string) => route.path === href || route.path.startsWith(
 
 const visibleLinks = computed(() => links.filter(link => link.href !== '/scheduled' || counts.value.folders.scheduled.total > 0))
 const mainLinks = computed(() => visibleLinks.value.filter(link => !MORE_LINK_HREFS.includes(link.href)))
+const linkByHref = computed(() => new Map(visibleLinks.value.map(link => [link.href, link])))
+const folderById = computed(() => new Map(folders.value.map(folder => [folder.id, folder])))
 // The icon rail has no room for text toggles, so it lists everything; collapsed "More" keeps the current page.
-const moreLinks = computed(() => visibleLinks.value
-  .filter(link => MORE_LINK_HREFS.includes(link.href))
-  .filter(link => props.collapsed || moreOpen.value || isActive(link.href)))
-const shownFolders = computed(() => {
-  if (props.collapsed || foldersOpen.value || folders.value.length <= MAX_VISIBLE_FOLDERS) return folders.value
-  const first = folders.value.slice(0, MAX_VISIBLE_FOLDERS)
-  const active = folders.value.slice(MAX_VISIBLE_FOLDERS).find(folder => isActive(`/folders/${folder.id}`))
-  return active ? [...first, active] : first
-})
+const navLists = computed<ReorderableListSpec[]>(() => [
+  { id: 'main', ids: mainLinks.value.map(link => link.href) },
+  {
+    id: 'more',
+    ids: visibleLinks.value.filter(link => MORE_LINK_HREFS.includes(link.href)).map(link => link.href),
+    before: !props.collapsed,
+    visible: ordered => props.collapsed || moreOpen.value ? ordered : ordered.filter(isActive),
+  },
+])
+const folderLists = computed<ReorderableListSpec[]>(() => [{
+  id: 'folders',
+  ids: folders.value.map(folder => folder.id),
+  visible: (ordered) => {
+    if (props.collapsed || foldersOpen.value || ordered.length <= MAX_VISIBLE_FOLDERS) return ordered
+    const first = ordered.slice(0, MAX_VISIBLE_FOLDERS)
+    const active = ordered.slice(MAX_VISIBLE_FOLDERS).find(id => isActive(`/folders/${id}`))
+    return active ? [...first, active] : first
+  },
+}])
 
 function countFor(link: SystemLink) {
   const folder = counts.value.folders[link.folder]
@@ -123,38 +136,31 @@ function toggleFolders() {
 
 <template>
   <div class="flex flex-col gap-px">
-    <NavItem
-      v-for="link in mainLinks"
-      :key="link.href"
-      :to="link.href"
-      :label="t(link.labelKey)"
-      :icon="link.icon"
-      :count="countFor(link)"
-      :collapsed="collapsed"
-      :on-message-drop="link.drop ? (ids: string[]) => void moveMessagesFromNav({ messageIds: ids, action: link.drop! }) : undefined"
-      :on-prefetch="() => prefetch(link.href)"
-    />
-    <UButton
-      v-if="!collapsed"
-      color="neutral"
-      variant="link"
-      size="sm"
-      :aria-expanded="moreOpen"
-      :label="moreOpen ? t('navigation.less') : t('navigation.more')"
-      class="ps-10 text-muted"
-      @click="toggleMore"
-    />
-    <NavItem
-      v-for="link in moreLinks"
-      :key="link.href"
-      :to="link.href"
-      :label="t(link.labelKey)"
-      :icon="link.icon"
-      :count="countFor(link)"
-      :collapsed="collapsed"
-      :on-message-drop="link.drop ? (ids: string[]) => void moveMessagesFromNav({ messageIds: ids, action: link.drop! }) : undefined"
-      :on-prefetch="() => prefetch(link.href)"
-    />
+    <NavReorderableList :lists="navLists" storage-key="mailflare:nav:layout" :enabled="!collapsed">
+      <template #before>
+        <UButton
+          color="neutral"
+          variant="link"
+          size="sm"
+          :aria-expanded="moreOpen"
+          :label="moreOpen ? t('navigation.less') : t('navigation.more')"
+          class="ps-10 text-muted"
+          @click="toggleMore"
+        />
+      </template>
+      <template #item="{ id }">
+        <NavItem
+          v-if="linkByHref.get(id)"
+          :to="id"
+          :label="t(linkByHref.get(id)!.labelKey)"
+          :icon="linkByHref.get(id)!.icon"
+          :count="countFor(linkByHref.get(id)!)"
+          :collapsed="collapsed"
+          :on-message-drop="linkByHref.get(id)!.drop ? (ids: string[]) => void moveMessagesFromNav({ messageIds: ids, action: linkByHref.get(id)!.drop! }) : undefined"
+          :on-prefetch="() => prefetch(id)"
+        />
+      </template>
+    </NavReorderableList>
 
     <NavSection :label="t('navigation.folders')" storage-key="mailflare:nav:folders-section-open" :collapsed="collapsed">
       <template #actions>
@@ -171,18 +177,21 @@ function toggleFolders() {
       <p v-if="!collapsed && folders.length === 0" class="px-2.5 py-1.5 text-xs text-muted">
         {{ t('navigation.noFolders') }}
       </p>
-      <NavItem
-        v-for="folder in shownFolders"
-        :key="folder.id"
-        :to="`/folders/${folder.id}`"
-        :label="folder.name"
-        icon="i-lucide-folder"
-        :icon-color="folder.color"
-        :count="counts.customFolders[folder.id]?.unread"
-        :collapsed="collapsed"
-        :on-message-drop="(ids: string[]) => void moveMessagesFromNav({ messageIds: ids, action: 'folder', folderId: folder.id })"
-        :on-prefetch="() => prefetch(`/folders/${folder.id}`)"
-      />
+      <NavReorderableList :lists="folderLists" storage-key="mailflare:nav:layout:folders" :enabled="!collapsed">
+        <template #item="{ id }">
+          <NavItem
+            v-if="folderById.get(id)"
+            :to="`/folders/${id}`"
+            :label="folderById.get(id)!.name"
+            icon="i-lucide-folder"
+            :icon-color="folderById.get(id)!.color"
+            :count="counts.customFolders[id]?.unread"
+            :collapsed="collapsed"
+            :on-message-drop="(ids: string[]) => void moveMessagesFromNav({ messageIds: ids, action: 'folder', folderId: id })"
+            :on-prefetch="() => prefetch(`/folders/${id}`)"
+          />
+        </template>
+      </NavReorderableList>
       <UButton
         v-if="!collapsed && folders.length > MAX_VISIBLE_FOLDERS"
         color="neutral"

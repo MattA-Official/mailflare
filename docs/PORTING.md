@@ -39,6 +39,11 @@ account Flytower).
 - (Foundation) Route handlers were moved unchanged behind `defineNextRoute` rather than rewritten as
   idiomatic h3 handlers. Rewriting 208 handlers buys nothing for parity. Rewrite one only when you are
   changing it anyway.
+- (Composing) The composer keeps upstream's contentEditable editor (`ComposeRichTextEditor`) rather than
+  Nuxt UI's `UEditor`: TipTap's schema would drop the `data-mailflare-signature` and quote markers the
+  signature swap and quote folding rely on, and would rewrite arbitrary email HTML in loaded drafts.
+- (Composing) The composer's own validation errors use Nuxt UI toasts (`useToast`); the send toast with
+  the undo countdown and subject link stays custom (`ComposeNoticeToast`), as upstream's was.
 
 ## Rules for every thread
 
@@ -167,17 +172,17 @@ admin `agent` page is `/agent`; workstream 10's are `/agent/review/[id]` and `/a
 Tick in the PR that lands it. Add rows for anything discovered.
 
 - [x] Foundation: Worker entry, bindings, server port, migrations, shell, CI, deploy
-- [ ] 1 Shell and shared UI (first part landed: layout, navs, account menu, shortcuts, realtime, shared state; still to come: attachment card/viewer, progressive avatar, reorderable nav, web manifest)
+- [x] 1 Shell and shared UI
 - [x] 2 Sign-in and onboarding: login (password, TOTP/recovery code, passkey, passkey second factor,
   `?add=1`), first-run setup, onboarding, passkey setup links, forgot and reset password.
   `tests/e2e/auth.spec.ts`. Passkey ceremonies use `APP_URL` as the RP ID, so they only complete on
   https://mail.flytower.dev, not in local preview.
 - [ ] 3 Reading mail
-- [ ] 4 Composing
+- [ ] 4 Composing: composer, toasts and /compose done (`useCompose()`, `<ComposeHost>` in the dashboard layout; shared: `ComposeFollowUpMenu`, `ComposeScheduleSendSheet`, `~/utils/compose/*`). Left: `/drafts/[messageId]` and the quote renderer, once reading mail's `MessagesFolderPage` and `MessagesEmailHtmlRenderer` land
 - [ ] 5 Settings: account and security
 - [ ] 6 Settings: mail
 - [x] 7 Admin: email
-- [ ] 8 Admin: administration
+- [x] 8 Admin: administration
 - [x] 9 Calendar and booking
 - [ ] 10 Drive, contacts and assistant
 - [ ] 11 Server clean-up and tests
@@ -200,6 +205,12 @@ Tick in the PR that lands it. Add rows for anything discovered.
   `useShortcuts().registerShortcut` so they appear in the cheat sheet.
 - The new-message popup is a Nuxt UI toast. Realtime, the session reset and service worker
   registration are client plugins.
+- Mail sidebar rows reorder by press and hold (`NavReorderableList`, upstream's storage keys
+  `mailflare:nav:layout` and `mailflare:nav:layout:folders`), including moving rows in and out of
+  "More...". Reordering is off in the collapsed icon rail.
+- Attachment card and viewer and the previous-message block belong to workstream 3
+  (`app/components/messages`). Upstream's progressive avatar is not ported: `UAvatar` already shows a
+  fallback until the image loads.
 
 ## Deviations from upstream
 
@@ -225,6 +236,14 @@ Tick in the PR that lands it. Add rows for anything discovered.
 - `/` redirects to `/inbox` instead of showing upstream's marketing landing page.
 - The realtime upgrade, email, queue and cron handlers live in `server/worker.ts`; behaviour is
   upstream's.
+- (8) The admin overview's update card keeps only the database half (pending migrations). The
+  upstream-merge half dispatched a GitHub workflow that cannot work for a rewritten fork.
+- (8) No licence overlay or seat counter on /accounts, no licence-required state on /branding and no
+  licences card on /admin: the fork has no licence gate.
+- (8) /accounts/[id] is a parent route with Details, Password, Permissions and Mailboxes tabs in the
+  panel toolbar, instead of upstream's side menu. The admin assistant page is `pages/agent/index.vue`
+  so the review pages under /agent/* stay siblings, not children.
+- (8) Browser `confirm()` prompts (revoke API key, restore backup) are Nuxt UI modals.
 - Calendar and booking (/calendar, /booking) use the dashboard layout with `nav: 'calendar'`. The
   upcoming list is its own resizable `UDashboardPanel` on wide screens and a slideover (list button in
   the navbar) below `lg`, instead of upstream's phone-menu drawer. The Bookings/Calendar switch sits
