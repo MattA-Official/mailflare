@@ -198,6 +198,9 @@ Tick in the PR that lands it. Add rows for anything discovered.
   HttpOnly `ep_setup` cookie when no `token` is sent. Upstream's server-rendered `/setup/passkey` read
   that cookie and passed it on; the client-rendered page cannot. Requests that send a token are
   unchanged.
+- `/api/setup/status` answers `hasAdminAccount: false, hasPrimaryDomain: false` on an empty database
+  instead of a 500, so the client-rendered `/login` can send a fresh install to `/setup` as upstream's
+  server page did.
 
 ## Open items
 
