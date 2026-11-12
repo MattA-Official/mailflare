@@ -2,6 +2,8 @@
 // Bindings and variables of the Worker. Declared in nuxt.config.ts (nitro.cloudflare.wrangler).
 interface CloudflareEnv {
 	DB: D1Database;
+	/** The raw D1 binding, kept on the primary while `DB` is a read-replica session (set by `withD1ReadSession`). */
+	DB_PRIMARY?: D1Database;
 	EMAIL: SendEmail;
 	BUCKET: R2Bucket;
 	INBOUND_QUEUE: Queue<import("../../server/lib/email/inbound").InboundQueueMessage>;
