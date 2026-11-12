@@ -178,7 +178,7 @@ Tick in the PR that lands it. Add rows for anything discovered.
   `tests/e2e/auth.spec.ts`. Passkey ceremonies use `APP_URL` as the RP ID, so they only complete on
   https://mail.flytower.dev, not in local preview.
 - [x] 3 Reading mail: every folder list and reader, custom folders, the drafts list, the split view, bulk and row actions, swipe on phones, follow-ups, the HTML renderer. Shared for others: `MessagesFolderPage` + `~/utils/messages/folder-configs`, `MessagesEmailHtmlRenderer`, `useConversationView` / `useTwoColumnReading` / `useLatestMessagesFirst` / `useShowFullRecipientAddresses` in `app/composables/messages` (for settings). Unit tests for `app/utils/messages` are left to 11
-- [ ] 4 Composing: composer, toasts and /compose done (`useCompose()`, `<ComposeHost>` in the dashboard layout; shared: `ComposeFollowUpMenu`, `ComposeScheduleSendSheet`, `~/utils/compose/*`). Left: `/drafts/[messageId]` and the quote renderer, once reading mail's `MessagesFolderPage` and `MessagesEmailHtmlRenderer` land
+- [x] 4 Composing (`useCompose()` and `<ComposeHost>` in the dashboard layout; shared: `ComposeFollowUpMenu`, `ComposeScheduleSendSheet`, `~/utils/compose/*`)
 - [x] 5 Settings: account and security
 - [ ] 6 Settings: mail
 - [x] 7 Admin: email
