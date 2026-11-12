@@ -173,7 +173,10 @@ Tick in the PR that lands it. Add rows for anything discovered.
 
 - [x] Foundation: Worker entry, bindings, server port, migrations, shell, CI, deploy
 - [x] 1 Shell and shared UI
-- [ ] 2 Sign-in and onboarding
+- [x] 2 Sign-in and onboarding: login (password, TOTP/recovery code, passkey, passkey second factor,
+  `?add=1`), first-run setup, onboarding, passkey setup links, forgot and reset password.
+  `tests/e2e/auth.spec.ts`. Passkey ceremonies use `APP_URL` as the RP ID, so they only complete on
+  https://mail.flytower.dev, not in local preview.
 - [x] 3 Reading mail: every folder list and reader, custom folders, the drafts list, the split view, bulk and row actions, swipe on phones, follow-ups, the HTML renderer. Shared for others: `MessagesFolderPage` + `~/utils/messages/folder-configs`, `MessagesEmailHtmlRenderer`, `useConversationView` / `useTwoColumnReading` / `useLatestMessagesFirst` / `useShowFullRecipientAddresses` in `app/composables/messages` (for settings). Unit tests for `app/utils/messages` are left to 11
 - [ ] 4 Composing: composer, toasts and /compose done (`useCompose()`, `<ComposeHost>` in the dashboard layout; shared: `ComposeFollowUpMenu`, `ComposeScheduleSendSheet`, `~/utils/compose/*`). Left: `/drafts/[messageId]` and the quote renderer, once reading mail's `MessagesFolderPage` and `MessagesEmailHtmlRenderer` land
 - [ ] 5 Settings: account and security
@@ -263,6 +266,18 @@ Tick in the PR that lands it. Add rows for anything discovered.
   `selected-mailbox-id` localStorage key upstream's MailboxProvider writes (falling back to the
   primary mailbox), via `app/utils/calendar/mailbox.ts`. Switch it to the shell's mailbox composable
   once that exists.
+- The passkey setup routes (`/api/auth/passkey/setup/{context,options,verify}`) fall back to the
+  HttpOnly `ep_setup` cookie when no `token` is sent. Upstream's server-rendered `/setup/passkey` read
+  that cookie and passed it on; the client-rendered page cannot. Requests that send a token are
+  unchanged.
+- (Workstream 2) Auth pages use `layout: false` and their own two-panel `AuthShell`, as upstream did,
+  rather than the shared `auth` layout. `/setup`'s server-side branching (register, onboarding or
+  redirect) is a page middleware over `/api/setup/status` and `/api/auth/me`.
+- (Workstream 2) The Turnstile site key is runtime config `public.turnstileSiteKey`
+  (`NUXT_PUBLIC_TURNSTILE_SITE_KEY` on the Worker) in place of `NEXT_PUBLIC_TURNSTILE_SITE_KEY`.
+- `/api/setup/status` answers `hasAdminAccount: false, hasPrimaryDomain: false` on an empty database
+  instead of a 500, so the client-rendered `/login` can send a fresh install to `/setup` as upstream's
+  server page did.
 
 - Admin email (7): the Domains page offers only Cloudflare and "not selected" for sending and receiving.
   Confirmations use a Nuxt UI modal (`useAdminConfirm`) instead of `window.confirm`/`prompt`; removing a
@@ -272,6 +287,10 @@ Tick in the PR that lands it. Add rows for anything discovered.
 
 ## Open items
 
+- Fixed while porting sign-in: every passkey route returned 500 on Workers because tsyringe (via
+  `@simplewebauthn/server` and `@peculiar/x509`) needs `reflect-metadata` at import time. It is now
+  imported first in `server/worker.ts` and listed in `nitro.moduleSideEffects` so it is not
+  tree-shaken. If another library fails at import time on Workers, look for the same kind of cause.
 - Message authentication details (`/api/messages/{id}/authentication`) only trust an SES trace, as
   upstream's do, so mail received through Cloudflare always reports `untrusted`. Reading Cloudflare's
   own `Authentication-Results` there (as the spam analyser already does) would make the panel useful.
