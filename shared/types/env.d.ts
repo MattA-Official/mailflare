@@ -40,6 +40,8 @@ interface CloudflareEnv {
 	SPAM_DOMAIN_AGE_CHECK?: string;
 	AGENT_RATE_LIMIT?: RateLimit;
 	CF_TOKEN?: string;
+	/** The deployed Worker name; Email Routing rules point at it. */
+	CF_EMAIL_WORKER_NAME?: string;
 	CF_API_KEY?: string;
 	CF_EMAIL?: string;
 	TURNSTILE_SECRET_KEY?: string;
