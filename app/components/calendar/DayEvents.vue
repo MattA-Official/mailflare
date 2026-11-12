@@ -3,7 +3,7 @@
 // Ported from legacy/src/app/(calendar)/calendar/day-events.tsx.
 import { normalizeCalendarColor } from '#lib/calendar/colors'
 import type { CalendarEvent, EventResizeEdge } from '~/types/calendar'
-import { addDays, dateKey, EVENT_COLOR_CLASSES, eventPosition, formatEventRange, PAST_EVENT_COLOR_CLASSES } from '~/utils/calendar/calendar'
+import { addDays, dateKey, EVENT_COLOR_CLASSES, eventPosition, formatEventRange, isPendingInvite, PAST_EVENT_COLOR_CLASSES, PENDING_EVENT_CLASSES } from '~/utils/calendar/calendar'
 
 const props = defineProps<{
   day: Date
@@ -32,7 +32,9 @@ const items = computed(() => {
     if (!(new Date(event.startsAt) < nextDay && new Date(event.endsAt) > props.day)) return []
     const position = eventPosition(event, props.day)
     if (!position) return []
-    const edges = ([
+    // A pending invitation is answered, not moved: no dragging and no resize handles.
+    const pending = isPendingInvite(event)
+    const edges = pending ? [] : ([
       dateKey(new Date(event.startsAt)) === dateKey(props.day) ? 'start' : null,
       new Date(event.endsAt).getTime() <= nextDay.getTime() ? 'end' : null,
     ] as const).filter((edge): edge is EventResizeEdge => edge !== null)
@@ -42,6 +44,7 @@ const items = computed(() => {
       color: normalizeCalendarColor(event.color),
       range: formatEventRange(event),
       edges,
+      pending,
       // Keep the grab zone inside the event so it never steals clicks from neighbours.
       handleHeight: Math.max(4, Math.min(10, position.height / 3)),
     }]
@@ -53,11 +56,11 @@ const items = computed(() => {
   <template v-for="item in items" :key="item.event.id">
     <button
       type="button"
-      :draggable="!busy"
+      :draggable="!busy && !item.pending"
       :title="`${item.event.title} · ${item.range}`"
       class="absolute inset-x-1 z-10 flex cursor-move flex-col items-start justify-start overflow-hidden rounded-lg pr-2 pl-4 text-left hover:brightness-95"
       :class="[
-        item.event.endsAt && new Date(item.event.endsAt).getTime() <= currentTime ? PAST_EVENT_COLOR_CLASSES[item.color] : EVENT_COLOR_CLASSES[item.color],
+        item.pending ? PENDING_EVENT_CLASSES : item.event.endsAt && new Date(item.event.endsAt).getTime() <= currentTime ? PAST_EVENT_COLOR_CLASSES[item.color] : EVENT_COLOR_CLASSES[item.color],
         item.position.height >= 20 ? 'py-1.5' : 'py-0',
         activeEventId === item.event.id && 'opacity-40',
       ]"

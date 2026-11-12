@@ -11,6 +11,7 @@ import { useMessageThread } from '~/composables/messages/useMessageThread'
 import { useRemoteContent } from '~/composables/messages/useRemoteContent'
 import { useSendViewStatus } from '~/composables/messages/useSendViewStatus'
 import { useMailingListBanner } from '~/composables/messages/useMailingListBanner'
+import { findInviteAttachment } from '#lib/calendar/invite-attachment'
 import { useShowFullRecipientAddresses } from '~/composables/messages/useShowFullRecipientAddresses'
 import { extractCloudAttachments } from '~/utils/messages/cloud-attachment-utils'
 import {
@@ -23,6 +24,7 @@ import {
   resolveInlineAttachmentUrls,
 } from '~/utils/messages/detail-utils'
 import { markMessageRead } from '~/utils/messages/mark-read'
+import { authFetch } from '~/utils/auth-client'
 import type { MessageAttachment, MessageDetailResponse } from '~/utils/messages/types'
 
 const props = defineProps<{ messageId: string }>()
@@ -160,6 +162,19 @@ function messageDate(withTime: boolean) {
 
 async function retryBody() {
   await loadBody(props.messageId, () => true)
+}
+
+// Every attachment as one ZIP. A flagged attachment answers 409 until the user confirms.
+async function downloadAllAttachments(messageId: string) {
+  const url = `/api/messages/${messageId}/attachments.zip`
+  try {
+    const response = await authFetch(url, { method: 'HEAD' })
+    if (response.status === 409 && !window.confirm(t('attachment.downloadAllFlagged'))) return
+    window.location.assign(response.status === 409 ? `${url}?acknowledge=1` : url)
+  }
+  catch {
+    window.location.assign(url)
+  }
 }
 
 function openPreview(attachment: MessageAttachment) {
@@ -363,8 +378,20 @@ useHead({ title: () => (message.value ? subject.value : t('common.loading')) })
               </div>
             </section>
 
+            <MessagesInviteCard :message-id="message.id" :has-calendar-attachment="!!findInviteAttachment(attachments)" />
+
             <section v-if="attachments.length > 0" class="mt-8 border-t border-default px-4 py-6 sm:px-0 sm:pl-16">
-              <h2 class="mb-3 text-sm font-semibold text-highlighted">{{ t('message.attachments', { count: attachments.length }) }}</h2>
+              <div class="mb-3 flex items-center justify-between gap-3">
+                <h2 class="text-sm font-semibold text-highlighted">{{ t('message.attachments', { count: attachments.length }) }}</h2>
+                <UButton
+                  icon="i-lucide-arrow-down-to-line"
+                  :label="t('attachment.downloadAll')"
+                  variant="link"
+                  size="xs"
+                  class="shrink-0"
+                  @click="downloadAllAttachments(message.id)"
+                />
+              </div>
               <div class="grid gap-2 sm:grid-cols-2">
                 <MessagesAttachmentCard v-for="attachment in attachments" :key="attachment.id" :attachment="attachment" :message-id="message.id" @preview="openPreview" />
               </div>
