@@ -33,6 +33,7 @@
     "css-tree": "^3.2.1",
     "dompurify": "^3.4.17",
     "drizzle-orm": "^0.45.4",
+    "marked": "^18.2.0",
     "mimetext": "^3.0.28",
     "nanoid": "^6.0.2",
     "nuxt": "^4.6.4",
