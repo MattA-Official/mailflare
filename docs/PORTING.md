@@ -177,7 +177,7 @@ Tick in the PR that lands it. Add rows for anything discovered.
   `?add=1`), first-run setup, onboarding, passkey setup links, forgot and reset password.
   `tests/e2e/auth.spec.ts`. Passkey ceremonies use `APP_URL` as the RP ID, so they only complete on
   https://mail.flytower.dev, not in local preview.
-- [ ] 3 Reading mail
+- [x] 3 Reading mail: every folder list and reader, custom folders, the drafts list, the split view, bulk and row actions, swipe on phones, follow-ups, the HTML renderer. Shared for others: `MessagesFolderPage` + `~/utils/messages/folder-configs`, `MessagesEmailHtmlRenderer`, `useConversationView` / `useTwoColumnReading` / `useLatestMessagesFirst` / `useShowFullRecipientAddresses` in `app/composables/messages` (for settings). Unit tests for `app/utils/messages` are left to 11
 - [ ] 4 Composing: composer, toasts and /compose done (`useCompose()`, `<ComposeHost>` in the dashboard layout; shared: `ComposeFollowUpMenu`, `ComposeScheduleSendSheet`, `~/utils/compose/*`). Left: `/drafts/[messageId]` and the quote renderer, once reading mail's `MessagesFolderPage` and `MessagesEmailHtmlRenderer` land
 - [ ] 5 Settings: account and security
 - [ ] 6 Settings: mail
@@ -251,6 +251,19 @@ Tick in the PR that lands it. Add rows for anything discovered.
   `email-html-sanitizer-types` is `#lib/email/html-types`, `rich-text-utils` is
   `#lib/compose/rich-text-utils`, and the `email-html-sanitizer` re-export is gone (use
   `sanitizeEmailHtml` from `#lib/email/html`).
+
+- (3) Every folder route is a parent page (`inbox.vue`) rendering `MessagesSplitLayout`, with
+  `index.vue` (the full list) and `[messageId].vue` (the reader) as children. In the split view the
+  list is a resizable `UDashboardPanel` (`id="message-list"`) whose width the dashboard group stores,
+  instead of upstream's per-user saved column width. Below `lg` the reader is single column with a
+  back arrow, as when two-column reading is off.
+- (3) Hovering a row warms the message detail cache only; there is no route payload to prefetch.
+- (3) The "assistant open" state the reader reads is a placeholder (`useAssistantOpenState()` in
+  `app/composables/messages/useMessageListContext.ts`, always false) until workstream 10 provides
+  the assistant panel; swap it there.
+- (3) Confirmations (delete forever, empty Trash/Spam, trash without unsubscribing) still use
+  `window.confirm`, as upstream does. The scheduled-send banner reschedules from one popover on every
+  screen size.
 
 - `/` redirects to `/inbox` instead of showing upstream's marketing landing page.
 - The realtime upgrade, email, queue and cron handlers live in `server/worker.ts`; behaviour is
