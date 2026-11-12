@@ -4,18 +4,18 @@ Mailflare, ported from Next.js to Nuxt and deployed as one Cloudflare Worker. Th
 [hieunc229/mailflare](https://github.com/hieunc229/mailflare) (AGPL-3.0). Everything runs on Cloudflare:
 D1, R2, KV, Queues, a Durable Object, Email Routing and Email Sending.
 
-**The port is in progress.** Read [docs/PORTING.md](docs/PORTING.md) before starting any work. It has the
-workstreams, the conventions every thread must follow, and the status board.
+The port is complete. [docs/PORTING.md](docs/PORTING.md) records how it was done, the decisions and every
+deviation from upstream; read its "Deviations" before changing behaviour. [docs/architecture.md](docs/architecture.md)
+explains how the server works (upstream's notes, paths mapped). User docs are in `docs/`.
 
 ## Rules
 
 - **bun only.** Never npm, pnpm or yarn. `bun install`, `bun run <script>`, `bun add <pkg>`.
 - **Work on the `nuxt` branch line.** `nuxt` is the integration branch and deploys to production on every
-  push. `main` is upstream's Next.js app and is left alone until cutover. Branch from `nuxt`, open a PR into
+  push. `main` is upstream's Next.js app at v0.5.4, kept for reference. Branch from `nuxt`, open a PR into
   `nuxt`.
-- **`legacy/` is read-only reference.** It is upstream's whole app at v0.5.4. Port from it; never edit it,
-  never import from it. It is deleted at cutover. `legacy/CLAUDE.md` explains how upstream works and is
-  worth reading for the area you are porting.
+- **Upstream is the reference.** Upstream's Next.js source is on the `main` branch and at
+  https://github.com/hieunc229/mailflare. Comments that cite `legacy/...` paths mean upstream's tree.
 - **British English** in UI copy you write and in messages to Matt. Ported strings keep upstream's wording.
 - Cloudflare only. Do not add support for other hosts, databases, object stores or mail providers.
 
@@ -53,13 +53,12 @@ server/handlers/        Upstream's API route tree (src/app/api, jmap, mcp, .well
 server/api, server/routes   GENERATED stubs that mount server/handlers. Do not edit; run routes:generate
 server/utils/           Nitro auto-imported helpers (defineNextRoute)
 scripts/                Generators
-legacy/                 Upstream app, reference only
 ```
 
 ## How the server works
 
-The server was carried across from upstream nearly unchanged, so `legacy/CLAUDE.md`'s architecture notes
-still describe it. What differs:
+The server was carried across from upstream nearly unchanged, so [docs/architecture.md](docs/architecture.md)
+(upstream's notes) still describes it. What differs:
 
 - **Routes.** Each `server/handlers/**/route.ts` is an upstream Next.js route module
   (`export async function GET(request, { params })`) returning a web `Response`. `defineNextRoute`
