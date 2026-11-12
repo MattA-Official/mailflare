@@ -3,7 +3,7 @@ const { appName, iconUrl } = useBranding()
 
 useHead({
   titleTemplate: title => (title ? `${title} - ${appName.value}` : appName.value),
-  link: [{ rel: 'icon', href: () => iconUrl.value }, { rel: 'apple-touch-icon', href: '/icon-192.png' }],
+  link: [{ rel: 'icon', href: () => iconUrl.value }, { rel: 'apple-touch-icon', href: '/icon-192.png' }, { rel: 'manifest', href: '/manifest.webmanifest' }],
   meta: [
     { name: 'robots', content: 'noindex, nofollow, noarchive, nosnippet, noimageindex' },
     { name: 'apple-mobile-web-app-capable', content: 'yes' },

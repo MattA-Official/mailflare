@@ -172,7 +172,7 @@ admin `agent` page is `/agent`; workstream 10's are `/agent/review/[id]` and `/a
 Tick in the PR that lands it. Add rows for anything discovered.
 
 - [x] Foundation: Worker entry, bindings, server port, migrations, shell, CI, deploy
-- [ ] 1 Shell and shared UI (first part landed: layout, navs, account menu, shortcuts, realtime, shared state; still to come: attachment card/viewer, progressive avatar, reorderable nav, web manifest)
+- [x] 1 Shell and shared UI
 - [ ] 2 Sign-in and onboarding
 - [ ] 3 Reading mail
 - [ ] 4 Composing: composer, toasts and /compose done (`useCompose()`, `<ComposeHost>` in the dashboard layout; shared: `ComposeFollowUpMenu`, `ComposeScheduleSendSheet`, `~/utils/compose/*`). Left: `/drafts/[messageId]` and the quote renderer, once reading mail's `MessagesFolderPage` and `MessagesEmailHtmlRenderer` land
@@ -202,6 +202,12 @@ Tick in the PR that lands it. Add rows for anything discovered.
   `useShortcuts().registerShortcut` so they appear in the cheat sheet.
 - The new-message popup is a Nuxt UI toast. Realtime, the session reset and service worker
   registration are client plugins.
+- Mail sidebar rows reorder by press and hold (`NavReorderableList`, upstream's storage keys
+  `mailflare:nav:layout` and `mailflare:nav:layout:folders`), including moving rows in and out of
+  "More...". Reordering is off in the collapsed icon rail.
+- Attachment card and viewer and the previous-message block belong to workstream 3
+  (`app/components/messages`). Upstream's progressive avatar is not ported: `UAvatar` already shows a
+  fallback until the image loads.
 
 ## Deviations from upstream
 
