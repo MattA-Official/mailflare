@@ -1,11 +1,6 @@
-import type { AwsConfig } from "#lib/aws/aws-types";
+export type SendingProvider = "none" | "cloudflare";
 
-export type SendingProvider = "none" | "cloudflare" | "resend" | "ses";
-
-export type OutboundProviderConfig =
-	| { provider: "cloudflare" }
-	| { provider: "resend"; apiKey: string }
-	| { provider: "ses"; config: AwsConfig };
+export type OutboundProviderConfig = { provider: "cloudflare" };
 
 export type OutboundProviderAttachment = {
 	filename: string;
@@ -25,10 +20,4 @@ export type OutboundProviderMessage = {
 	text?: string;
 	headers?: Record<string, string>;
 	attachments?: OutboundProviderAttachment[];
-};
-
-export type ResendKeyStatus = {
-	configured: boolean;
-	/** Where the key in use comes from; the key itself never leaves the server. */
-	source: "settings" | "environment" | null;
 };

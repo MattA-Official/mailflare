@@ -1,41 +1,7 @@
-import { and, eq, exists, gte, lt, not, or, sql } from "drizzle-orm";
-import type { AnyColumn, SQL } from "drizzle-orm";
+import { and, eq, exists, gte, lt, sql } from "drizzle-orm";
+import type { SQL } from "drizzle-orm";
 import { messageAttachments, messages } from "#db/schema";
-import { schemaDialect } from "#db/dialect";
-import { buildFtsMatch, parseSearchQuery, tokenizeSearchText } from "./query-utils";
-import type { ParsedSearchQuery } from "./types";
-
-/** `!` is the escape character because it needs no escaping itself in either SQL string syntax. */
-const likePattern = (term: string) => `%${term.toLowerCase().replace(/[!%_]/g, "!$&")}%`;
-const contains = (column: SQL | AnyColumn, term: string) => sql`lower(${column}) like ${likePattern(term)} escape '!'`;
-
-/**
- * Text search for databases without FTS5 (PostgreSQL, MySQL): every term must appear as a substring of the
- * subject, an address or the body. It scans the mailbox's messages instead of using an index, which is the
- * documented trade-off of those dialects.
- */
-function buildLikeConditions(parsed: ParsedSearchQuery): SQL[] {
-	const conditions: SQL[] = [];
-	for (const token of tokenizeSearchText(parsed.text)) {
-		const match = or(
-			contains(messages.subject, token.term),
-			contains(messages.fromAddr, token.term),
-			contains(messages.toAddr, token.term),
-			contains(messages.ccAddr, token.term),
-			contains(messages.textBody, token.term),
-			and(sql`${messages.textBody} is null`, contains(messages.htmlBody, token.term)),
-		)!;
-		conditions.push(token.negate ? not(match) : match);
-	}
-	const column = (columns: Array<SQL | AnyColumn>, value: string | undefined) => {
-		if (!value) return;
-		for (const token of tokenizeSearchText(value)) conditions.push(or(...columns.map((c) => contains(c, token.term)))!);
-	};
-	column([messages.subject], parsed.subject);
-	column([messages.fromAddr], parsed.from);
-	column([messages.toAddr, messages.ccAddr], parsed.to);
-	return conditions;
-}
+import { buildFtsMatch, parseSearchQuery } from "./query-utils";
 
 /**
  * Translate a search string into WHERE conditions on `messages`. Text goes to
@@ -46,13 +12,9 @@ export function buildSearchConditions(raw: string, timeZone = "UTC"): SQL[] {
 	const parsed = parseSearchQuery(raw, timeZone);
 	const conditions: SQL[] = [];
 
-	if (schemaDialect() === "sqlite") {
-		const match = buildFtsMatch(parsed);
-		if (match) {
-			conditions.push(sql`${messages}.rowid IN (SELECT rowid FROM messages_fts WHERE messages_fts MATCH ${match})`);
-		}
-	} else {
-		conditions.push(...buildLikeConditions(parsed));
+	const match = buildFtsMatch(parsed);
+	if (match) {
+		conditions.push(sql`${messages}.rowid IN (SELECT rowid FROM messages_fts WHERE messages_fts MATCH ${match})`);
 	}
 	if (parsed.hasAttachment) {
 		conditions.push(

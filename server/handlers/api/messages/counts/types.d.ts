@@ -1,4 +1,4 @@
-import type { MessageCounts, MessageFolder } from "#lib/_app/hooks-types";
+import type { MessageCounts, MessageFolder } from "#lib/messages/message-types";
 import type { messages } from "#db/schema";
 
 export type MessageCountRow = Pick<
