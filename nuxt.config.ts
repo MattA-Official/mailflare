@@ -17,6 +17,8 @@ export default defineNuxtConfig({
   ssr: false,
   ignore: ['legacy/**'],
   devtools: { enabled: true },
+  // Upstream's storage key, so a saved light/dark choice carries over.
+  colorMode: { storageKey: 'mailflare-theme' },
   // Public values the browser needs. Override at runtime with NUXT_PUBLIC_* vars on the Worker.
   runtimeConfig: {
     public: {

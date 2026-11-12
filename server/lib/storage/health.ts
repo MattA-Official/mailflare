@@ -1,5 +1,12 @@
 import { newId } from "#lib/ids";
 
+/** Upstream could swap R2 for Backblaze B2 or S3. This fork always uses the R2 binding. */
+export type StorageStatus = { provider: "r2"; configured: true; bucket: null; endpoint: null };
+
+export function getStorageStatus(): StorageStatus {
+	return { provider: "r2", configured: true, bucket: null, endpoint: null };
+}
+
 export type StorageTestResult = { ok: boolean; error?: string; latencyMs: number };
 
 /** Writes, reads back and deletes a small object, so a wrong key, bucket or endpoint shows up before real mail does. */

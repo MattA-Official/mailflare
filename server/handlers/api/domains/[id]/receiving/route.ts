@@ -8,7 +8,7 @@ import { requireUser } from "#lib/auth/cookies";
 import { canManageDomains } from "#lib/auth/admin";
 import { hasValidSessionMutationOrigin } from "#lib/auth/origin";
 import { getDomainForUser } from "#lib/domains/service";
-import { receivingPresence, removeReceiving } from "#lib/domains/receiving";
+import { receivingPresence, removeCloudflareReceiving } from "#lib/domains/receiving";
 
 type Params = { params: Promise<{ id: string }> };
 
@@ -21,7 +21,7 @@ export async function PUT(request: Request, { params }: Params) {
 	if (!hasValidSessionMutationOrigin(request)) return NextResponse.json({ error: "Invalid origin" }, { status: 403 });
 	const domain = await getDomainForUser(env, user.id, id);
 	if (!domain) return NextResponse.json({ error: "Not found" }, { status: 404 });
-	const parsed = z.object({ provider: z.enum(["none", "cloudflare", "resend", "ses"]) }).safeParse(await request.json().catch(() => null));
+	const parsed = z.object({ provider: z.enum(["none", "cloudflare"]) }).safeParse(await request.json().catch(() => null));
 	if (!parsed.success) return NextResponse.json({ error: "Unknown receiving provider" }, { status: 400 });
 	await getDb(env).update(domains).set({ receivingProvider: parsed.data.provider }).where(eq(domains.id, domain.id));
 	return NextResponse.json({ domain: await getDomainForUser(env, user.id, id) }, { headers: { "Cache-Control": "no-store" } });
@@ -46,11 +46,11 @@ export async function DELETE(request: Request, { params }: Params) {
 	if (!hasValidSessionMutationOrigin(request)) return NextResponse.json({ error: "Invalid origin" }, { status: 403 });
 	const domain = await getDomainForUser(env, user.id, id);
 	if (!domain) return NextResponse.json({ error: "Not found" }, { status: 404 });
-	const parsed = z.object({ target: z.enum(["cloudflare", "resend", "ses"]) }).safeParse(await request.json().catch(() => null));
+	const parsed = z.object({ target: z.enum(["cloudflare"]) }).safeParse(await request.json().catch(() => null));
 	if (!parsed.success) return NextResponse.json({ error: "Unknown provider" }, { status: 400 });
 	if (parsed.data.target === domain.receivingProvider) return NextResponse.json({ error: "Switch to another provider before removing this one" }, { status: 400 });
 	try {
-		await removeReceiving(env, domain, parsed.data.target);
+		await removeCloudflareReceiving(env, domain);
 		return NextResponse.json({ ok: true });
 	} catch (error) {
 		return NextResponse.json({ error: error instanceof Error ? error.message : "Could not remove configuration" }, { status: 502 });

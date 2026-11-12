@@ -1,7 +1,6 @@
 import { and, desc, eq, gt, gte, lt, lte, ne, notInArray, or, sql } from "drizzle-orm";
 import { generateText } from "ai";
 import { getDb } from "#db";
-import { schemaDialect } from "#db/dialect";
 import { agentDraftMetadata, agentJobs, mailboxAgentSettings, mailboxes, messages, users } from "#db/schema";
 import { getMailboxAccessLevel } from "#lib/mailboxes/access";
 import { normalizeEmailAddress } from "#lib/email/address";
@@ -47,19 +46,12 @@ export async function processAgentDraftJob(env: CloudflareEnv, jobId: string) {
 	if (!job || job.status === "completed" || job.status === "skipped" || job.status === "failed") return;
 	const now = new Date();
 	if (job.nextAttemptAt > now || (job.status === "running" && job.leaseUntil && job.leaseUntil > now)) return;
-	// Only one job runs per mailbox. Where the statement can check that itself it does so atomically; MySQL
-	// rejects a subquery on the table being updated, so there the check runs first (a narrow race window).
-	const mysql = schemaDialect() === "mysql";
+	// Only one job runs per mailbox; the claim checks that atomically.
 	const nowSeconds = Math.floor(now.getTime() / 1000);
-	if (mysql) {
-		const [busy] = await db.select({ id: agentJobs.id }).from(agentJobs)
-			.where(and(eq(agentJobs.mailboxId, job.mailboxId), ne(agentJobs.id, jobId), eq(agentJobs.status, "running"), gt(agentJobs.leaseUntil, now))).limit(1);
-		if (busy) return;
-	}
 	const claimed = await db.update(agentJobs).set({ status: "running", attempts: job.attempts + 1, leaseUntil: new Date(Date.now() + 10 * 60_000) }).where(and(
 		eq(agentJobs.id, jobId),
 		or(eq(agentJobs.status, "pending"), and(eq(agentJobs.status, "running"), lt(agentJobs.leaseUntil, now))),
-		mysql ? sql`1 = 1` : sql`NOT EXISTS (SELECT 1 FROM agent_jobs active WHERE active.mailbox_id = ${job.mailboxId} AND active.id <> ${jobId} AND active.status = 'running' AND active.lease_until > ${nowSeconds})`,
+		sql`NOT EXISTS (SELECT 1 FROM agent_jobs active WHERE active.mailbox_id = ${job.mailboxId} AND active.id <> ${jobId} AND active.status = 'running' AND active.lease_until > ${nowSeconds})`,
 	)).returning({ id: agentJobs.id });
 	if (!claimed.length) return;
 	const skip = async (reason: string) => db.update(agentJobs).set({ status: "skipped", reason, leaseUntil: null }).where(eq(agentJobs.id, jobId));

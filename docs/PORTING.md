@@ -167,7 +167,7 @@ admin `agent` page is `/agent`; workstream 10's are `/agent/review/[id]` and `/a
 Tick in the PR that lands it. Add rows for anything discovered.
 
 - [x] Foundation: Worker entry, bindings, server port, migrations, shell, CI, deploy
-- [ ] 1 Shell and shared UI
+- [ ] 1 Shell and shared UI (first part landed: layout, navs, account menu, shortcuts, realtime, shared state; still to come: attachment card/viewer, progressive avatar, reorderable nav, web manifest)
 - [x] 2 Sign-in and onboarding: login (password, TOTP/recovery code, passkey, passkey second factor,
   `?add=1`), first-run setup, onboarding, passkey setup links, forgot and reset password.
   `tests/e2e/auth.spec.ts`. Passkey ceremonies use `APP_URL` as the RP ID, so they only complete on
@@ -176,14 +176,51 @@ Tick in the PR that lands it. Add rows for anything discovered.
 - [ ] 4 Composing
 - [ ] 5 Settings: account and security
 - [ ] 6 Settings: mail
-- [ ] 7 Admin: email
+- [x] 7 Admin: email
 - [ ] 8 Admin: administration
 - [x] 9 Calendar and booking
 - [ ] 10 Drive, contacts and assistant
 - [ ] 11 Server clean-up and tests
+  - [x] Licence gate, Resend, SES, B2/S3, Node runtime, other dialects, self-update merge removed
+  - [ ] Unit tests ported
 - [ ] 12 Verification and cutover
 
+## Shell conventions (workstream 1)
+
+- The account and mailbox menu (`AppMailboxSelector`) sits in the sidebar footer instead of a header bar
+  at the top right; there is no layout-wide header. Pages put `<AppNavbar :title search>` in their
+  `UDashboardPanel` header: it adds the sidebar toggle, and with `search` the mail search box
+  (`AppHeaderSearch`, bound to `useMailSearch`) and the DNS-skipped banner.
+- `nav: 'settings'` shows the settings sections in the sidebar (upstream showed the mail sidebar plus a
+  settings column), so settings pages need no navigation of their own. `nav: 'calendar'` and `'drive'`
+  show app links plus a `#app-sidebar-extra` teleport target; workstream 10 adds `DriveNav` for drive.
+- Shared client state: `useSelectedMailbox`, `useMessages`, `useMessageCounts`, `useMailSearch`,
+  `useBranding`, `useShortcuts` / `useHotkeys`, with caches in `app/utils/messages`,
+  `app/utils/folders/client.ts` and types in `app/types`. Page shortcuts go through
+  `useShortcuts().registerShortcut` so they appear in the cheat sheet.
+- The new-message popup is a Nuxt UI toast. Realtime, the session reset and service worker
+  registration are client plugins.
+
 ## Deviations from upstream
+
+- (11) No licences. `/api/licenses/*` is gone, there is no licence indicator (workstream 1) and no
+  licences page (workstream 8). Every licensed feature is on: `canForwardEmail`, `canCreateShared` and
+  `canManageHosts` are always true for those who would have had them with a Team licence, and
+  `GET /api/accounts` returns `seats: { limit: null, used }` (unlimited).
+- (11) Cloudflare is the only mail provider. `/api/domains/{id}/sending` and `/receiving` accept
+  `none | cloudflare`; their GET responses are `{ cloudflare: boolean }` (upstream also returned
+  resend/ses keys). `POST /api/domains/{id}/receiving/cloudflare` sets up Email Routing (409
+  `MX_CONFLICT` as before); its GET and other providers are gone. Removed endpoints:
+  `/api/domains/{id}/resend`, `/api/domains/{id}/ses`, `/api/admin/aws`, `/api/admin/resend-key`,
+  `/api/inbound`, `/api/inbound/resend`, `/api/inbound/ses`. The schema keeps upstream's
+  `sending_provider`/`receiving_provider` enums.
+- (11) `/api/v1/storage` always reports `{ provider: "r2", configured: true, bucket: null, endpoint: null }`.
+- (11) `/api/admin/update` is gone: the admin update card shows only pending migrations
+  (`/api/admin/migrations`), since upstream's "merge upstream" workflow cannot apply to this fork.
+- (11) `server/lib/_app` moved: `hooks-types` is `#lib/messages/message-types`,
+  `email-html-sanitizer-types` is `#lib/email/html-types`, `rich-text-utils` is
+  `#lib/compose/rich-text-utils`, and the `email-html-sanitizer` re-export is gone (use
+  `sanitizeEmailHtml` from `#lib/email/html`).
 
 - `/` redirects to `/inbox` instead of showing upstream's marketing landing page.
 - The realtime upgrade, email, queue and cron handlers live in `server/worker.ts`; behaviour is
@@ -210,12 +247,21 @@ Tick in the PR that lands it. Add rows for anything discovered.
   instead of a 500, so the client-rendered `/login` can send a fresh install to `/setup` as upstream's
   server page did.
 
+- Admin email (7): the Domains page offers only Cloudflare and "not selected" for sending and receiving.
+  Confirmations use a Nuxt UI modal (`useAdminConfirm`) instead of `window.confirm`/`prompt`; removing a
+  domain still requires typing its hostname. The mailbox pages dispatch `mailflare:mailboxes-changed`
+  instead of calling the selector's cache directly. Routing rule validation errors show the server's
+  field messages instead of "Request failed".
+
 ## Open items
 
 - Fixed while porting sign-in: every passkey route returned 500 on Workers because tsyringe (via
   `@simplewebauthn/server` and `@peculiar/x509`) needs `reflect-metadata` at import time. It is now
   imported first in `server/worker.ts` and listed in `nitro.moduleSideEffects` so it is not
   tree-shaken. If another library fails at import time on Workers, look for the same kind of cause.
+- Message authentication details (`/api/messages/{id}/authentication`) only trust an SES trace, as
+  upstream's do, so mail received through Cloudflare always reports `untrusted`. Reading Cloudflare's
+  own `Authentication-Results` there (as the spam analyser already does) would make the panel useful.
 
 - Production has no admin yet. First-run registration is left for Matt (see workstream 12).
 - `TURNSTILE_SECRET_KEY`, VAPID keys and APNs keys are not set on the Worker. Features that need them
