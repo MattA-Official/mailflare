@@ -105,6 +105,6 @@ watch(() => [countsLoaded.value, allCounts.value.folders.inbox.unread] as const,
     <slot />
 
     <AppShortcuts v-if="user" />
-    <!-- Composing workstream: mount <ComposeHost /> here. -->
+    <ComposeHost />
   </UDashboardGroup>
 </template>
