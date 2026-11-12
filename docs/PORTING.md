@@ -205,5 +205,21 @@ Tick in the PR that lands it. Add rows for anything discovered.
 | `AI`, `IMAGES`, `EMAIL` | Workers AI, Images, Email Sending |
 | secret `CF_TOKEN` | set by Matt |
 
-Zone: flytower.dev (`f28eb4016b559978567883b01ef25a8a`). Workers Builds trigger: branch `nuxt`,
-`bun run build`, `npx wrangler deploy`.
+Zone: flytower.dev (`f28eb4016b559978567883b01ef25a8a`). Workers Builds trigger
+`ed1cc218-0377-4aa4-adae-1fd617f90142`: branch `nuxt`, `bun run build`, `npx wrangler deploy`.
+
+Working with production from a thread, through the Cloudflare connector (`mcp__cloudflare__execute`,
+passing the account id):
+
+- **Builds.** Pushes to `nuxt` did not start builds on their own during the foundation work; builds
+  were started by hand. After merging, if no build appears within a couple of minutes, start one:
+  `POST /accounts/{account}/builds/triggers/{trigger}/builds` with `{ "branch": "nuxt" }`. List them
+  with `GET /accounts/{account}/builds/workers/93d684e837b247c89c8c5ca8c32617dc/builds` and read a
+  failed build's log at `/accounts/{account}/builds/builds/{build_uuid}/logs`.
+- **Logs.** `POST /accounts/{account}/workers/observability/telemetry/query` filtered on
+  `$metadata.service = flytower-mail` shows requests, cron runs and errors. This is the way to check the
+  live Worker, since the sandbox cannot open mail.flytower.dev.
+- **Data.** D1 can be queried through the connector. Read only, unless the work calls for a change.
+
+Until first-run setup has been completed on production, the five-minute cron logs "Failed query"
+errors because the tables do not exist yet. That is expected.
