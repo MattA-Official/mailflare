@@ -23,6 +23,7 @@
     "vapid:generate": "node scripts/generate-vapid-keys.mjs"
   },
   "dependencies": {
+    "@ai-sdk/anthropic": "4.0.102",
     "@ai-sdk/openai": "^4.0.115",
     "@ai-sdk/openai-compatible": "^3.0.90",
     "@modelcontextprotocol/server": "^2.4.0",
