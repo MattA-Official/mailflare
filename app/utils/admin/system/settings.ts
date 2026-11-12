@@ -68,6 +68,7 @@ export function buildMcpAgentPrompt(origin: string, { mode, apiKey }: { mode: 'm
 
 export const PROVIDER_PRESETS: { id: AgentProviderPreset, label: string }[] = [
   { id: 'openai', label: 'OpenAI' },
+  { id: 'anthropic', label: 'Anthropic (Claude)' },
   { id: 'openrouter', label: 'OpenRouter' },
   { id: 'groq', label: 'Groq' },
   { id: 'custom', label: 'Custom endpoint' },
@@ -119,7 +120,7 @@ export function formatUsageDate(value: string) {
 }
 
 export function formatUsageProvider(value: string) {
-  return ({ cloudflare: 'Cloudflare Workers AI', openai: 'OpenAI', openrouter: 'OpenRouter', groq: 'Groq', custom: 'Custom API' } as Record<string, string>)[value] ?? value
+  return ({ cloudflare: 'Cloudflare Workers AI', openai: 'OpenAI', anthropic: 'Anthropic', openrouter: 'OpenRouter', groq: 'Groq', custom: 'Custom API' } as Record<string, string>)[value] ?? value
 }
 
 export function fillDailyUsage(days: AiUsageDaily[], timeZone = getUserTimeZone()): AiUsageDaily[] {
