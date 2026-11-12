@@ -17,6 +17,8 @@ export default defineNuxtConfig({
   ssr: false,
   ignore: ['legacy/**'],
   devtools: { enabled: true },
+  // Upstream's storage key, so a saved light/dark choice carries over.
+  colorMode: { storageKey: 'mailflare-theme' },
   // Icons used in the app are bundled into the client, so nothing is fetched from Iconify at runtime.
   icon: { clientBundle: { scan: true }, serverBundle: 'local' },
 

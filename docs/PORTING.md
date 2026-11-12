@@ -167,7 +167,7 @@ admin `agent` page is `/agent`; workstream 10's are `/agent/review/[id]` and `/a
 Tick in the PR that lands it. Add rows for anything discovered.
 
 - [x] Foundation: Worker entry, bindings, server port, migrations, shell, CI, deploy
-- [ ] 1 Shell and shared UI
+- [ ] 1 Shell and shared UI (first part landed: layout, navs, account menu, shortcuts, realtime, shared state; still to come: attachment card/viewer, progressive avatar, reorderable nav, web manifest)
 - [ ] 2 Sign-in and onboarding
 - [ ] 3 Reading mail
 - [ ] 4 Composing
@@ -179,6 +179,22 @@ Tick in the PR that lands it. Add rows for anything discovered.
 - [ ] 10 Drive, contacts and assistant
 - [ ] 11 Server clean-up and tests
 - [ ] 12 Verification and cutover
+
+## Shell conventions (workstream 1)
+
+- The account and mailbox menu (`AppMailboxSelector`) sits in the sidebar footer instead of a header bar
+  at the top right; there is no layout-wide header. Pages put `<AppNavbar :title search>` in their
+  `UDashboardPanel` header: it adds the sidebar toggle, and with `search` the mail search box
+  (`AppHeaderSearch`, bound to `useMailSearch`) and the DNS-skipped banner.
+- `nav: 'settings'` shows the settings sections in the sidebar (upstream showed the mail sidebar plus a
+  settings column), so settings pages need no navigation of their own. `nav: 'calendar'` and `'drive'`
+  show app links plus a `#app-sidebar-extra` teleport target; workstream 10 adds `DriveNav` for drive.
+- Shared client state: `useSelectedMailbox`, `useMessages`, `useMessageCounts`, `useMailSearch`,
+  `useBranding`, `useShortcuts` / `useHotkeys`, with caches in `app/utils/messages`,
+  `app/utils/folders/client.ts` and types in `app/types`. Page shortcuts go through
+  `useShortcuts().registerShortcut` so they appear in the cheat sheet.
+- The new-message popup is a Nuxt UI toast. Realtime, the session reset and service worker
+  registration are client plugins.
 
 ## Deviations from upstream
 
