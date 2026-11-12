@@ -1,9 +1,7 @@
 // qrcode's Node entry also loads its PNG renderer, whose pngjs dependency cannot be initialised on
 // Workers ("superCtor.prototype" in util.inherits). Enrolment only needs the SVG string, so this
 // goes to qrcode's core and SVG renderer directly. Same output as QRCode.toString(..., { type: "svg" }).
-// @ts-expect-error qrcode ships no types for its internal modules
 import QRCodeCore from "qrcode/lib/core/qrcode.js";
-// @ts-expect-error qrcode ships no types for its internal modules
 import SvgTag from "qrcode/lib/renderer/svg-tag.js";
 
 type SvgOptions = { margin?: number; errorCorrectionLevel?: "L" | "M" | "Q" | "H" };
