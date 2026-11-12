@@ -83,12 +83,9 @@ function upsert<T>(list: ShallowRef<T[]>, item: T, same: (a: T, b: T) => boolean
   return unregister
 }
 
-/**
- * Opens the composer: the sidebar Compose button, the "c" shortcut and the palette all call this.
- * Until the composing workstream lands useCompose(), it goes to the full-page composer.
- */
+/** Opens the floating composer; the sidebar button, the "c" shortcut and the command palette share it. */
 export function openCompose() {
-  void navigateTo('/compose')
+  useCompose().openComposer()
 }
 
 const active = computed(() => enabled.value && !preferenceLoading.value)

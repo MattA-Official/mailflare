@@ -39,6 +39,11 @@ account Flytower).
 - (Foundation) Route handlers were moved unchanged behind `defineNextRoute` rather than rewritten as
   idiomatic h3 handlers. Rewriting 208 handlers buys nothing for parity. Rewrite one only when you are
   changing it anyway.
+- (Composing) The composer keeps upstream's contentEditable editor (`ComposeRichTextEditor`) rather than
+  Nuxt UI's `UEditor`: TipTap's schema would drop the `data-mailflare-signature` and quote markers the
+  signature swap and quote folding rely on, and would rewrite arbitrary email HTML in loaded drafts.
+- (Composing) The composer's own validation errors use Nuxt UI toasts (`useToast`); the send toast with
+  the undo countdown and subject link stays custom (`ComposeNoticeToast`), as upstream's was.
 
 ## Rules for every thread
 
@@ -170,7 +175,7 @@ Tick in the PR that lands it. Add rows for anything discovered.
 - [ ] 1 Shell and shared UI (first part landed: layout, navs, account menu, shortcuts, realtime, shared state; still to come: attachment card/viewer, progressive avatar, reorderable nav, web manifest)
 - [ ] 2 Sign-in and onboarding
 - [ ] 3 Reading mail
-- [ ] 4 Composing
+- [ ] 4 Composing: composer, toasts and /compose done (`useCompose()`, `<ComposeHost>` in the dashboard layout; shared: `ComposeFollowUpMenu`, `ComposeScheduleSendSheet`, `~/utils/compose/*`). Left: `/drafts/[messageId]` and the quote renderer, once reading mail's `MessagesFolderPage` and `MessagesEmailHtmlRenderer` land
 - [ ] 5 Settings: account and security
 - [ ] 6 Settings: mail
 - [x] 7 Admin: email
