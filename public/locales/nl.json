@@ -328,6 +328,7 @@
 	"notification.newEmail": "Nieuwe e-mail",
 	"notification.from": "Van {sender}",
 	"notification.dismiss": "Melding sluiten",
+	"notification.open": "Openen",
 	"attachment.image": "Afbeelding",
 	"attachment.video": "Video",
 	"attachment.audio": "Audio",

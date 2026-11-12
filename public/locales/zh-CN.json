@@ -324,6 +324,7 @@
 	"notification.newEmail": "新邮件",
 	"notification.from": "来自 {sender}",
 	"notification.dismiss": "关闭通知",
+	"notification.open": "打开",
 	"attachment.image": "图片",
 	"attachment.video": "视频",
 	"attachment.audio": "音频",

@@ -328,6 +328,7 @@
 	"notification.newEmail": "නව ඊමේල්",
 	"notification.from": "{sender} වෙතින්",
 	"notification.dismiss": "දැනුම්දීම ඉවත් කරන්න",
+	"notification.open": "විවෘත කරන්න",
 	"attachment.image": "රූපය",
 	"attachment.video": "වීඩියෝව",
 	"attachment.audio": "ශ්‍රව්‍ය",

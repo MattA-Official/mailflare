@@ -328,6 +328,7 @@
 	"notification.newEmail": "નવો ઇમેઇલ",
 	"notification.from": "{sender} તરફથી",
 	"notification.dismiss": "સૂચના કાઢી નાખો",
+	"notification.open": "ખોલો",
 	"attachment.image": "છબી",
 	"attachment.video": "વિડિઓ",
 	"attachment.audio": "ઑડિઓ",

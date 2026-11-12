@@ -328,6 +328,7 @@
 	"notification.newEmail": "Sabon imel",
 	"notification.from": "Daga {sender}",
 	"notification.dismiss": "Yi watsi da sanarwa",
+	"notification.open": "Buɗe",
 	"attachment.image": "Hoto",
 	"attachment.video": "Bidiyo",
 	"attachment.audio": "Sauti",

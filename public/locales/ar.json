@@ -344,6 +344,7 @@
 	"notification.newEmail": "رسالة جديدة",
 	"notification.from": "من {sender}",
 	"notification.dismiss": "تجاهل الإشعار",
+	"notification.open": "فتح",
 	"attachment.image": "صورة",
 	"attachment.video": "فيديو",
 	"attachment.audio": "صوت",

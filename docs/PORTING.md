@@ -182,9 +182,28 @@ Tick in the PR that lands it. Add rows for anything discovered.
 - [x] 8 Admin: administration
 - [x] 9 Calendar and booking
 - [ ] 10 Drive, contacts and assistant
-- [ ] 11 Server clean-up and tests
+- [x] 11 Server clean-up and tests
   - [x] Licence gate, Resend, SES, B2/S3, Node runtime, other dialects, self-update merge removed
-  - [ ] Unit tests ported
+  - [x] Unit tests ported: `legacy/tests/*.test.mjs` run under vitest as `tests/unit/*.test.mjs`
+    (upstream's style, lint-ignored like other ported code). Helpers in `tests/unit/helpers` stand in
+    for `better-sqlite3` and D1 (over `node:sqlite`), `cloudflare:workers` and `useEvent`; bundling
+    tests go through `helpers/esbuild.mjs` so `#lib`, `#db`, `#handlers` and `~` resolve. Tests for
+    deleted features were dropped, and assertions about the licence gate now assert there is none.
+  - [ ] UI test ports, waiting for the owning workstream (upstream file in `legacy/tests`, to be
+    rewritten against the Vue code; drop any whose behaviour the port changed on purpose):
+    - 1 Shell: `route-title`, `layout-mail-search-provider`, `folder-client-cache` and
+      `message-detail-cache` (`app/utils` versions use Nuxt's fetch, so upstream's fetch mocks no
+      longer fit), the React parts of `i18n` (provider, selector, root layout `lang`/`dir`)
+    - 2 Sign-in: `landing-account-auth`, `current-user-permission-reset`
+    - 3 Reading mail: `authentication-details`, `message-details`, `seed-raw`, `message-action-redirect`,
+      `message-actions-overflow`, `message-list-unread`, `message-selection-navigation`,
+      `message-thread-cache`, `recipient-display`, `reply-recipients`, `send-view-status`,
+      `sender-check-notice`, and the "only the primary mailbox repaints on a profile rename" case of
+      `mailbox-identity-scope` (`avatar-preview-skip` is moot: the progressive avatar is not ported)
+    - 4 Composing: `compose-ai-review-behavior`, `compose-insert-link`, the `resolveSendViewRoute`
+      cases of `send-notice`
+    - 6 Settings: mail: `import-staging`, `domain-routing-permissions`
+    - 7 Admin: email: `domain-add-retry`
 - [ ] 12 Verification and cutover
 
 ## Shell conventions (workstream 1)
@@ -265,7 +284,13 @@ Tick in the PR that lands it. Add rows for anything discovered.
 
 - Production has no admin yet. First-run registration is left for Matt (see workstream 12).
 - `TURNSTILE_SECRET_KEY`, VAPID keys and APNs keys are not set on the Worker. Features that need them
-  degrade as upstream's do.
+  degrade as upstream's do: sign-in works without Turnstile, and push is off without VAPID keys. The
+  Cloudflare connector these threads use cannot see the Flytower account, so neither the Turnstile
+  widget nor the secrets could be created from here. To turn them on: create a Turnstile widget for
+  mail.flytower.dev, set its secret as `TURNSTILE_SECRET_KEY` and its site key where the sign-in pages read it (workstream 2; upstream used `NEXT_PUBLIC_TURNSTILE_SITE_KEY`);
+  generate VAPID keys with `legacy/scripts/generate-vapid-keys.mjs` and set them as Worker secrets.
+- `public/locales/*.json` gained `notification.open` (added to English by workstream 1), copied from
+  each catalogue's existing `drive.open` translation of the same word.
 - Email Routing on flytower.dev is not enabled yet; first-run setup enables it through `CF_TOKEN`.
 
 ## Cloudflare resources (account Flytower, `e1c19a0c407713eac8c279a4d1d9989b`)
