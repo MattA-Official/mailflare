@@ -5,7 +5,7 @@ import { mfaRecoveryCodes, passkeyCredentials, users } from "#db/schema";
 import { readJsonBody } from "#lib/http/request";
 import { RequestBodyTooLargeError } from "#lib/http/errors";
 import { passkeySetupSchema } from "#lib/validators";
-import { bumpSecurityVersion, consumeEnrollmentGrant, getEnrollmentGrant, SETUP_COOKIE } from "#lib/auth/webauthn/grants";
+import { bumpSecurityVersion, consumeEnrollmentGrant, getEnrollmentGrant, SETUP_COOKIE, withSetupCookieToken } from "#lib/auth/webauthn/grants";
 import { buildPasskeyRow, deletePasskey } from "#lib/auth/webauthn/credentials";
 import {
 	consumeWebAuthnChallenge,
@@ -33,7 +33,7 @@ export async function POST(request: Request) {
 		const status = error instanceof RequestBodyTooLargeError ? 413 : 400;
 		return authError("invalid_request", status);
 	}
-	const parsed = passkeySetupSchema.safeParse(body);
+	const parsed = passkeySetupSchema.safeParse(withSetupCookieToken(request, body));
 	if (!parsed.success || !isRegistrationResponseJSON(parsed.data.response)) {
 		return authError("passkey_invalid", 400);
 	}
