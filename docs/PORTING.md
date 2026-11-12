@@ -194,6 +194,10 @@ Tick in the PR that lands it. Add rows for anything discovered.
   `selected-mailbox-id` localStorage key upstream's MailboxProvider writes (falling back to the
   primary mailbox), via `app/utils/calendar/mailbox.ts`. Switch it to the shell's mailbox composable
   once that exists.
+- The passkey setup routes (`/api/auth/passkey/setup/{context,options,verify}`) fall back to the
+  HttpOnly `ep_setup` cookie when no `token` is sent. Upstream's server-rendered `/setup/passkey` read
+  that cookie and passed it on; the client-rendered page cannot. Requests that send a token are
+  unchanged.
 
 ## Open items
 

@@ -5,7 +5,7 @@ import { getDb } from "#db";
 import { users } from "#db/schema";
 import { readJsonBody } from "#lib/http/request";
 import { passkeySetupOptionsSchema } from "#lib/validators";
-import { getEnrollmentGrant } from "#lib/auth/webauthn/grants";
+import { getEnrollmentGrant, withSetupCookieToken } from "#lib/auth/webauthn/grants";
 import { listPasskeys } from "#lib/auth/webauthn/credentials";
 import { createRegistrationOptions } from "#lib/auth/webauthn/service";
 import {
@@ -23,7 +23,7 @@ import { authError } from "#lib/http/auth-error";
  */
 export async function POST(request: Request) {
 	const env = getEnv();
-	const parsed = passkeySetupOptionsSchema.safeParse(await readJsonBody(request, 16 * 1024).catch(() => null));
+	const parsed = passkeySetupOptionsSchema.safeParse(withSetupCookieToken(request, await readJsonBody(request, 16 * 1024).catch(() => ({}))));
 	if (!parsed.success) return authError("setup_invalid", 400);
 	const grant = await getEnrollmentGrant(env, parsed.data.token);
 	if (!grant) return authError("setup_invalid", 401);
