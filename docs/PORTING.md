@@ -4,17 +4,10 @@ The plan, the rules every thread follows, and the status board. Read [CLAUDE.md]
 
 ## Where things stand
 
-The foundation is done and deployed at https://mail.flytower.dev (Worker `flytower-mail`, Cloudflare
-account Flytower).
-
-- **Server: fully carried across.** All of upstream's `src/lib`, `src/db`, the 87 migrations and the 208
-  API route handlers run under Nitro. Checked locally in workerd: migrations through first-run setup,
-  sign-in and session cookies, authenticated routes, the realtime Durable Object with session auth, and
-  inbound email through the email handler to R2, the queue consumer, parsing, spam scoring and the
-  database.
-- **App: shell only.** Sign-in page, route guard, translations, the dashboard layout and a placeholder
-  inbox. Every other page is still to be ported. That is the bulk of what is left: about 40,000 lines of
-  React in `legacy/src/app` and `legacy/src/components` to rewrite in Vue with Nuxt UI.
+The port is complete and deployed at https://mail.flytower.dev (Worker `flytower-mail`, Cloudflare
+account Flytower). Every workstream below is ticked. `legacy/` (upstream's Next.js app at v0.5.4) was
+deleted at cutover; it remains on the `main` branch and at https://github.com/hieunc229/mailflare, and
+paths below that start `legacy/` mean upstream's tree. `nuxt` is the default branch.
 
 ## Decisions (made by Matt unless marked)
 
@@ -193,22 +186,23 @@ Tick in the PR that lands it. Add rows for anything discovered.
     for `better-sqlite3` and D1 (over `node:sqlite`), `cloudflare:workers` and `useEvent`; bundling
     tests go through `helpers/esbuild.mjs` so `#lib`, `#db`, `#handlers` and `~` resolve. Tests for
     deleted features were dropped, and assertions about the licence gate now assert there is none.
-  - [ ] UI test ports, waiting for the owning workstream (upstream file in `legacy/tests`, to be
-    rewritten against the Vue code; drop any whose behaviour the port changed on purpose):
-    - 1 Shell: `route-title`, `layout-mail-search-provider`, `folder-client-cache` and
-      `message-detail-cache` (`app/utils` versions use Nuxt's fetch, so upstream's fetch mocks no
-      longer fit), the React parts of `i18n` (provider, selector, root layout `lang`/`dir`)
-    - 2 Sign-in: `landing-account-auth`, `current-user-permission-reset`
-    - 3 Reading mail: `authentication-details`, `message-details`, `seed-raw`, `message-action-redirect`,
-      `message-actions-overflow`, `message-list-unread`, `message-selection-navigation`,
-      `message-thread-cache`, `recipient-display`, `reply-recipients`, `send-view-status`,
-      `sender-check-notice`, and the "only the primary mailbox repaints on a profile rename" case of
-      `mailbox-identity-scope` (`avatar-preview-skip` is moot: the progressive avatar is not ported)
-    - 4 Composing: `compose-ai-review-behavior`, `compose-insert-link`, the `resolveSendViewRoute`
-      cases of `send-notice`
-    - 6 Settings: mail: `import-staging`, `domain-routing-permissions`
-    - 7 Admin: email: `domain-add-retry`
-- [ ] 12 Verification and cutover
+  - [x] UI test ports: upstream's component tests rewritten in vitest against the Vue code (same file
+    names under `tests/unit`). App modules are bundled with esbuild and Nuxt's auto-imports are
+    provided on `globalThis`; components are compiled with `vue/compiler-sfc` and mounted in jsdom
+    with Nuxt UI stubbed (`tests/unit/helpers/app-module.mjs`). Changed or dropped on purpose:
+    - `landing-account-auth`: dropped, `/` redirects to `/inbox` and there is no landing page.
+    - `layout-mail-search-provider`: the provider checks are moot (search state is module level with no
+      provider); only "useMailSearch works anywhere" and the debounce are kept.
+    - `i18n`: the React provider, selector and SSR layout cases became `i18n-language.test.mjs`
+      (`useLanguage` sets `<html lang dir>` on the client; the app does not server-render).
+    - `message-selection-navigation`: mounts the real `MessagesSplitLayout` with the list, routed page
+      and bulk bar stubbed, so it covers the layout owning selection and page, not the list rendering.
+    - `domain-add-retry`: MX replacement is confirmed through a callback (a dialog) instead of
+      `window.confirm`, and declining resolves null instead of throwing; the prompt-text cases are gone.
+    - `compose-ai-review-behavior`: also edits the form while the review is open, since the port has
+      nothing else that would trigger an autosave there.
+    - `avatar-preview-skip`: moot, the progressive avatar is not ported.
+- [x] 12 Verification and cutover
   - [x] Workers Builds previews: `previews` block against preview-only D1/R2/KV/queues
   - [x] Setup fix: Email Routing rules now target `CF_EMAIL_WORKER_NAME` (upstream hard-coded `mailflare`)
   - [x] e2e: Playwright runner (`bun run test:e2e`, CI job `e2e`), upstream's passkeys suite ported
@@ -217,7 +211,7 @@ Tick in the PR that lands it. Add rows for anything discovered.
   - [x] Parity walk (pages, API routes, lib, public files, scripts, docs, changelog): fixed missing
     security headers, leftover licence/Docker/Resend copy, Cancel focus on passkey removal; ported
     the recovery-link, VAPID and Takeout scripts; user docs moved to `docs/`
-  - [ ] Delete `legacy/` (after the UI test ports land), make `nuxt` the default branch
+  - [x] Deleted `legacy/` after the UI test ports landed; `nuxt` is the default branch
 
 ## Shell conventions (workstream 1)
 
@@ -402,7 +396,7 @@ moves; read upstream's current source from the `upstream` branch or with
   Cloudflare connector these threads use cannot see the Flytower account, so neither the Turnstile
   widget nor the secrets could be created from here. To turn them on: create a Turnstile widget for
   mail.flytower.dev, set its secret as `TURNSTILE_SECRET_KEY` and its site key where the sign-in pages read it (workstream 2; upstream used `NEXT_PUBLIC_TURNSTILE_SITE_KEY`);
-  generate VAPID keys with `legacy/scripts/generate-vapid-keys.mjs` and set them as Worker secrets.
+  generate VAPID keys with `bun run vapid:generate` and set them as Worker secrets.
 - `public/locales/*.json` gained `notification.open` (added to English by workstream 1), copied from
   each catalogue's existing `drive.open` translation of the same word.
 - Email Routing on flytower.dev is not enabled yet; first-run setup enables it through `CF_TOKEN`.

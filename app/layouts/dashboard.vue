@@ -3,9 +3,8 @@
 // layouts: a collapsible, resizable sidebar whose navigation pages choose with definePageMeta({ nav }),
 // the account menu in its footer, and the main panels (pages render UDashboardPanel + AppNavbar).
 // Shortcuts, the command palette and the app badge live here too.
-import type { TranslationKey } from '#lib/i18n/types'
 import { setAppBadgeCount } from '#lib/push/app-badge'
-import { settingsNavSections } from '~/utils/settings/nav'
+import { getRouteTitleKey } from '~/utils/shell/route-title'
 
 const route = useRoute()
 const nav = computed(() => route.meta.nav ?? 'mail')
@@ -16,37 +15,9 @@ const user = useCurrentUser()
 const homeLink = computed(() => (nav.value === 'admin' ? '/admin' : '/inbox'))
 const headerLabel = computed(() => (nav.value === 'admin' ? t('account.admin') : appName.value))
 
-// Titles for pages that do not set their own, matched on the longest path prefix (upstream route-title).
-const routeTitles: Array<[string, TranslationKey]> = [
-  ['/settings', 'settings.nav.settings'],
-  ['/admin', 'admin.title'],
-  ['/mailboxes', 'admin.nav.mailboxes'],
-  ['/domains', 'admin.nav.domains'],
-  ['/routing', 'admin.nav.routing'],
-  ['/webhooks', 'admin.nav.webhooks'],
-  ['/spam-filter', 'admin.nav.spamFilter'],
-  ['/api-keys', 'admin.nav.apiKeys'],
-  ['/general', 'admin.nav.general'],
-  ['/agent', 'admin.nav.agent'],
-  ['/accounts', 'admin.nav.accounts'],
-  ['/activity', 'admin.nav.activity'],
-  ['/backups', 'admin.nav.backups'],
-  ['/branding', 'admin.nav.branding'],
-  ['/ai-usage', 'aiUsage.title'],
-  ['/calendar', 'account.calendar'],
-  ['/booking', 'booking.title'],
-  ['/drive', 'drive.title'],
-  ['/compose', 'compose.pageTitle'],
-  ...settingsNavSections.flatMap(section => section.items.map((item): [string, TranslationKey] => [item.href, item.labelKey])),
-]
 const routeTitle = computed(() => {
-  let best: [string, TranslationKey] | null = null
-  for (const entry of routeTitles) {
-    const [path] = entry
-    if (route.path !== path && !route.path.startsWith(`${path}/`)) continue
-    if (!best || path.length > best[0].length) best = entry
-  }
-  return best ? t(best[1]) : undefined
+  const key = getRouteTitleKey(route.path)
+  return key ? t(key) : undefined
 })
 useHead({ title: routeTitle })
 

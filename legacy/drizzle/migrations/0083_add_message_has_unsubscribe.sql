@@ -1,1 +1,0 @@
-ALTER TABLE `messages` ADD `has_unsubscribe` integer DEFAULT false NOT NULL;

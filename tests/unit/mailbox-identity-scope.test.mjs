@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { test } from "vitest";
 import { fileURLToPath } from "node:url";
+import { importAppModule, installDom, installVueAutoImports } from "./helpers/app-module.mjs";
 
 import {
 	isPrimaryMailbox,
@@ -136,5 +137,38 @@ test("outgoing mail and message lists use the mailbox's own name", () => {
 	assert.match(messages, /tracksAccountIdentity\(mailbox, user\.email\)/);
 });
 
-// Upstream also checked the React mailbox provider repaints only the primary mailbox on a profile
-// rename; that check belongs to the mail UI port.
+// Upstream checked the React mailbox provider's source for this; here the composable runs for real.
+test("the client only repaints the primary mailbox on profile changes", async () => {
+	const { cleanup } = await installDom();
+	const vue = await import("vue");
+	const removeAutoImports = installVueAutoImports(vue);
+	const stored = new Map();
+	Object.assign(globalThis, {
+		localStorage: { getItem: (key) => stored.get(key) ?? null, setItem: (key, value) => stored.set(key, value), removeItem: (key) => stored.delete(key) },
+		AUTH_SESSION_CHANGED_EVENT: "test-auth-changed",
+		getClientSessionToken: () => "session",
+		authFetch: async () => Response.json({
+			mailboxes: [
+				{ id: "mbx-1", localPart: "sam", hostname: "example.com", type: "personal", isPrimary: true, displayName: "Sam Reyes" },
+				{ id: "mbx-2", localPart: "billing", hostname: "example.com", type: "personal", isPrimary: false, displayName: "Billing" },
+				{ id: "mbx-3", localPart: "support", hostname: "example.com", type: "shared", isPrimary: false, displayName: "Support" },
+			],
+		}),
+	});
+	try {
+		const { useSelectedMailbox } = await importAppModule({ entry: "app/composables/useSelectedMailbox.ts", name: "selected-mailbox" });
+		const { mailboxes, selectedMailbox, isLoading } = useSelectedMailbox();
+		for (let turn = 0; turn < 10 && isLoading.value; turn++) await new Promise((resolve) => setImmediate(resolve));
+		assert.equal(selectedMailbox.value?.id, "mbx-1");
+
+		window.dispatchEvent(new window.CustomEvent("mailflare:profile-name-changed", { detail: { name: "Sam R." } }));
+		window.dispatchEvent(new window.CustomEvent("mailflare:profile-avatar-changed", { detail: {} }));
+		assert.deepEqual(mailboxes.value.map((mailbox) => [mailbox.displayName, !!mailbox.hasAvatar]), [["Sam R.", true], ["Billing", false], ["Support", false]],
+			"a profile rename must not relabel every personal mailbox in the sidebar");
+		assert.equal(selectedMailbox.value?.displayName, "Sam R.");
+	} finally {
+		removeAutoImports();
+		for (const name of ["localStorage", "AUTH_SESSION_CHANGED_EVENT", "getClientSessionToken", "authFetch"]) delete globalThis[name];
+		cleanup();
+	}
+});

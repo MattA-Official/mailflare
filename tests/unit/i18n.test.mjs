@@ -112,8 +112,8 @@ test("preference cookie persists for a year, covers every path and is Secure on 
 	assert.equal(i18n.serializeLocaleCookie("bad; Domain=example.com", true), "mailflare-locale=en; Path=/; Max-Age=31536000; SameSite=Lax; Secure");
 });
 
-// Upstream also rendered the React language provider, selector and root layout here; those checks
-// belong to the UI port.
+// Upstream also rendered the React language provider, selector and root layout here; the Vue
+// equivalents are covered in i18n-language.test.mjs.
 test("a locale registered once reaches resolution, translation and cookie", async () => {
 	assert.ok(existsSync(join(root, "server/lib/i18n/locales.ts")), "locales must have one shared registry");
 	// Use an ICU-supported locale absent from the registry. Unknown codes such as

@@ -1,1 +1,0 @@
-ALTER TABLE "messages" ADD COLUMN "has_unsubscribe" boolean DEFAULT false NOT NULL;
