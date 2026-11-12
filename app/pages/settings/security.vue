@@ -9,11 +9,7 @@ useHead({ title: () => t('settingsPage.security.title') })
 <template>
   <UDashboardPanel id="settings-security">
     <template #header>
-      <UDashboardNavbar :title="t('settingsPage.security.title')">
-        <template #leading>
-          <UDashboardSidebarCollapse />
-        </template>
-      </UDashboardNavbar>
+      <AppNavbar :title="t('settingsPage.security.title')" />
     </template>
     <template #body>
       <div class="mx-auto w-full max-w-3xl space-y-4">

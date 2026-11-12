@@ -179,7 +179,7 @@ Tick in the PR that lands it. Add rows for anything discovered.
   https://mail.flytower.dev, not in local preview.
 - [x] 3 Reading mail: every folder list and reader, custom folders, the drafts list, the split view, bulk and row actions, swipe on phones, follow-ups, the HTML renderer. Shared for others: `MessagesFolderPage` + `~/utils/messages/folder-configs`, `MessagesEmailHtmlRenderer`, `useConversationView` / `useTwoColumnReading` / `useLatestMessagesFirst` / `useShowFullRecipientAddresses` in `app/composables/messages` (for settings). Unit tests for `app/utils/messages` are left to 11
 - [ ] 4 Composing: composer, toasts and /compose done (`useCompose()`, `<ComposeHost>` in the dashboard layout; shared: `ComposeFollowUpMenu`, `ComposeScheduleSendSheet`, `~/utils/compose/*`). Left: `/drafts/[messageId]` and the quote renderer, once reading mail's `MessagesFolderPage` and `MessagesEmailHtmlRenderer` land
-- [ ] 5 Settings: account and security
+- [x] 5 Settings: account and security
 - [ ] 6 Settings: mail
 - [x] 7 Admin: email
 - [x] 8 Admin: administration
@@ -303,6 +303,9 @@ Tick in the PR that lands it. Add rows for anything discovered.
   domain still requires typing its hostname. The mailbox pages dispatch `mailflare:mailboxes-changed`
   instead of calling the selector's cache directly. Routing rule validation errors show the server's
   field messages instead of "Request failed".
+- Settings (workstream 5): signing out a mobile device and revoking an API key confirm in a modal
+  instead of `window.confirm`. The MFA QR code is rendered with qrcode's core and SVG renderer
+  (`server/lib/auth/qr-svg.ts`) because its PNG renderer cannot load on Workers.
 
 ## Open items
 
