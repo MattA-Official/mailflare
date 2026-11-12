@@ -22,13 +22,28 @@ await build({
 	logLevel: "silent",
 });
 const { resolveSendNotice, splitSendTemplate } = await import(pathToFileURL(join(bundleDirectory, "entry.mjs")).href);
+const { resolveSendViewRoute } = await import("../../app/utils/messages/send-view-utils.ts");
 rmSync(bundleDirectory, { recursive: true, force: true });
 
 const now = Date.parse("2026-10-28T12:00:00.000Z");
 const at = (offsetMs) => new Date(now + offsetMs).toISOString();
 
-// The resolveSendViewRoute cases (reader routing after send or undo) wait for the reading-mail port
-// of send-view-utils; see legacy/tests/send-notice.test.mjs.
+test("a delivered scheduled reader follows the message to Sent", () => {
+	assert.equal(resolveSendViewRoute("/scheduled/msg_1", "msg_1", "sent"), "/sent/msg_1");
+	for (const status of ["queued", "sending", "failed"]) {
+		assert.equal(resolveSendViewRoute("/scheduled/msg_1", "msg_1", status), null);
+	}
+});
+
+test("Undo closes only the cancelled message reader, preserving its folder", () => {
+	assert.equal(resolveSendViewRoute("/scheduled/msg_1", "msg_1", "draft"), "/scheduled");
+	assert.equal(resolveSendViewRoute("/sent/msg_1", "msg_1", "draft"), "/sent");
+	for (const path of ["/scheduled", "/sent", "/scheduled/msg_2", "/sent/msg_2", "/inbox/msg_1"]) {
+		assert.equal(resolveSendViewRoute(path, "msg_1", "draft"), null);
+		assert.equal(resolveSendViewRoute(path, "msg_1", "sent"), null);
+	}
+	assert.equal(resolveSendViewRoute("/sent/msg_1", "msg_1", "sent"), null);
+});
 
 test("an undo window counts down from the duration the server reports", () => {
 	assert.deepEqual(
