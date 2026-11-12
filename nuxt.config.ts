@@ -17,6 +17,14 @@ export default defineNuxtConfig({
   ssr: false,
   ignore: ['legacy/**'],
   devtools: { enabled: true },
+  // Public values the browser needs. Override at runtime with NUXT_PUBLIC_* vars on the Worker.
+  runtimeConfig: {
+    public: {
+      // Cloudflare Turnstile on sign-in, setup and password reset; off when empty (upstream's
+      // NEXT_PUBLIC_TURNSTILE_SITE_KEY). The server checks tokens only when TURNSTILE_SECRET_KEY is set.
+      turnstileSiteKey: '',
+    },
+  },
   // Icons used in the app are bundled into the client, so nothing is fetched from Iconify at runtime.
   icon: { clientBundle: { scan: true }, serverBundle: 'local' },
 
@@ -43,6 +51,8 @@ export default defineNuxtConfig({
     entry: r('./server/worker.ts'),
     // Lets ported code read the current request (cookies(), headers()) without threading the event.
     experimental: { asyncContext: true },
+    // Imported for its side effect in server/worker.ts (passkeys need the Reflect metadata API).
+    moduleSideEffects: ['reflect-metadata'],
     typescript: { tsConfig: { compilerOptions: { noImplicitAny: false, noUncheckedIndexedAccess: false, allowImportingTsExtensions: true, lib: ["esnext", "dom", "dom.iterable"] } } },
     ignore: ['legacy/**'],
     cloudflare: {
