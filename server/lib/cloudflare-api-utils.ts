@@ -63,8 +63,13 @@ export function getCloudflareAuthHint(errors: CfApiError[], path = "") {
 	return " Verify CF_TOKEN with `curl https://api.cloudflare.com/client/v4/user/tokens/verify -H \"Authorization: Bearer <token>\"`. Use the token secret value without `Bearer`, or use CF_API_KEY plus CF_EMAIL for a Global API Key.";
 }
 
-export function getEmailWorkerName(): string {
-	return "mailflare";
+/**
+ * The Worker that Email Routing rules deliver to: this deployment's own name, from the
+ * CF_EMAIL_WORKER_NAME var (set from the Worker name in nuxt.config.ts). Upstream hard-coded
+ * "mailflare", which Cloudflare rejects with "Workers Script Info not found" for any other name.
+ */
+export function getEmailWorkerName(env?: Pick<CloudflareEnv, "CF_EMAIL_WORKER_NAME">): string {
+	return env?.CF_EMAIL_WORKER_NAME?.trim() || "mailflare";
 }
 
 /** True when the app can talk to the Cloudflare API to manage zones and routing. */
