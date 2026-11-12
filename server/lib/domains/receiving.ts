@@ -9,13 +9,11 @@ import { setupDomainDnsRecord } from "#lib/domains/dns-setup";
 import { adoptCloudflareZone } from "#lib/domains/adopt-zone";
 import { isManualZone } from "#lib/domains/provision";
 import { listDomainMx, MxConflictError } from "#lib/domains/receiving-dns";
-import { removeResendReceiving, setupResendReceiving, hasResendReceivingConfig } from "#lib/domains/resend-receiving";
-import { hasSesReceivingConfig, removeSesReceiving, setupSesReceiving } from "#lib/aws/ses-receiving";
 import { ensureMailboxDomainRouting } from "#lib/mailboxes/domain-addresses";
 import type { DomainRow } from "#lib/domains/types";
 
-export type ReceivingProviderId = "none" | "cloudflare" | "resend" | "ses";
-export type ConfigurableReceiving = Exclude<ReceivingProviderId, "none">;
+/** Upstream also offered Resend and Amazon SES; this fork receives through Cloudflare Email Routing only. */
+export type ReceivingProviderId = "none" | "cloudflare";
 
 const isCloudflareMx = (content: string) => content.toLowerCase().replace(/\.$/, "").endsWith(".mx.cloudflare.net");
 
@@ -56,29 +54,11 @@ async function removeCloudflareMx(env: CloudflareEnv, domain: DomainRow): Promis
 	}
 }
 
-export async function setupReceiving(
-	env: CloudflareEnv,
-	domain: DomainRow,
-	provider: ConfigurableReceiving,
-	origin: string,
-	options: { replaceMx: boolean },
-): Promise<void> {
-	if (provider === "cloudflare") return setupCloudflareReceiving(env, domain, options);
-	if (provider === "resend") await setupResendReceiving(env, domain, origin, options);
-	else await setupSesReceiving(env, domain, origin, options);
-	// Same as a domain created with DNS: once receiving works, inbound routing
-	// (which only resolves active domains) must see this domain.
-	await getDb(env).update(domains).set({ status: "active" }).where(eq(domains.id, domain.id));
+export async function setupReceiving(env: CloudflareEnv, domain: DomainRow, options: { replaceMx: boolean }): Promise<void> {
+	return setupCloudflareReceiving(env, domain, options);
 }
 
-export async function removeReceiving(env: CloudflareEnv, domain: DomainRow, provider: ConfigurableReceiving): Promise<void> {
-	if (provider === "cloudflare") return removeCloudflareReceiving(env, domain);
-	if (provider === "resend") return removeResendReceiving(env, domain);
-	return removeSesReceiving(env, domain);
-}
-
-/** Which providers have leftover receiving configuration (null = could not tell). */
-export async function receivingPresence(env: CloudflareEnv, domain: DomainRow): Promise<Record<ConfigurableReceiving, boolean | null>> {
-	const [resend, ses] = await Promise.all([hasResendReceivingConfig(env, domain), hasSesReceivingConfig(env, domain)]);
-	return { cloudflare: domain.routingEnabled, resend, ses };
+/** Whether Cloudflare receiving is configured for this domain. */
+export async function receivingPresence(_env: CloudflareEnv, domain: DomainRow): Promise<{ cloudflare: boolean }> {
+	return { cloudflare: domain.routingEnabled };
 }

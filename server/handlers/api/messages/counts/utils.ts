@@ -1,4 +1,4 @@
-import type { MessageCounts, MessageFolder } from "#lib/_app/hooks-types";
+import type { MessageCounts, MessageFolder } from "#lib/messages/message-types";
 import type { CountableFolder, MessageCountRow } from "./types";
 
 export function getMessageFolder(row: MessageCountRow): CountableFolder {

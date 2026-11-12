@@ -51,16 +51,15 @@ export async function pickSystemSender(
 		.innerJoin(domains, eq(mailboxes.domainId, domains.id))
 		.innerJoin(users, eq(mailboxes.userId, users.id))
 		.where(and(
-			ne(domains.sendingProvider, "none"),
+			eq(domains.sendingProvider, "cloudflare"),
 			...(hostname ? [eq(domains.hostname, hostname.toLowerCase())] : []),
 			eq(mailboxes.disabled, false),
 			eq(users.disabled, false),
 		))
 		.orderBy(asc(mailboxes.createdAt))
 		.limit(50);
-	// Cloudflare sending only works once the zone's sending subdomain is enabled;
-	// Resend is verified per domain in Resend itself.
-	const usable = rows.filter((row) => row.provider !== "cloudflare" || row.cloudflareSending);
+	// Cloudflare sending only works once the zone's sending subdomain is enabled.
+	const usable = rows.filter((row) => row.cloudflareSending);
 	const chosen = usable.find((row) => row.role === "admin") ?? usable[0];
 	if (!chosen) return null;
 	return { address: `${chosen.localPart}@${chosen.hostname}`, name: chosen.displayName ?? "Mailflare" };

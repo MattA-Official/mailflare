@@ -2,8 +2,8 @@ import { sql } from "drizzle-orm";
 import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { kit } from "./kits";
 
-// Written once against the dialect kit (see kits.ts): SQLite by default, PostgreSQL or MySQL when
-// DATABASE_URL selects one. Everything below is typed as SQLite, which is the shape the app queries.
+// Upstream's schema, written against the column kit in kits.ts. This fork is D1 (SQLite) only; the kit is
+// kept so the file stays diffable with upstream.
 const { table: sqliteTable, text, integer, bool, timestamp, autoId, index, uniqueIndex, desc, nowSeconds } = kit;
 
 export const users = sqliteTable("users", {

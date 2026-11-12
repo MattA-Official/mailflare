@@ -1,4 +1,4 @@
-import type { Message } from "#lib/_app/hooks-types";
+import type { Message } from "#lib/messages/message-types";
 
 export type CachedMessageDetail = {
 	message?: Message;

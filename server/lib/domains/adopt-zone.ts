@@ -4,7 +4,7 @@ import { domains } from "#db/schema";
 import { isManualZone } from "#lib/domains/provision";
 import { preflightDomain } from "#lib/domains/preflight";
 import type { DomainRow } from "#lib/domains/types";
-import { hasCloudflareCredentials } from "#lib/runtime";
+import { hasCloudflareCredentials } from "#lib/cloudflare-api-utils";
 
 /**
  * A domain added with DNS skipped has the "manual" zone, which every Cloudflare
