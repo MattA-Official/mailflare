@@ -168,7 +168,10 @@ Tick in the PR that lands it. Add rows for anything discovered.
 
 - [x] Foundation: Worker entry, bindings, server port, migrations, shell, CI, deploy
 - [ ] 1 Shell and shared UI
-- [ ] 2 Sign-in and onboarding
+- [x] 2 Sign-in and onboarding: login (password, TOTP/recovery code, passkey, passkey second factor,
+  `?add=1`), first-run setup, onboarding, passkey setup links, forgot and reset password.
+  `tests/e2e/auth.spec.ts`. Passkey ceremonies use `APP_URL` as the RP ID, so they only complete on
+  https://mail.flytower.dev, not in local preview.
 - [ ] 3 Reading mail
 - [ ] 4 Composing
 - [ ] 5 Settings: account and security
@@ -198,11 +201,21 @@ Tick in the PR that lands it. Add rows for anything discovered.
   HttpOnly `ep_setup` cookie when no `token` is sent. Upstream's server-rendered `/setup/passkey` read
   that cookie and passed it on; the client-rendered page cannot. Requests that send a token are
   unchanged.
+- (Workstream 2) Auth pages use `layout: false` and their own two-panel `AuthShell`, as upstream did,
+  rather than the shared `auth` layout. `/setup`'s server-side branching (register, onboarding or
+  redirect) is a page middleware over `/api/setup/status` and `/api/auth/me`.
+- (Workstream 2) The Turnstile site key is runtime config `public.turnstileSiteKey`
+  (`NUXT_PUBLIC_TURNSTILE_SITE_KEY` on the Worker) in place of `NEXT_PUBLIC_TURNSTILE_SITE_KEY`.
 - `/api/setup/status` answers `hasAdminAccount: false, hasPrimaryDomain: false` on an empty database
   instead of a 500, so the client-rendered `/login` can send a fresh install to `/setup` as upstream's
   server page did.
 
 ## Open items
+
+- Fixed while porting sign-in, worth knowing for other areas: every passkey route returned 500 on
+  Workers (tsyringe needs `reflect-metadata`, now imported first in `server/worker.ts`), and MFA
+  enrolment returned 500 (qrcode's Node entry loads pngjs; aliased to its browser build). If another
+  library fails at import time on Workers, look for the same kind of Node-only entry point.
 
 - Production has no admin yet. First-run registration is left for Matt (see workstream 12).
 - `TURNSTILE_SECRET_KEY`, VAPID keys and APNs keys are not set on the Worker. Features that need them
