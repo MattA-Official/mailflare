@@ -328,6 +328,7 @@
 	"notification.newEmail": "อีเมลใหม่",
 	"notification.from": "จาก {sender}",
 	"notification.dismiss": "ปิดการแจ้งเตือน",
+	"notification.open": "เปิด",
 	"attachment.image": "รูปภาพ",
 	"attachment.video": "วิดีโอ",
 	"attachment.audio": "เสียง",

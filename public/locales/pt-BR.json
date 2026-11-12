@@ -332,6 +332,7 @@
 	"notification.newEmail": "Novo e-mail",
 	"notification.from": "De {sender}",
 	"notification.dismiss": "Dispensar notificação",
+	"notification.open": "Abrir",
 	"attachment.image": "Imagem",
 	"attachment.video": "Vídeo",
 	"attachment.audio": "Áudio",

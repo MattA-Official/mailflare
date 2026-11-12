@@ -328,6 +328,7 @@
 	"notification.newEmail": "புதிய மின்னஞ்சல்",
 	"notification.from": "{sender} இடமிருந்து",
 	"notification.dismiss": "அறிவிப்பை நிராகரி",
+	"notification.open": "திற",
 	"attachment.image": "படம்",
 	"attachment.video": "வீடியோ",
 	"attachment.audio": "ஆடியோ",

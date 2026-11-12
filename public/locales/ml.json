@@ -328,6 +328,7 @@
 	"notification.newEmail": "പുതിയ ഇമെയിൽ",
 	"notification.from": "{sender} ൽ നിന്ന്",
 	"notification.dismiss": "അറിയിപ്പ് തള്ളിക്കളയുക",
+	"notification.open": "തുറക്കുക",
 	"attachment.image": "ചിത്രം",
 	"attachment.video": "വീഡിയോ",
 	"attachment.audio": "ഓഡിയോ",

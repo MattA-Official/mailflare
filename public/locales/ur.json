@@ -328,6 +328,7 @@
 	"notification.newEmail": "نئی ای میل",
 	"notification.from": "از {sender}",
 	"notification.dismiss": "اطلاع بند کریں",
+	"notification.open": "کھولیں",
 	"attachment.image": "تصویر",
 	"attachment.video": "ویڈیو",
 	"attachment.audio": "آڈیو",

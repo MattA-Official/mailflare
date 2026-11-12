@@ -319,6 +319,7 @@
 	"notification.newEmail": "Yeni e-posta",
 	"notification.from": "Gönderen: {sender}",
 	"notification.dismiss": "Bildirimi kapat",
+	"notification.open": "Aç",
 	"attachment.image": "Resim",
 	"attachment.video": "Video",
 	"attachment.audio": "Ses",

@@ -328,6 +328,7 @@
 	"notification.newEmail": "नवीन ईमेल",
 	"notification.from": "{sender} कडून",
 	"notification.dismiss": "सूचना बंद करा",
+	"notification.open": "उघडा",
 	"attachment.image": "प्रतिमा",
 	"attachment.video": "व्हिडिओ",
 	"attachment.audio": "ऑडिओ",

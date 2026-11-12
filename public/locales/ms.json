@@ -328,6 +328,7 @@
 	"notification.newEmail": "E-mel baharu",
 	"notification.from": "Daripada {sender}",
 	"notification.dismiss": "Abaikan pemberitahuan",
+	"notification.open": "Buka",
 	"attachment.image": "Imej",
 	"attachment.video": "Video",
 	"attachment.audio": "Audio",
