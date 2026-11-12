@@ -13,8 +13,12 @@ export default defineNuxtConfig({
   future: { compatibilityVersion: 4 },
   modules: ['@nuxthub/core', '@nuxt/ui', '@nuxt/eslint'],
   css: ['~/assets/css/main.css'],
+  // A signed-in app: rendered in the browser. The Worker serves the shell and the API.
+  ssr: false,
   ignore: ['legacy/**'],
   devtools: { enabled: true },
+  // Icons used in the app are bundled into the client, so nothing is fetched from Iconify at runtime.
+  icon: { clientBundle: { scan: true }, serverBundle: 'local' },
 
   // Ported server code keeps upstream's layout: #lib is legacy src/lib, #db is src/db and
   // #handlers is the API route tree (src/app/api and friends).

@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "bun run prepare:gen && nuxt dev",
     "build": "bun run prepare:gen && nuxt build",
-    "preview": "node scripts/local-wrangler-config.mjs && wrangler dev -c .output/server/wrangler.local.json --port 8787 --test-scheduled",
+    "preview": "node scripts/local-wrangler-config.mjs && wrangler dev -c .output/server/wrangler.local.json --port 8787 --test-scheduled --persist-to .wrangler/state",
     "deploy": "bun run build && wrangler deploy",
     "postinstall": "bun run prepare:gen && nuxt prepare",
     "lint": "eslint .",
@@ -16,7 +16,8 @@
     "db:generate": "nuxt db generate",
     "db:bundle": "node scripts/generate-migration-bundle.mjs",
     "routes:generate": "node scripts/generate-route-stubs.mjs",
-    "prepare:gen": "bun run db:bundle && bun run routes:generate"
+    "prepare:gen": "bun run db:bundle && bun run routes:generate",
+    "seed:local": "node scripts/seed-local.mjs"
   },
   "dependencies": {
     "@ai-sdk/openai": "^4.0.115",
@@ -45,6 +46,7 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20261112.1",
+    "@iconify-json/lucide": "^1.2.153",
     "@nuxt/eslint": "^1.17.0",
     "@types/css-tree": "^3.2.0",
     "@types/parse-srcset": "^1.0.0",

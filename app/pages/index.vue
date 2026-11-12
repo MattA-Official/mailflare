@@ -1,15 +1,9 @@
 <script setup lang="ts">
-const { data } = await useFetch('/api/health')
+// Upstream shows a marketing landing page here. A personal install goes straight to the mailbox.
+definePageMeta({ auth: { mode: 'public' } })
+await navigateTo('/inbox', { replace: true })
 </script>
 
 <template>
-  <UContainer class="py-16">
-    <UCard>
-      <template #header>
-        <h1 class="text-xl font-semibold">Mailflare on Nuxt</h1>
-      </template>
-      <p class="text-muted">Foundation is running. The port is in progress.</p>
-      <pre class="mt-4 text-sm">{{ data }}</pre>
-    </UCard>
-  </UContainer>
+  <div />
 </template>
