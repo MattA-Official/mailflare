@@ -15,20 +15,20 @@ async function expand() {
 </script>
 
 <template>
-  <div class="flex min-w-0 flex-1 items-center">
+  <div class="flex min-w-0 flex-1 items-center max-lg:justify-end">
     <UButton
       icon="i-lucide-search"
       color="neutral"
       :variant="input ? 'soft' : 'ghost'"
-      class="md:hidden"
+      class="lg:hidden"
       :class="expanded && 'hidden'"
       :aria-label="t('search.mail')"
       @click="expand"
     />
     <form
       role="search"
-      class="min-w-0 flex-1 md:block"
-      :class="expanded ? 'max-md:absolute max-md:inset-x-2 max-md:top-1/2 max-md:z-10 max-md:-translate-y-1/2' : 'max-md:hidden'"
+      class="min-w-0 flex-1 lg:block"
+      :class="expanded ? 'max-lg:absolute max-lg:inset-x-2 max-lg:top-1/2 max-lg:z-10 max-lg:-translate-y-1/2' : 'max-lg:hidden'"
       @submit.prevent
     >
       <UInput
@@ -37,7 +37,7 @@ async function expand() {
         icon="i-lucide-search"
         variant="soft"
         size="lg"
-        class="w-full max-w-2xl"
+        class="w-full max-w-2xl lg:min-w-96"
         :ui="{ base: 'rounded-full' }"
         data-mail-search-input
         :aria-label="t('search.mail')"

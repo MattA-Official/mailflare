@@ -5,7 +5,7 @@ withDefaults(defineProps<{ title?: string, search?: boolean, banner?: boolean }>
 </script>
 
 <template>
-  <UDashboardNavbar :title="title" :ui="{ title: search ? 'max-md:hidden' : undefined }">
+  <UDashboardNavbar :title="title" :ui="{ title: search ? 'max-lg:hidden' : undefined, center: 'flex min-w-0 flex-1 justify-center', root: 'relative' }">
     <template #leading>
       <UDashboardSidebarCollapse />
       <slot name="leading" />

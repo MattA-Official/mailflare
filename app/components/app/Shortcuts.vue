@@ -64,7 +64,7 @@ const paletteGroups = computed<CommandPaletteGroup<CommandPaletteItem>[]>(() => 
       icon: command.icon,
       kbds: command.shortcut?.split(' '),
       // Keywords and the category also match, as upstream's filter did.
-      suffix: [command.category, ...(command.keywords ?? [])].join(' '),
+      keywords: [command.category, ...(command.keywords ?? [])].join(' '),
       onSelect: () => {
         paletteOpen.value = false
         command.perform()
@@ -94,7 +94,7 @@ const closeHint = computed(() => t('shortcutsHelp.pressToClose', { key: '{key}' 
       :placeholder="t('palette.placeholder')"
       :color-mode="false"
       shortcut=""
-      :fuse="{ fuseOptions: { keys: ['label', 'description', 'suffix'] }, resultLimit: 50 }"
+      :fuse="{ fuseOptions: { keys: ['label', 'description', 'keywords'] }, resultLimit: 50 }"
     >
       <template #empty="{ searchTerm }">
         <p class="p-6 text-center text-sm text-muted">{{ t('palette.noMatch', { query: searchTerm ?? '' }) }}</p>
