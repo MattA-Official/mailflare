@@ -175,7 +175,7 @@ Tick in the PR that lands it. Add rows for anything discovered.
 - [ ] 6 Settings: mail
 - [ ] 7 Admin: email
 - [ ] 8 Admin: administration
-- [ ] 9 Calendar and booking
+- [x] 9 Calendar and booking
 - [ ] 10 Drive, contacts and assistant
 - [ ] 11 Server clean-up and tests
 - [ ] 12 Verification and cutover
@@ -185,6 +185,15 @@ Tick in the PR that lands it. Add rows for anything discovered.
 - `/` redirects to `/inbox` instead of showing upstream's marketing landing page.
 - The realtime upgrade, email, queue and cron handlers live in `server/worker.ts`; behaviour is
   upstream's.
+- Calendar and booking (/calendar, /booking) use the dashboard layout with `nav: 'calendar'`. The
+  upcoming list is its own resizable `UDashboardPanel` on wide screens and a slideover (list button in
+  the navbar) below `lg`, instead of upstream's phone-menu drawer. The Bookings/Calendar switch sits
+  in the navbar. The booking editor is a `USlideover` rather than an inline side column. Confirmations
+  (delete event, delete booking type) still use `window.confirm`, as upstream does.
+- The calendar sends invitations from the mailbox selected in the switcher, read from the
+  `selected-mailbox-id` localStorage key upstream's MailboxProvider writes (falling back to the
+  primary mailbox), via `app/utils/calendar/mailbox.ts`. Switch it to the shell's mailbox composable
+  once that exists.
 
 ## Open items
 
