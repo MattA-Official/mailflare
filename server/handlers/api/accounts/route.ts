@@ -2,20 +2,19 @@ import { NextResponse } from "#lib/http/next-compat";
 import { getDb } from "#db";
 import { createUserAccountSchema } from "#lib/validators";
 import { canManageUsers, isPrimaryAdmin } from "#lib/auth/admin";
-import { getLicenseEntitlements } from "#lib/licenses/service";
-import { countUsedAccountSeats } from "#lib/licenses/seats";
 import { deleteAccounts } from "#lib/accounts/deletion";
 import { createAccountResponse } from "./create";
-import { accountListItemFromUser, listAccountsForAdmin, requireTeamAdmin } from "./utils";
+import { accountListItemFromUser, countUsedAccountSeats, listAccountsForAdmin, requireTeamAdmin } from "./utils";
 
 export async function GET(request: Request) {
 	const access = await requireTeamAdmin(request);
 	if (access.error) return access.error;
 	const rows = await listAccountsForAdmin(getDb(access.env));
-	const [{ accountSeatLimit }, seatsUsed] = await Promise.all([getLicenseEntitlements(access.env), countUsedAccountSeats(access.env)]);
+	const seatsUsed = await countUsedAccountSeats(access.env);
 	return NextResponse.json({
 		accounts: rows.map((row) => accountListItemFromUser(row)),
-		seats: { limit: accountSeatLimit, used: seatsUsed },
+		// Seats are unlimited; the shape is kept for the accounts page and API clients.
+		seats: { limit: null, used: seatsUsed },
 	});
 }
 

@@ -178,6 +178,8 @@ Tick in the PR that lands it. Add rows for anything discovered.
 - [x] 9 Calendar and booking
 - [ ] 10 Drive, contacts and assistant
 - [ ] 11 Server clean-up and tests
+  - [x] Licence gate, Resend, SES, B2/S3, Node runtime, other dialects, self-update merge removed
+  - [ ] Unit tests ported
 - [ ] 12 Verification and cutover
 
 ## Shell conventions (workstream 1)
@@ -197,6 +199,25 @@ Tick in the PR that lands it. Add rows for anything discovered.
   registration are client plugins.
 
 ## Deviations from upstream
+
+- (11) No licences. `/api/licenses/*` is gone, there is no licence indicator (workstream 1) and no
+  licences page (workstream 8). Every licensed feature is on: `canForwardEmail`, `canCreateShared` and
+  `canManageHosts` are always true for those who would have had them with a Team licence, and
+  `GET /api/accounts` returns `seats: { limit: null, used }` (unlimited).
+- (11) Cloudflare is the only mail provider. `/api/domains/{id}/sending` and `/receiving` accept
+  `none | cloudflare`; their GET responses are `{ cloudflare: boolean }` (upstream also returned
+  resend/ses keys). `POST /api/domains/{id}/receiving/cloudflare` sets up Email Routing (409
+  `MX_CONFLICT` as before); its GET and other providers are gone. Removed endpoints:
+  `/api/domains/{id}/resend`, `/api/domains/{id}/ses`, `/api/admin/aws`, `/api/admin/resend-key`,
+  `/api/inbound`, `/api/inbound/resend`, `/api/inbound/ses`. The schema keeps upstream's
+  `sending_provider`/`receiving_provider` enums.
+- (11) `/api/v1/storage` always reports `{ provider: "r2", configured: true, bucket: null, endpoint: null }`.
+- (11) `/api/admin/update` is gone: the admin update card shows only pending migrations
+  (`/api/admin/migrations`), since upstream's "merge upstream" workflow cannot apply to this fork.
+- (11) `server/lib/_app` moved: `hooks-types` is `#lib/messages/message-types`,
+  `email-html-sanitizer-types` is `#lib/email/html-types`, `rich-text-utils` is
+  `#lib/compose/rich-text-utils`, and the `email-html-sanitizer` re-export is gone (use
+  `sanitizeEmailHtml` from `#lib/email/html`).
 
 - `/` redirects to `/inbox` instead of showing upstream's marketing landing page.
 - The realtime upgrade, email, queue and cron handlers live in `server/worker.ts`; behaviour is
@@ -218,6 +239,10 @@ Tick in the PR that lands it. Add rows for anything discovered.
   field messages instead of "Request failed".
 
 ## Open items
+
+- Message authentication details (`/api/messages/{id}/authentication`) only trust an SES trace, as
+  upstream's do, so mail received through Cloudflare always reports `untrusted`. Reading Cloudflare's
+  own `Authentication-Results` there (as the spam analyser already does) would make the panel useful.
 
 - Production has no admin yet. First-run registration is left for Matt (see workstream 12).
 - `TURNSTILE_SECRET_KEY`, VAPID keys and APNs keys are not set on the Worker. Features that need them

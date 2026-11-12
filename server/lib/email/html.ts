@@ -2,7 +2,7 @@ import createDOMPurify from "dompurify";
 import * as css from "css-tree";
 import { parse, serialize, type DefaultTreeAdapterTypes } from "parse5";
 import parseSrcset from "parse-srcset";
-import type { SanitizeEmailHtmlOptions } from "#lib/_app/email-html-sanitizer-types";
+import type { SanitizeEmailHtmlOptions } from "#lib/email/html-types";
 
 type Options = SanitizeEmailHtmlOptions & {
 	allowRemote?: boolean;

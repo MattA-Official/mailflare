@@ -1,5 +1,4 @@
-import { dialectOf, listColumnNames, listTableNames, quoteIdentifier } from "#db/introspect";
-import type { DatabaseDialect } from "#db/dialect";
+import { listColumnNames, listTableNames, quoteIdentifier } from "#db/introspect";
 import type { BackupTableGroupId, DatabaseBackupDocument, DatabaseBackupTable, DatabaseRecord } from "./types";
 import { mergeLegacyMessageBodies } from "./utils";
 import { BACKUP_TABLE_GROUPS, getSelectedBackupTables } from "./table-groups";
@@ -83,7 +82,6 @@ export async function assertBackupTablesCoverDatabase(db: D1Database): Promise<S
 }
 
 export async function exportDatabaseRecords(db: D1Database, excludedGroups: BackupTableGroupId[] = []): Promise<Uint8Array> {
-	const dialect = dialectOf(db);
 	const databaseTables = await assertBackupTablesCoverDatabase(db);
 	const selected = getSelectedBackupTables(excludedGroups);
 	const includedTables = BACKUP_TABLES.filter((table) => selected.has(table));
@@ -95,8 +93,7 @@ export async function exportDatabaseRecords(db: D1Database, excludedGroups: Back
 			continue;
 		}
 		const result = await db.prepare(`SELECT * FROM ${table}`).all<DatabaseRecord>();
-		// Backups hold SQLite-style values whichever database wrote them, so they restore anywhere.
-		tables[table] = dialect === "sqlite" ? result.results : result.results.map(toPortableRecord);
+		tables[table] = result.results;
 	}
 	const document: DatabaseBackupDocument = { format: "mailflare-database-backup", version: 2, createdAt: new Date().toISOString(), includedTables, tables };
 	return new TextEncoder().encode(JSON.stringify(document));
@@ -110,7 +107,6 @@ export async function restoreDatabaseRecords(db: D1Database, content: ArrayBuffe
 	mergeLegacyMessageBodies(document);
 	fillMissingBackupTables(document);
 	validateDatabaseBackup(document);
-	const dialect = dialectOf(db);
 	const existing = await listTableNames(db);
 	const sharedLinksTable = existing.has("shared_attachment_links");
 	if (!sharedLinksTable && document.tables.shared_attachment_links?.length) throw new Error("Apply pending database migrations before restoring shared attachment links.");
@@ -150,9 +146,8 @@ export async function restoreDatabaseRecords(db: D1Database, content: ArrayBuffe
 					: table === "passkey_credentials"
 						? passkeyColumns
 						: null;
-			const statements = rows.slice(index, index + INSERT_BATCH_SIZE).map((row) => createInsertStatement(db, dialect, table, row, columns));
-			// MySQL checks foreign keys per statement, so the batch suspends them for its own connection.
-			if (statements.length > 0) await db.batch(dialect === "mysql" ? [db.prepare("SET FOREIGN_KEY_CHECKS = 0"), ...statements, db.prepare("SET FOREIGN_KEY_CHECKS = 1")] : statements);
+			const statements = rows.slice(index, index + INSERT_BATCH_SIZE).map((row) => createInsertStatement(db, table, row, columns));
+			if (statements.length > 0) await db.batch(statements);
 		}
 	}
 }
@@ -178,11 +173,11 @@ function isDatabaseBackupDocument(value: unknown): value is DatabaseBackupDocume
 	});
 }
 
-function createInsertStatement(db: D1Database, dialect: DatabaseDialect, table: DatabaseBackupTable, row: DatabaseRecord, availableColumns: Set<string> | null = null) {
+function createInsertStatement(db: D1Database, table: DatabaseBackupTable, row: DatabaseRecord, availableColumns: Set<string> | null = null) {
 	const columns = Object.keys(row).filter((column) => !availableColumns || availableColumns.has(column));
 	if (columns.length === 0) throw new Error(`Backup contains an invalid ${table} record`);
 	const placeholders = columns.map(() => "?").join(", ");
-	const identifiers = columns.map((column) => quoteIdentifier(dialect, column)).join(", ");
+	const identifiers = columns.map((column) => quoteIdentifier(column)).join(", ");
 	return db.prepare(`INSERT INTO ${table} (${identifiers}) VALUES (${placeholders})`).bind(...columns.map((column) => row[column]));
 }
 
@@ -217,6 +212,3 @@ function validateDatabaseBackup(document: DatabaseBackupDocument): void {
 	}
 }
 
-function toPortableRecord(row: DatabaseRecord): DatabaseRecord {
-	return Object.fromEntries(Object.entries(row).map(([column, value]) => [column, typeof value === "boolean" ? (value ? 1 : 0) : value])) as DatabaseRecord;
-}

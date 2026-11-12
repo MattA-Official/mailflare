@@ -56,7 +56,7 @@ export function registerAdminMcpTools(server: McpServer, principal: McpPrincipal
 	});
 
 	if (principal.scopes.includes("accounts")) server.registerTool("manage_accounts", {
-		description: "List, inspect, create, or update managed accounts. Actions: list, get, create, update. Pass id for get or update and data for create or update. For create, data accepts username, domainId, password, role?, useAllDomains? (defaults to true for compatibility), and aliases?: [{ domainId, localPart }]. Set useAllDomains to false to assign only the primary address and explicit aliases. Requires a Pro or Team license; Pro is limited to its account seats.",
+		description: "List, inspect, create, or update managed accounts. Actions: list, get, create, update. Pass id for get or update and data for create or update. For create, data accepts username, domainId, password, role?, useAllDomains? (defaults to true for compatibility), and aliases?: [{ domainId, localPart }]. Set useAllDomains to false to assign only the primary address and explicit aliases.",
 		inputSchema: adminInput,
 	}, async ({ action, id, data }) => {
 		if (!principal.scopes.includes("accounts")) return result({ error: "Permission denied" }, true);
@@ -93,7 +93,7 @@ export function registerAdminMcpTools(server: McpServer, principal: McpPrincipal
 	});
 
 	if (principal.scopes.includes("storage")) server.registerTool("manage_storage", {
-		description: "Show which object storage holds raw mail, attachments, Drive files, avatars and backups, and test it. Actions: status (provider, bucket, endpoint), test (writes, reads and deletes a small object to prove the credentials work). Backblaze B2 (B2_* variables) or AWS S3 (S3_* variables) replaces R2 when configured in the Worker environment; credentials are never returned.",
+		description: "Show which object storage holds raw mail, attachments, Drive files, avatars and backups, and test it. Actions: status (provider, bucket, endpoint), test (writes, reads and deletes a small object to prove the credentials work). Storage is the Worker's R2 binding.",
 		inputSchema: adminInput,
 	}, async ({ action }) => {
 		if (!principal.scopes.includes("storage")) return result({ error: "Permission denied" }, true);
