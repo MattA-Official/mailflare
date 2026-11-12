@@ -2,7 +2,7 @@ import { fileURLToPath } from 'node:url'
 import { getSecurityHeaders } from './server/lib/security/headers'
 
 // Mailflare on Nuxt, deployed as a single Cloudflare Worker.
-// The upstream Next.js app lives in ./legacy for reference while the port is in progress.
+// A port of upstream Mailflare (Next.js); see README.md and docs/.
 const D1_DATABASE_ID = '2c5e6a86-7940-44cc-9f11-2dc855d60cd9'
 const KV_NAMESPACE_ID = '7508952e90a94acca8e3b1cb27854e9f'
 const CACHE_NAMESPACE_ID = 'f35fc0ad21a5478ca13216230146e872'
@@ -20,7 +20,6 @@ export default defineNuxtConfig({
   css: ['~/assets/css/main.css'],
   // A signed-in app: rendered in the browser. The Worker serves the shell and the API.
   ssr: false,
-  ignore: ['legacy/**'],
   devtools: { enabled: true },
   // Upstream's storage key, so a saved light/dark choice carries over.
   colorMode: { storageKey: 'mailflare-theme' },
@@ -42,7 +41,7 @@ export default defineNuxtConfig({
   // Icons used in the app are bundled into the client, so nothing is fetched from Iconify at runtime.
   icon: { clientBundle: { scan: true }, serverBundle: 'local' },
 
-  // Ported server code keeps upstream's layout: #lib is legacy src/lib, #db is src/db and
+  // Ported server code keeps upstream's layout: #lib is upstream's src/lib, #db is src/db and
   // #handlers is the API route tree (src/app/api and friends).
   alias: {
     '#lib': r('./server/lib'),
@@ -68,8 +67,7 @@ export default defineNuxtConfig({
     // Imported for its side effect in server/worker.ts (passkeys need the Reflect metadata API).
     moduleSideEffects: ['reflect-metadata'],
     typescript: { tsConfig: { compilerOptions: { noImplicitAny: false, noUncheckedIndexedAccess: false, allowImportingTsExtensions: true, lib: ["esnext", "dom", "dom.iterable"] } } },
-    ignore: ['legacy/**'],
-    cloudflare: {
+      cloudflare: {
       deployConfig: true,
       nodeCompat: true,
       wrangler: {
@@ -141,7 +139,6 @@ export default defineNuxtConfig({
   // leniency as the server project. The Worker env types live in shared/types/env.d.ts for both.
   typescript: {
     tsConfig: {
-      exclude: ['../legacy'],
       compilerOptions: { noImplicitAny: false, noUncheckedIndexedAccess: false, allowImportingTsExtensions: true },
     },
   },

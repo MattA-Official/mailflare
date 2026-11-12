@@ -4,17 +4,10 @@ The plan, the rules every thread follows, and the status board. Read [CLAUDE.md]
 
 ## Where things stand
 
-The foundation is done and deployed at https://mail.flytower.dev (Worker `flytower-mail`, Cloudflare
-account Flytower).
-
-- **Server: fully carried across.** All of upstream's `src/lib`, `src/db`, the 87 migrations and the 208
-  API route handlers run under Nitro. Checked locally in workerd: migrations through first-run setup,
-  sign-in and session cookies, authenticated routes, the realtime Durable Object with session auth, and
-  inbound email through the email handler to R2, the queue consumer, parsing, spam scoring and the
-  database.
-- **App: shell only.** Sign-in page, route guard, translations, the dashboard layout and a placeholder
-  inbox. Every other page is still to be ported. That is the bulk of what is left: about 40,000 lines of
-  React in `legacy/src/app` and `legacy/src/components` to rewrite in Vue with Nuxt UI.
+The port is complete and deployed at https://mail.flytower.dev (Worker `flytower-mail`, Cloudflare
+account Flytower). Every workstream below is ticked. `legacy/` (upstream's Next.js app at v0.5.4) was
+deleted at cutover; it remains on the `main` branch and at https://github.com/hieunc229/mailflare, and
+paths below that start `legacy/` mean upstream's tree. `nuxt` is the default branch.
 
 ## Decisions (made by Matt unless marked)
 
@@ -208,7 +201,7 @@ Tick in the PR that lands it. Add rows for anything discovered.
     - `compose-ai-review-behavior`: also edits the form while the review is open, since the port has
       nothing else that would trigger an autosave there.
     - `avatar-preview-skip`: moot, the progressive avatar is not ported.
-- [ ] 12 Verification and cutover
+- [x] 12 Verification and cutover
   - [x] Workers Builds previews: `previews` block against preview-only D1/R2/KV/queues
   - [x] Setup fix: Email Routing rules now target `CF_EMAIL_WORKER_NAME` (upstream hard-coded `mailflare`)
   - [x] e2e: Playwright runner (`bun run test:e2e`, CI job `e2e`), upstream's passkeys suite ported
@@ -217,7 +210,7 @@ Tick in the PR that lands it. Add rows for anything discovered.
   - [x] Parity walk (pages, API routes, lib, public files, scripts, docs, changelog): fixed missing
     security headers, leftover licence/Docker/Resend copy, Cancel focus on passkey removal; ported
     the recovery-link, VAPID and Takeout scripts; user docs moved to `docs/`
-  - [ ] Delete `legacy/` (after the UI test ports land), make `nuxt` the default branch
+  - [x] Deleted `legacy/` after the UI test ports landed; `nuxt` is the default branch
 
 ## Shell conventions (workstream 1)
 
@@ -356,7 +349,7 @@ Tick in the PR that lands it. Add rows for anything discovered.
   Cloudflare connector these threads use cannot see the Flytower account, so neither the Turnstile
   widget nor the secrets could be created from here. To turn them on: create a Turnstile widget for
   mail.flytower.dev, set its secret as `TURNSTILE_SECRET_KEY` and its site key where the sign-in pages read it (workstream 2; upstream used `NEXT_PUBLIC_TURNSTILE_SITE_KEY`);
-  generate VAPID keys with `legacy/scripts/generate-vapid-keys.mjs` and set them as Worker secrets.
+  generate VAPID keys with `bun run vapid:generate` and set them as Worker secrets.
 - `public/locales/*.json` gained `notification.open` (added to English by workstream 1), copied from
   each catalogue's existing `drive.open` translation of the same word.
 - Email Routing on flytower.dev is not enabled yet; first-run setup enables it through `CF_TOKEN`.
