@@ -178,13 +178,13 @@ Tick in the PR that lands it. Add rows for anything discovered.
   `tests/e2e/auth.spec.ts`. Passkey ceremonies use `APP_URL` as the RP ID, so they only complete on
   https://mail.flytower.dev, not in local preview.
 - [x] 3 Reading mail: every folder list and reader, custom folders, the drafts list, the split view, bulk and row actions, swipe on phones, follow-ups, the HTML renderer. Shared for others: `MessagesFolderPage` + `~/utils/messages/folder-configs`, `MessagesEmailHtmlRenderer`, `useConversationView` / `useTwoColumnReading` / `useLatestMessagesFirst` / `useShowFullRecipientAddresses` in `app/composables/messages` (for settings). Unit tests for `app/utils/messages` are left to 11
-- [ ] 4 Composing: composer, toasts and /compose done (`useCompose()`, `<ComposeHost>` in the dashboard layout; shared: `ComposeFollowUpMenu`, `ComposeScheduleSendSheet`, `~/utils/compose/*`). Left: `/drafts/[messageId]` and the quote renderer, once reading mail's `MessagesFolderPage` and `MessagesEmailHtmlRenderer` land
-- [ ] 5 Settings: account and security
+- [x] 4 Composing (`useCompose()` and `<ComposeHost>` in the dashboard layout; shared: `ComposeFollowUpMenu`, `ComposeScheduleSendSheet`, `~/utils/compose/*`)
+- [x] 5 Settings: account and security
 - [x] 6 Settings: mail
 - [x] 7 Admin: email
 - [x] 8 Admin: administration
 - [x] 9 Calendar and booking
-- [ ] 10 Drive, contacts and assistant
+- [x] 10 Drive, contacts and assistant
 - [x] 11 Server clean-up and tests
   - [x] Licence gate, Resend, SES, B2/S3, Node runtime, other dialects, self-update merge removed
   - [x] Unit tests ported: `legacy/tests/*.test.mjs` run under vitest as `tests/unit/*.test.mjs`
@@ -305,6 +305,20 @@ Tick in the PR that lands it. Add rows for anything discovered.
   domain still requires typing its hostname. The mailbox pages dispatch `mailflare:mailboxes-changed`
   instead of calling the selector's cache directly. Routing rule validation errors show the server's
   field messages instead of "Request failed".
+- Settings (workstream 5): signing out a mobile device and revoking an API key confirm in a modal
+  instead of `window.confirm`. The MFA QR code is rendered with qrcode's core and SVG renderer
+  (`server/lib/auth/qr-svg.ts`) because its PNG renderer cannot load on Workers.
+
+- (10) Drive uploads: `PUT /api/drive/upload/{id}` pipes the request body through a
+  `FixedLengthStream` before `uploadPart`, because R2 rejects the stream Nitro hands the handler
+  ("Provided readable stream must have a known length"). Request and response shapes are unchanged.
+- (10) The email assistant is `AgentAside` (mounted in the dashboard layout) with its toggle in
+  `AppNavbar`, shown only in the mail and calendar sections (`nav: 'mail' | 'calendar'`), as upstream
+  showed it only beside mail and calendar. State lives in `useAssistant()`, which replaces
+  `use-assistant-availability`; upstream's localStorage keys are kept. Assistant replies render
+  through `marked` + DOMPurify with raw HTML and images dropped.
+- (10) `ContactsContactAvatar` is a plain `<img>` with an initials fallback rather than upstream's
+  progressive avatar, matching the shell's decision for `UAvatar`.
 
 ## Open items
 
