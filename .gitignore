@@ -10,3 +10,5 @@ dist
 .DS_Store
 server/lib/migrations/bundle.json
 tests/.tmp-*
+test-results
+playwright-report

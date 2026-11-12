@@ -2,7 +2,7 @@
 // admin@example.test / mailflare-dev). Covers what upstream's compose-insert-link test checked, plus
 // autosave, undo send and the /drafts/[messageId] route. Local delivery cannot reach the internet,
 // so nothing here waits for a message to be delivered.
-import { expect, test, type Page } from '@playwright/test'
+import { expect, test, type Page } from './helpers/test'
 
 const BASE = process.env.E2E_BASE_URL ?? 'http://localhost:8787'
 

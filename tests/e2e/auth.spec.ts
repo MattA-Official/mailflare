@@ -1,7 +1,6 @@
 // Sign-in and onboarding smoke test. Runs against `bun run preview` with the local seed
-// (`bun run seed:local`: admin@example.test / mailflare-dev, no MFA). The verification workstream
-// wires up the Playwright runner; until then run it with `bunx playwright test tests/e2e`.
-import { expect, test } from '@playwright/test'
+// (`bun run seed:local`: admin@example.test / mailflare-dev, no MFA). Run with `bun run test:e2e`.
+import { expect, test } from './helpers/test'
 
 const BASE = process.env.E2E_BASE_URL ?? 'http://localhost:8787'
 const EMAIL = 'admin@example.test'

@@ -175,8 +175,8 @@ Tick in the PR that lands it. Add rows for anything discovered.
 - [x] 1 Shell and shared UI
 - [x] 2 Sign-in and onboarding: login (password, TOTP/recovery code, passkey, passkey second factor,
   `?add=1`), first-run setup, onboarding, passkey setup links, forgot and reset password.
-  `tests/e2e/auth.spec.ts`. Passkey ceremonies use `APP_URL` as the RP ID, so they only complete on
-  https://mail.flytower.dev, not in local preview.
+  `tests/e2e/auth.spec.ts`. Passkey ceremonies use `APP_URL` as the RP ID; local preview sets it to
+  http://localhost:8787 (workstream 12), so they complete there too.
 - [x] 3 Reading mail: every folder list and reader, custom folders, the drafts list, the split view, bulk and row actions, swipe on phones, follow-ups, the HTML renderer. Shared for others: `MessagesFolderPage` + `~/utils/messages/folder-configs`, `MessagesEmailHtmlRenderer`, `useConversationView` / `useTwoColumnReading` / `useLatestMessagesFirst` / `useShowFullRecipientAddresses` in `app/composables/messages` (for settings). Unit tests for `app/utils/messages` are left to 11
 - [x] 4 Composing (`useCompose()` and `<ComposeHost>` in the dashboard layout; shared: `ComposeFollowUpMenu`, `ComposeScheduleSendSheet`, `~/utils/compose/*`)
 - [x] 5 Settings: account and security
@@ -208,6 +208,15 @@ Tick in the PR that lands it. Add rows for anything discovered.
     - 6 Settings: mail: `import-staging`, `domain-routing-permissions`
     - 7 Admin: email: `domain-add-retry`
 - [ ] 12 Verification and cutover
+  - [x] Workers Builds previews: `previews` block against preview-only D1/R2/KV/queues
+  - [x] Setup fix: Email Routing rules now target `CF_EMAIL_WORKER_NAME` (upstream hard-coded `mailflare`)
+  - [x] e2e: Playwright runner (`bun run test:e2e`, CI job `e2e`), upstream's passkeys suite ported
+    (`tests/e2e/passkeys.spec.ts`, its own account reset through the local D1), a sweep of every
+    signed-in page for errors, 5xx and CSP violations (`tests/e2e/pages.spec.ts`)
+  - [x] Parity walk (pages, API routes, lib, public files, scripts, docs, changelog): fixed missing
+    security headers, leftover licence/Docker/Resend copy, Cancel focus on passkey removal; ported
+    the recovery-link, VAPID and Takeout scripts; user docs moved to `docs/`
+  - [ ] Delete `legacy/` (after the UI test ports land), make `nuxt` the default branch
 
 ## Shell conventions (workstream 1)
 
@@ -247,6 +256,16 @@ Tick in the PR that lands it. Add rows for anything discovered.
 - (11) `/api/v1/storage` always reports `{ provider: "r2", configured: true, bucket: null, endpoint: null }`.
 - (11) `/api/admin/update` is gone: the admin update card shows only pending migrations
   (`/api/admin/migrations`), since upstream's "merge upstream" workflow cannot apply to this fork.
+- (12) Upstream's security headers (`getSecurityHeaders`: CSP without `unsafe-eval`, HSTS, COOP,
+  frame, referrer and permissions policy, `X-Robots-Tag`) are applied to every response through
+  `routeRules` in `nuxt.config.ts`; they were missing from the port.
+- (12) Five strings that mentioned licences, Docker or Resend/SES (`admin.section.accounts`,
+  `update.description`, `domains.descriptionManaged`, `adminKeys.perm.accountsDesc`,
+  `adminKeys.perm.storageDesc`) were reworded in English; the other catalogues carry the English
+  text for those keys until someone translates them.
+- (12) `bun run auth:recovery-link` prints the D1 statements and link only (there is no
+  `DATABASE_URL` path). `bun run preview` sets `APP_URL` to http://localhost:8787 so passkeys work
+  locally.
 - (11) `server/lib/_app` moved: `hooks-types` is `#lib/messages/message-types`,
   `email-html-sanitizer-types` is `#lib/email/html-types`, `rich-text-utils` is
   `#lib/compose/rich-text-utils`, and the `email-html-sanitizer` re-export is gone (use

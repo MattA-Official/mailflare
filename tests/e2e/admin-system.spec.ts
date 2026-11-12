@@ -1,8 +1,8 @@
 // Smoke test for the administration pages (workstream 8). Runs against `bun run preview` with the
 // local seed (`bun run seed:local`), signed in as the seeded primary admin.
-import { expect, test } from '@playwright/test'
+import { expect, test } from './helpers/test'
 
-const baseURL = process.env.MAILFLARE_URL ?? 'http://localhost:8787'
+const baseURL = process.env.E2E_BASE_URL ?? 'http://localhost:8787'
 
 test.beforeEach(async ({ page }) => {
   await page.goto(`${baseURL}/login`)
@@ -18,7 +18,7 @@ const pages: [string, RegExp][] = [
   ['/api-keys', /Admin API keys/],
   ['/general', /General/],
   ['/agent', /Agent/],
-  ['/ai-usage', /AI usage/],
+  ['/ai-usage', /AI usage/i],
   ['/activity', /Activity/],
   ['/backups', /Backups/],
   ['/branding', /Branding/],
@@ -29,7 +29,7 @@ for (const [path, title] of pages) {
     const errors: string[] = []
     page.on('pageerror', error => errors.push(error.message))
     await page.goto(`${baseURL}${path}`)
-    await expect(page.locator('header').first()).toContainText(title)
+    await expect(page.getByRole('heading', { level: 1 }).first()).toContainText(title)
     expect(errors).toEqual([])
   })
 }
