@@ -185,6 +185,10 @@ Tick in the PR that lands it. Add rows for anything discovered.
 - `/` redirects to `/inbox` instead of showing upstream's marketing landing page.
 - The realtime upgrade, email, queue and cron handlers live in `server/worker.ts`; behaviour is
   upstream's.
+- The passkey setup routes (`/api/auth/passkey/setup/{context,options,verify}`) fall back to the
+  HttpOnly `ep_setup` cookie when no `token` is sent. Upstream's server-rendered `/setup/passkey` read
+  that cookie and passed it on; the client-rendered page cannot. Requests that send a token are
+  unchanged.
 
 ## Open items
 
