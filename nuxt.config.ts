@@ -5,7 +5,8 @@ import { fileURLToPath } from 'node:url'
 const D1_DATABASE_ID = '2c5e6a86-7940-44cc-9f11-2dc855d60cd9'
 const KV_NAMESPACE_ID = '7508952e90a94acca8e3b1cb27854e9f'
 const CACHE_NAMESPACE_ID = 'f35fc0ad21a5478ca13216230146e872'
-const WORKER_NAME = 'mailflare'
+const WORKER_NAME = 'flytower-mail'
+const r = (path: string) => fileURLToPath(new URL(path, import.meta.url))
 
 export default defineNuxtConfig({
   compatibilityDate: '2026-11-01',
@@ -15,8 +16,17 @@ export default defineNuxtConfig({
   ignore: ['legacy/**'],
   devtools: { enabled: true },
 
+  // Ported server code keeps upstream's layout: #lib is legacy src/lib, #db is src/db and
+  // #handlers is the API route tree (src/app/api and friends).
+  alias: {
+    '#lib': r('./server/lib'),
+    '#db': r('./server/db'),
+    '#handlers': r('./server/handlers'),
+  },
+
   hub: {
-    db: { dialect: 'sqlite', driver: 'd1', connection: { databaseId: D1_DATABASE_ID } },
+    // Migrations are applied by the in-app runner (server/lib/migrations), not by NuxtHub.
+    db: { dialect: 'sqlite', driver: 'd1', connection: { databaseId: D1_DATABASE_ID }, applyMigrationsDuringDev: false },
     blob: { driver: 'cloudflare-r2', binding: 'BUCKET', bucketName: 'mailflare-raw' },
     kv: { driver: 'cloudflare-kv-binding', namespaceId: KV_NAMESPACE_ID },
     cache: { driver: 'cloudflare-kv-binding', namespaceId: CACHE_NAMESPACE_ID },
@@ -26,7 +36,10 @@ export default defineNuxtConfig({
     preset: 'cloudflare_module',
     // Custom Worker entry: wraps Nitro's module handler and adds the realtime Durable Object
     // plus the email, queue and scheduled handlers. See server/worker.ts.
-    entry: fileURLToPath(new URL('./server/worker.ts', import.meta.url)),
+    entry: r('./server/worker.ts'),
+    // Lets ported code read the current request (cookies(), headers()) without threading the event.
+    experimental: { asyncContext: true },
+    typescript: { tsConfig: { compilerOptions: { noImplicitAny: false, noUncheckedIndexedAccess: false, allowImportingTsExtensions: true, lib: ["esnext", "dom", "dom.iterable"] } } },
     ignore: ['legacy/**'],
     cloudflare: {
       deployConfig: true,
@@ -44,6 +57,7 @@ export default defineNuxtConfig({
         services: [{ binding: 'WORKER_SELF_REFERENCE', service: WORKER_NAME }],
         triggers: { crons: ['0 2 * * *', '*/5 * * * *'] },
         vars: { CF_EMAIL_WORKER_NAME: WORKER_NAME, APP_URL: 'https://mail.flytower.dev' },
+        // @ts-expect-error ratelimits is valid Wrangler config but missing from Nitro's type
         ratelimits: [
           { name: 'LOGIN_RATE_LIMIT', namespace_id: '1001', simple: { limit: 20, period: 60 } },
           { name: 'AGENT_RATE_LIMIT', namespace_id: '1002', simple: { limit: 120, period: 60 } },
@@ -66,6 +80,13 @@ export default defineNuxtConfig({
     },
   },
 
-  typescript: { tsConfig: { exclude: ['../legacy'] } },
+  // The app project type-checks server handlers through Nitro's typed routes, so it needs the same
+  // leniency as the server project. The Worker env types live in shared/types/env.d.ts for both.
+  typescript: {
+    tsConfig: {
+      exclude: ['../legacy'],
+      compilerOptions: { noImplicitAny: false, noUncheckedIndexedAccess: false, allowImportingTsExtensions: true },
+    },
+  },
   eslint: { config: { stylistic: false } },
 })

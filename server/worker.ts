@@ -1,42 +1,171 @@
-// Worker entrypoint. Nitro builds this file as the Worker's main module.
+// Worker entrypoint. Nitro builds this file as the Worker's main module (nitro.entry in nuxt.config.ts).
 //
-// Nitro's own Cloudflare hooks (cloudflare:email, cloudflare:queue) run inside waitUntil, after the
-// handler has returned. That is too late for message.setReject()/forward() and for per-message
-// queue ack/retry, so those handlers are implemented here directly, as upstream's worker.ts did.
-import nitroHandler from 'nitropack/presets/cloudflare/runtime/cloudflare-module'
-import { handleRealtimeUpgrade } from './worker/realtime'
-import { handleEmail } from './worker/email'
-import { handleQueue } from './worker/queue'
-import { handleScheduled } from './worker/scheduled'
+// It wraps Nitro's module handler and adds what Nitro cannot express:
+// - /api/realtime WebSocket upgrades, routed to the per-user RealtimeHub Durable Object. A 101
+//   response carrying a webSocket cannot pass through h3, so this never reaches Nitro.
+// - The email, queue and scheduled handlers. Nitro's own cloudflare:email and cloudflare:queue hooks
+//   run inside waitUntil after the handler has returned, which is too late for setReject()/forward()
+//   and for per-message ack/retry.
+// - The RealtimeHub export, which must come from the Worker entrypoint.
+import nitroHandler from "nitropack/presets/cloudflare/runtime/cloudflare-module";
+import {
+	processInboundMessage,
+	storeRawToR2,
+	type InboundQueueMessage,
+} from "#lib/email/inbound";
+import { processOutboundQueue, type OutboundQueueMessage } from "#lib/email/send";
+import { isImportJobMessage, isInboundQueueMessage, isWebhookRetryMessage } from "./worker/utils";
+import { sweepOrphanedRawMail } from "#lib/email/raw-sweeper";
+import { processImportJob, sweepImportJobs } from "#lib/import/jobs";
+import { processWebhookRetry, type WebhookRetryMessage } from "#lib/email/webhooks";
+import { resolveIncomingMail, forwardMessage } from "#lib/email/incoming";
+import { getUserFromSession } from "#lib/auth/session";
+import { getSessionTokenFromRequest } from "#lib/realtime/utils";
+import { inboundAttachmentLimitReasonFromRaw } from "#lib/email/inbound-attachments";
+import { hasValidSessionMutationOrigin } from "#lib/auth/origin";
+import {
+	getAccountForwardingDestination,
+	isForwardedMarkerValid,
+	MAILFLARE_FORWARDED_HEADER,
+} from "#lib/email/account-forwarding";
+import { runScheduledDatabaseBackup } from "#lib/backups/runner";
+import { processAgentDraftJob } from "#lib/agent/jobs/utils";
+import { runAgentMaintenance } from "#lib/agent/maintenance";
+import { runTrashRetention } from "#lib/email/trash-retention";
+import { runDriveTrashRetention } from "#lib/drive/retention";
+import { runAccountRetention } from "#lib/accounts/deletion";
+import { runJmapChangeRetention } from "#lib/jmap/changes";
+import { runFollowUpReminders } from "#lib/follow-ups/service";
+import { runCalendarReminders } from "#lib/calendar/reminders";
+export { RealtimeHub } from "./realtime/hub";
 
-export { RealtimeHub } from './realtime/hub'
-
-type Env = Record<string, unknown>
-
-function bindEnv(env: Env) {
-  // hub:db, hub:blob and hub:kv resolve bindings from globalThis.__env__ outside a request.
-  ;(globalThis as { __env__?: Env }).__env__ = env
+/** hub:db, hub:blob and hub:kv resolve bindings from globalThis.__env__ outside a request. */
+function bindEnv(env: CloudflareEnv): CloudflareEnv {
+	(globalThis as { __env__?: unknown }).__env__ = env;
+	return env;
 }
 
 export default {
-  async fetch(request: Request, env: Env, ctx: ExecutionContext) {
-    const url = new URL(request.url)
-    if (url.pathname === '/api/realtime') {
-      bindEnv(env)
-      return handleRealtimeUpgrade(request, env as never)
-    }
-    return nitroHandler.fetch!(request as never, env as never, ctx as never)
-  },
-  async email(message: ForwardableEmailMessage, env: Env, ctx: ExecutionContext) {
-    bindEnv(env)
-    await handleEmail(message, env as never, ctx)
-  },
-  async queue(batch: MessageBatch, env: Env, ctx: ExecutionContext) {
-    bindEnv(env)
-    await handleQueue(batch, env as never, ctx)
-  },
-  async scheduled(controller: ScheduledController, env: Env, ctx: ExecutionContext) {
-    bindEnv(env)
-    await handleScheduled(controller, env as never, ctx)
-  },
-}
+	async fetch(request: Request, rawEnv: CloudflareEnv, ctx: ExecutionContext) {
+		const env = bindEnv(rawEnv);
+		const url = new URL(request.url);
+		if (url.pathname === "/api/realtime") {
+			if (request.headers.get("Upgrade")?.toLowerCase() !== "websocket") {
+				return new Response("Expected WebSocket upgrade", { status: 426 });
+			}
+			if (!hasValidSessionMutationOrigin(request)) {
+				return new Response("Invalid origin", { status: 403 });
+			}
+
+			const user = await getUserFromSession(env, getSessionTokenFromRequest(request));
+			if (!user || user.disabled) {
+				return new Response("Unauthorized", { status: 401 });
+			}
+
+			const hub = env.REALTIME.getByName(user.id);
+			const hubRequest = new Request("https://mailflare-realtime/connect", request);
+			hubRequest.headers.set("X-Mailflare-Realtime-User", user.id);
+			return hub.fetch(hubRequest);
+		}
+
+		return nitroHandler.fetch!(request as never, rawEnv as never, ctx as never) as unknown as Response;
+	},
+
+	async email(message: ForwardableEmailMessage, rawEnv: CloudflareEnv, ctx: ExecutionContext) {
+		const env = bindEnv(rawEnv);
+		try {
+			if (message.rawSize > 25 * 1024 * 1024) {
+				message.setReject("Message rejected: raw email exceeds the 25 MiB receiving limit. Send a download link instead.");
+				return;
+			}
+			// Domain routing rules are resolved here rather than in the queue because reject and
+			// forward can only be actioned on the live ForwardableEmailMessage.
+			const alreadyForwarded = await isForwardedMarkerValid(env, message.headers.get(MAILFLARE_FORWARDED_HEADER));
+			const decision = await resolveIncomingMail(env, message.from, message.to, {
+				subject: message.headers.get("subject"),
+				alreadyForwarded,
+			});
+
+			if (decision?.action === "reject") {
+				message.setReject(decision.rejectReason ?? "Message rejected by routing rule");
+				return;
+			}
+			const raw = await new Response(message.raw).arrayBuffer();
+			const attachmentLimitReason = await inboundAttachmentLimitReasonFromRaw(raw);
+			if (attachmentLimitReason) {
+				message.setReject(attachmentLimitReason);
+				return;
+			}
+
+			if (decision?.action === "forward" && decision.forwardTo) {
+				const forwarded = await forwardMessage(env, message, decision.forwardTo);
+				// A forward rule drops the message unless it was explicitly asked to keep a copy.
+				// If the forward itself failed we still store it, so mail is never silently lost.
+				if (forwarded && !decision.keepCopy) return;
+			}
+
+			if (!alreadyForwarded) {
+				const forwardingDestination = await getAccountForwardingDestination(env, message.to);
+				if (forwardingDestination) {
+					await forwardMessage(env, message, forwardingDestination);
+				}
+			}
+			const rawR2Key = await storeRawToR2(env, message.from, message.to, raw);
+			const payload: InboundQueueMessage = {
+				from: message.from,
+				to: message.to,
+				rawR2Key,
+				headers: Object.fromEntries(message.headers),
+			};
+			await env.INBOUND_QUEUE.send(payload);
+		} catch (err) {
+			console.error("Inbound enqueue failed", err);
+			message.setReject("Processing failed");
+		}
+	},
+
+	async queue(batch: MessageBatch, rawEnv: CloudflareEnv): Promise<void> {
+		const env = bindEnv(rawEnv);
+		for (const msg of batch.messages) {
+			try {
+				if (isInboundQueueMessage(msg.body)) {
+					await processInboundMessage(env, msg.body);
+				} else if (typeof msg.body === "object" && msg.body !== null && (msg.body as { kind?: unknown }).kind === "agent.draft" && typeof (msg.body as { jobId?: unknown }).jobId === "string") {
+					await processAgentDraftJob(env, (msg.body as { jobId: string }).jobId);
+				} else if (isWebhookRetryMessage(msg.body)) {
+					await processWebhookRetry(env, msg.body as WebhookRetryMessage);
+				} else if (isImportJobMessage(msg.body)) {
+					await processImportJob(env, { ...msg.body, attempt: msg.attempts });
+				} else if (typeof msg.body === "object" && msg.body !== null && (msg.body as { kind?: unknown }).kind === "email.scheduled") {
+					await processOutboundQueue(env, msg.body as OutboundQueueMessage);
+				} else {
+					throw new Error("Unknown queue message type");
+				}
+				msg.ack();
+			} catch (err) {
+				console.error("Queue processing failed", {
+					rawR2Key: isInboundQueueMessage(msg.body) ? msg.body.rawR2Key : undefined,
+					recipient: isInboundQueueMessage(msg.body) ? msg.body.to : undefined,
+					attempts: msg.attempts,
+					error: err,
+				});
+				msg.retry({ delaySeconds: 10 });
+			}
+		}
+	},
+
+	async scheduled(controller: ScheduledController, rawEnv: CloudflareEnv, ctx: ExecutionContext) {
+		const env = bindEnv(rawEnv);
+		if (controller.cron === "0 2 * * *") ctx.waitUntil(runScheduledDatabaseBackup(env, new Date(controller.scheduledTime)));
+		ctx.waitUntil(runAgentMaintenance(env));
+		ctx.waitUntil(runTrashRetention(env, new Date(controller.scheduledTime)));
+		ctx.waitUntil(runFollowUpReminders(env, new Date(controller.scheduledTime)));
+		ctx.waitUntil(runCalendarReminders(env, new Date(controller.scheduledTime)));
+		ctx.waitUntil(sweepImportJobs(env, new Date(controller.scheduledTime)));
+		if (controller.cron === "0 2 * * *") ctx.waitUntil(runAccountRetention(env, new Date(controller.scheduledTime)));
+		// Drive trash is emptied once a day, with the 02:00 UTC cron; the 5-minute cron is for queue-like upkeep.
+		if (controller.cron === "0 2 * * *") ctx.waitUntil(runDriveTrashRetention(env, new Date(controller.scheduledTime)));
+		if (controller.cron === "0 2 * * *") ctx.waitUntil(runJmapChangeRetention(env, new Date(controller.scheduledTime)));
+		if (controller.cron === "0 2 * * *") ctx.waitUntil(sweepOrphanedRawMail(env, new Date(controller.scheduledTime)).catch((error) => console.error("Raw mail sweep failed", error)));
+	},
+} satisfies ExportedHandler<CloudflareEnv>;
