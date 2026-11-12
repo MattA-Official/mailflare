@@ -33,14 +33,25 @@ function save() {
   } catch { /* Storage is optional. */ }
 }
 
-async function refreshAvailability() {
+// Focus and visibility checks within a minute of the last one are skipped.
+const AVAILABILITY_TTL_MS = 60_000
+let lastCheckedAt = 0
+
+async function refreshAvailability(force = false) {
+  if (!force && Date.now() - lastCheckedAt < AVAILABILITY_TTL_MS) return
+  lastCheckedAt = Date.now()
   try {
     const response = await authFetch('/api/agent/availability', { redirectOnUnauthorized: false })
-    if (!response.ok) return
+    if (!response.ok) {
+      lastCheckedAt = 0
+      return
+    }
     const data = await response.json() as AssistantAvailabilityResponse
     enabled.value = data.enabled
     saveAssistantAvailability(data.enabled)
-  } catch { /* Availability is refreshed again when the window regains focus. */ }
+  } catch {
+    lastCheckedAt = 0
+  }
 }
 
 function start() {
@@ -65,9 +76,9 @@ function start() {
       fullSize.value = false
     }
   })
-  void refreshAvailability()
+  void refreshAvailability(true)
   window.addEventListener('focus', () => void refreshAvailability())
-  window.addEventListener(AUTH_SESSION_CHANGED_EVENT, () => void refreshAvailability())
+  window.addEventListener(AUTH_SESSION_CHANGED_EVENT, () => void refreshAvailability(true))
   document.addEventListener('visibilitychange', () => {
     if (!document.hidden) void refreshAvailability()
   })

@@ -34,13 +34,18 @@ const linkOpen = ref(false)
 const linkUrl = ref('')
 const showQuoted = ref(false)
 let savedRange: Range | null = null
+// The value this editor last emitted. Something else may add attributes to the editor DOM (browser
+// extensions do), so comparing innerHTML would rewrite it on every keystroke and move the caret.
+let lastEmitted: string | null = null
 
 // Keep the DOM in step with the value without resetting the caret on every keystroke.
 watch([model, editor], () => {
   const element = editor.value
   if (!element) return
+  if (lastEmitted !== null && model.value === lastEmitted) return
   const safeValue = sanitizeEditorHtml(model.value)
   if (element.innerHTML !== safeValue) element.innerHTML = safeValue
+  lastEmitted = null
 }, { immediate: true, flush: 'post' })
 
 function refresh() {
@@ -59,7 +64,9 @@ onBeforeUnmount(() => document.removeEventListener('selectionchange', refresh))
 
 function emit() {
   // Export validated original resource addresses, never the blocked preview placeholders.
-  model.value = sanitizeEmailHtml(editor.value?.innerHTML ?? '', { forOutgoing: true }) ?? ''
+  const output = sanitizeEmailHtml(editor.value?.innerHTML ?? '', { forOutgoing: true }) ?? ''
+  lastEmitted = output
+  model.value = output
 }
 
 function run(command: string, commandValue?: string) {

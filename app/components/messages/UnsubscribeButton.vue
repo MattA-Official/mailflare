@@ -3,13 +3,13 @@
 // mailto, or a link to open); this reflects the outcome and then shows "Unsubscribed".
 // Ported from legacy/src/components/messages/unsubscribe-button.tsx.
 import { openUnsubscribeUrl } from '~/utils/messages/message-actions-utils'
-import { requestUnsubscribe } from '~/utils/messages/unsubscribe-utils'
+import { isMessageUnsubscribed, markMessageUnsubscribed, requestUnsubscribe } from '~/utils/messages/unsubscribe-utils'
 
 const props = withDefaults(defineProps<{ messageId: string, variant?: 'header' | 'row' }>(), { variant: 'header' })
 const { t } = useLanguage()
 const { showNotice } = useCompose()
 const pending = ref(false)
-const done = ref(false)
+const done = ref(isMessageUnsubscribed(props.messageId))
 const confirmOpen = ref(false)
 
 // The confirm dialog closes at once; progress and the outcome are notices.
@@ -19,6 +19,7 @@ async function onUnsubscribe() {
   showNotice(t('actions.unsubscribing'), { tone: 'loading' })
   try {
     const result = await requestUnsubscribe(props.messageId)
+    markMessageUnsubscribed(props.messageId)
     done.value = true
     if (result.method === 'link') {
       openUnsubscribeUrl(result.url)

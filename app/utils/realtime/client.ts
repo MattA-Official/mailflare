@@ -2,6 +2,7 @@
 // shared with other tabs over a BroadcastChannel, with a polling fallback while disconnected. Ported from
 // legacy/src/hooks/use-message-polling.ts and message-realtime-utils.ts.
 import { hasActivePushSubscription } from '~/utils/push/client'
+import { formatSenderLabel } from '#lib/email/sender-label'
 
 export interface NewMessageEvent {
   from: string
@@ -16,7 +17,7 @@ export type RealtimeChannelMessage =
   | { type: 'status', connected: boolean }
   | { type: 'status_request' }
   | { type: 'notification', payload: string }
-  | { type: 'refresh' }
+  | { type: 'refresh', detail?: Record<string, unknown> }
 
 export const REALTIME_FALLBACK_INTERVAL_MS = 60_000
 export const REALTIME_HEARTBEAT_INTERVAL_MS = 25_000
@@ -65,7 +66,8 @@ export async function showBrowserNewMessageNotification(event: NewMessageEvent):
   if (await hasActivePushSubscription().catch(() => false)) return
   try {
     const notification = new Notification(event.subject || 'New email', {
-      body: `From ${event.fromName ?? event.from}`,
+      // Same label as Web Push: the name beside the real address.
+      body: `From ${formatSenderLabel(event.from, event.fromName)}`,
       icon: '/icon-96.png',
       tag: event.messageId,
     })
@@ -91,12 +93,14 @@ export function startRealtime(onNewMessage: (event: NewMessageEvent) => void, on
   let reconnectAttempt = 0
   let revision: string | null = null
   let connected = false
+  let hadConnection = false
+  let lastForegroundRefreshAt = 0
   let leader = false
   let sessionToken = getClientSessionToken()
   let stopped = false
 
-  function dispatchMessagesChanged() {
-    window.dispatchEvent(new CustomEvent('mailflare:messages-changed', { detail: { realtime: true } }))
+  function dispatchMessagesChanged(detail?: Record<string, unknown>) {
+    window.dispatchEvent(new CustomEvent('mailflare:messages-changed', { detail: { ...detail, realtime: true } }))
   }
 
   function clearConnectionTimers() {
@@ -173,8 +177,11 @@ export function startRealtime(onNewMessage: (event: NewMessageEvent) => void, on
     socket.onopen = () => {
       reconnectAttempt = 0
       revision = null
+      // The first connection follows the page's own load; only a reconnect can have missed changes.
+      const reconnected = hadConnection
+      hadConnection = true
       setConnected(true)
-      dispatchMessagesChanged()
+      if (reconnected) dispatchMessagesChanged()
       sendHeartbeat()
       heartbeatTimer = setInterval(sendHeartbeat, REALTIME_HEARTBEAT_INTERVAL_MS)
     }
@@ -223,6 +230,7 @@ export function startRealtime(onNewMessage: (event: NewMessageEvent) => void, on
     leader = false
     reconnectAttempt = 0
     revision = null
+    hadConnection = false
     onSessionChange?.()
     requestLeadership()
   }
@@ -232,22 +240,39 @@ export function startRealtime(onNewMessage: (event: NewMessageEvent) => void, on
     if (message?.type === 'status_request' && leader) {
       channel?.postMessage({ type: 'status', connected } satisfies RealtimeChannelMessage)
     } else if (message?.type === 'status' && !leader) {
+      const wasConnected = connected
       setConnected(message.connected)
-      if (message.connected) dispatchMessagesChanged()
+      if (message.connected && !wasConnected) dispatchMessagesChanged()
     } else if (message?.type === 'notification' && !leader) {
       handleNotification(message.payload, false)
     } else if (message?.type === 'refresh') {
-      dispatchMessagesChanged()
+      dispatchMessagesChanged(message.detail)
     }
   }
 
   function onLocalMessagesChanged(event: Event) {
-    if ((event as CustomEvent<{ realtime?: boolean }>).detail?.realtime) return
-    channel?.postMessage({ type: 'refresh' } satisfies RealtimeChannelMessage)
+    const detail = (event as CustomEvent<Record<string, unknown> | undefined>).detail
+    if (detail?.realtime) return
+    channel?.postMessage({ type: 'refresh', detail } satisfies RealtimeChannelMessage)
+  }
+
+  // Coming back to the tab refreshes; a plain focus only does while the socket is down, since a
+  // connected socket already delivers every change.
+  function refreshOnForeground(force: boolean) {
+    if (document.visibilityState !== 'visible' || !getClientSessionToken()) return
+    if (connected && !force) return
+    const now = Date.now()
+    if (now - lastForegroundRefreshAt < 1_000) return
+    lastForegroundRefreshAt = now
+    dispatchMessagesChanged()
   }
 
   function onVisibilityChange() {
-    if (document.visibilityState === 'visible' && getClientSessionToken()) dispatchMessagesChanged()
+    refreshOnForeground(true)
+  }
+
+  function onFocus() {
+    refreshOnForeground(false)
   }
 
   function onStorageChange() {
@@ -263,7 +288,7 @@ export function startRealtime(onNewMessage: (event: NewMessageEvent) => void, on
   window.addEventListener('storage', onStorageChange)
   window.addEventListener('mailflare:messages-changed', onLocalMessagesChanged)
   document.addEventListener('visibilitychange', onVisibilityChange)
-  window.addEventListener('focus', onVisibilityChange)
+  window.addEventListener('focus', onFocus)
   startFallbackRefresh()
   requestLeadership()
 
@@ -273,7 +298,7 @@ export function startRealtime(onNewMessage: (event: NewMessageEvent) => void, on
     window.removeEventListener('storage', onStorageChange)
     window.removeEventListener('mailflare:messages-changed', onLocalMessagesChanged)
     document.removeEventListener('visibilitychange', onVisibilityChange)
-    window.removeEventListener('focus', onVisibilityChange)
+    window.removeEventListener('focus', onFocus)
     if (leader) channel?.postMessage({ type: 'status', connected: false } satisfies RealtimeChannelMessage)
     lockAbort?.abort()
     releaseLeader?.()

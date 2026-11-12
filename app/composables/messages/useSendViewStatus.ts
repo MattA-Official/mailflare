@@ -5,10 +5,10 @@ import { authFetch } from '~/utils/auth-client'
 import { clearMessageDetailCache } from '~/utils/messages/detail-cache'
 import { resolveSendViewRoute } from '~/utils/messages/send-view-utils'
 
-export function useSendViewStatus(messageId: MaybeRefOrGetter<string>) {
+export function useSendViewStatus(messageId: MaybeRefOrGetter<string>, scheduledAt?: MaybeRefOrGetter<string | null | undefined>) {
   const route = useRoute()
   const router = useRouter()
-  watch([() => toValue(messageId), () => route.path], ([id, pathname], _previous, onCleanup) => {
+  watch([() => toValue(messageId), () => route.path, () => toValue(scheduledAt)], ([id, pathname, scheduledAtValue], _previous, onCleanup) => {
     const scheduled = pathname === `/scheduled/${id}`
     if (!scheduled && pathname !== `/sent/${id}`) return
     let disposed = false
@@ -35,7 +35,7 @@ export function useSendViewStatus(messageId: MaybeRefOrGetter<string>) {
         void router.replace(destination)
       }
       catch {
-        // Transient failures are retried by the timer or the next change event.
+        // Transient failures wait for the next change event or fallback check.
       }
       finally {
         checking = false
@@ -47,11 +47,31 @@ export function useSendViewStatus(messageId: MaybeRefOrGetter<string>) {
     }
     const onChange = () => void check()
     void check()
-    const timer = scheduled ? window.setInterval(onChange, 1000) : undefined
+
+    // Check at the send deadline, then slowly until the job has gone out.
+    let deadlineTimer: number | undefined
+    let fallbackTimer: number | undefined
+    if (scheduled && scheduledAtValue) {
+      const deadline = new Date(scheduledAtValue).getTime()
+      if (Number.isFinite(deadline)) {
+        const startFallback = () => {
+          void check()
+          fallbackTimer = window.setInterval(onChange, 10_000)
+        }
+        const delay = deadline - Date.now()
+        if (delay <= 0) startFallback()
+        else deadlineTimer = window.setTimeout(startFallback, delay)
+      }
+    }
+    else if (scheduled) {
+      // The detail response may not have supplied the job's time yet.
+      fallbackTimer = window.setInterval(onChange, 15_000)
+    }
     window.addEventListener('mailflare:messages-changed', onChange)
     onCleanup(() => {
       disposed = true
-      if (timer !== undefined) window.clearInterval(timer)
+      if (deadlineTimer !== undefined) window.clearTimeout(deadlineTimer)
+      if (fallbackTimer !== undefined) window.clearInterval(fallbackTimer)
       window.removeEventListener('mailflare:messages-changed', onChange)
     })
   }, { immediate: true })

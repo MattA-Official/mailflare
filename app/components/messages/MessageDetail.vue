@@ -10,6 +10,7 @@ import { useLatestMessagesFirst } from '~/composables/messages/useLatestMessages
 import { useMessageThread } from '~/composables/messages/useMessageThread'
 import { useRemoteContent } from '~/composables/messages/useRemoteContent'
 import { useSendViewStatus } from '~/composables/messages/useSendViewStatus'
+import { useMailingListBanner } from '~/composables/messages/useMailingListBanner'
 import { useShowFullRecipientAddresses } from '~/composables/messages/useShowFullRecipientAddresses'
 import { extractCloudAttachments } from '~/utils/messages/cloud-attachment-utils'
 import {
@@ -27,9 +28,9 @@ import type { MessageAttachment, MessageDetailResponse } from '~/utils/messages/
 const props = defineProps<{ messageId: string }>()
 const { t } = useLanguage()
 const { selectedMailbox, mailboxes } = useSelectedMailbox()
-useSendViewStatus(() => props.messageId)
-
 const data = shallowRef<MessageDetailResponse | null>(null)
+useSendViewStatus(() => props.messageId, () => data.value?.scheduledAt)
+const { dismissed: unsubBannerDismissed, dismiss: dismissUnsubBanner } = useMailingListBanner(() => props.messageId)
 const loading = ref(true)
 const bodyPending = ref(false)
 const bodyError = ref(false)
@@ -128,6 +129,7 @@ const currentAccountName = computed(() => messageMailbox.value?.displayName ?? m
 const headerParties = computed(() => (message.value ? getMessageHeaderParties(message.value, currentAccountName.value ?? undefined) : null))
 const fromName = computed(() => headerParties.value?.fromName ?? '')
 const fromAddress = computed(() => headerParties.value?.fromAddress ?? '')
+const canUnsubscribe = computed(() => message.value?.direction === 'inbound' && message.value.status !== 'spam' && !!message.value.hasUnsubscribe)
 const ownAddresses = computed(() => {
   const mailbox = messageMailbox.value
   if (!mailbox) return []
@@ -246,6 +248,7 @@ useHead({ title: () => (message.value ? subject.value : t('common.loading')) })
 
         <article class="py-4 sm:px-6" :class="!anyPanelVisible && 'sm:pl-12'">
           <div class="w-full">
+            <MessagesMailingListBanner v-if="canUnsubscribe && !unsubBannerDismissed" :message-id="message.id" @dismiss="dismissUnsubBanner" />
             <div class="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 px-4 pb-5 sm:px-0 sm:pl-4">
               <div class="flex min-w-0 items-start gap-3">
                 <ContactsContactAvatar
@@ -264,7 +267,7 @@ useHead({ title: () => (message.value ? subject.value : t('common.loading')) })
                     </b>
                     <span class="hidden min-w-0 flex-1 overflow-hidden text-ellipsis text-xs text-muted sm:block">&lt;{{ fromAddress }}&gt;</span>
                     <MessagesUnsubscribeButton
-                      v-if="message.direction === 'inbound' && message.status !== 'spam' && message.hasUnsubscribe"
+                      v-if="canUnsubscribe && unsubBannerDismissed"
                       :key="message.id"
                       :message-id="message.id"
                     />
