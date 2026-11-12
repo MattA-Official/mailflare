@@ -173,7 +173,7 @@ Tick in the PR that lands it. Add rows for anything discovered.
 - [ ] 4 Composing
 - [ ] 5 Settings: account and security
 - [ ] 6 Settings: mail
-- [ ] 7 Admin: email
+- [x] 7 Admin: email
 - [ ] 8 Admin: administration
 - [ ] 9 Calendar and booking
 - [ ] 10 Drive, contacts and assistant
@@ -185,6 +185,12 @@ Tick in the PR that lands it. Add rows for anything discovered.
 - `/` redirects to `/inbox` instead of showing upstream's marketing landing page.
 - The realtime upgrade, email, queue and cron handlers live in `server/worker.ts`; behaviour is
   upstream's.
+
+- Admin email (7): the Domains page offers only Cloudflare and "not selected" for sending and receiving.
+  Confirmations use a Nuxt UI modal (`useAdminConfirm`) instead of `window.confirm`/`prompt`; removing a
+  domain still requires typing its hostname. The mailbox pages dispatch `mailflare:mailboxes-changed`
+  instead of calling the selector's cache directly. Routing rule validation errors show the server's
+  field messages instead of "Request failed".
 
 ## Open items
 
