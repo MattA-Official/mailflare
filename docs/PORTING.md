@@ -180,7 +180,7 @@ Tick in the PR that lands it. Add rows for anything discovered.
 - [x] 3 Reading mail: every folder list and reader, custom folders, the drafts list, the split view, bulk and row actions, swipe on phones, follow-ups, the HTML renderer. Shared for others: `MessagesFolderPage` + `~/utils/messages/folder-configs`, `MessagesEmailHtmlRenderer`, `useConversationView` / `useTwoColumnReading` / `useLatestMessagesFirst` / `useShowFullRecipientAddresses` in `app/composables/messages` (for settings). Unit tests for `app/utils/messages` are left to 11
 - [ ] 4 Composing: composer, toasts and /compose done (`useCompose()`, `<ComposeHost>` in the dashboard layout; shared: `ComposeFollowUpMenu`, `ComposeScheduleSendSheet`, `~/utils/compose/*`). Left: `/drafts/[messageId]` and the quote renderer, once reading mail's `MessagesFolderPage` and `MessagesEmailHtmlRenderer` land
 - [ ] 5 Settings: account and security
-- [ ] 6 Settings: mail
+- [x] 6 Settings: mail
 - [x] 7 Admin: email
 - [x] 8 Admin: administration
 - [x] 9 Calendar and booking
@@ -265,6 +265,8 @@ Tick in the PR that lands it. Add rows for anything discovered.
   `window.confirm`, as upstream does. The scheduled-send banner reschedules from one popover on every
   screen size.
 
+- (6) Settings → Inbox → Automatic response: the Save button also shows when the reply has just been
+  switched off, so turning it off can be saved (upstream hid the button with the fields).
 - `/` redirects to `/inbox` instead of showing upstream's marketing landing page.
 - The realtime upgrade, email, queue and cron handlers live in `server/worker.ts`; behaviour is
   upstream's.
