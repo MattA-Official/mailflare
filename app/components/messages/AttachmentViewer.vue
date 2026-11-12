@@ -13,6 +13,11 @@ const textContent = ref('')
 const textError = ref('')
 const risk = shallowRef<AttachmentRisk | null>(null)
 const acknowledged = ref(false)
+const user = useCurrentUser()
+const driveEnabled = computed(() => user.value?.driveEnabled !== false)
+// Keyed by attachment id, so opening another file starts from idle.
+const save = shallowRef<{ id: string, status: 'saving' | 'saved' | 'error' } | null>(null)
+const saveState = computed(() => (save.value && save.value.id === props.attachment?.id ? save.value.status : 'idle'))
 
 const previewKind = computed(() => (props.attachment ? getAttachmentPreviewKind(props.attachment) : 'unsupported'))
 const previewUrl = computed(() => (props.attachment ? getAttachmentFileUrl(props.messageId, props.attachment.id, 'preview') : ''))
@@ -34,6 +39,39 @@ watch([() => props.attachment, () => props.messageId, open], ([attachment, messa
     })
     .catch(() => undefined)
 }, { immediate: true })
+
+// Ask once per opened attachment whether it is already in Drive, so the button starts disabled.
+watch([() => props.attachment, () => props.messageId, open, driveEnabled], ([attachment, messageId, isOpen, enabled], _previous, onCleanup) => {
+  if (!isOpen || !attachment || !enabled) return
+  const id = attachment.id
+  let cancelled = false
+  onCleanup(() => {
+    cancelled = true
+  })
+  void authFetch(`/api/messages/${messageId}/attachments/${id}/save-to-drive`)
+    .then(async response => (response.ok ? (await response.json()) as { saved?: boolean } : null))
+    .then((data) => {
+      if (cancelled || !data?.saved) return
+      if (save.value?.id === id && save.value.status === 'saving') return
+      save.value = { id, status: 'saved' }
+    })
+    .catch(() => undefined)
+}, { immediate: true })
+
+async function saveToDrive() {
+  const attachment = props.attachment
+  if (!attachment || saveState.value === 'saving' || saveState.value === 'saved') return
+  const id = attachment.id
+  save.value = { id, status: 'saving' }
+  try {
+    const response = await authFetch(`/api/messages/${props.messageId}/attachments/${id}/save-to-drive`, { method: 'POST' })
+    if (!response.ok) throw new Error('Save to Drive failed')
+    save.value = { id, status: 'saved' }
+  }
+  catch {
+    save.value = { id, status: 'error' }
+  }
+}
 
 watch([() => props.attachment, open, previewKind, previewUrl], ([attachment, isOpen, kind, url], _previous, onCleanup) => {
   if (!isOpen || !attachment || kind !== 'text') return
@@ -101,6 +139,16 @@ watch([() => props.attachment, open, previewKind, previewUrl], ([attachment, isO
     <template #footer>
       <div class="flex w-full items-center justify-end gap-3">
         <span v-if="risk && !flagged" class="text-xs text-muted">{{ t('attachment.risk.ok') }}</span>
+        <span v-if="saveState === 'error'" class="text-xs text-error">{{ t('attachment.saveToDriveFailed') }}</span>
+        <UButton
+          v-if="driveEnabled"
+          color="neutral"
+          variant="outline"
+          :icon="saveState === 'saved' ? 'i-lucide-check' : 'i-lucide-hard-drive'"
+          :label="saveState === 'saved' ? t('attachment.savedToDrive') : saveState === 'saving' ? t('common.saving') : t('attachment.saveToDrive')"
+          :disabled="saveState === 'saving' || saveState === 'saved'"
+          @click="saveToDrive"
+        />
         <UButton v-if="flagged && !acknowledged" disabled icon="i-lucide-arrow-down-to-line" :label="t('attachment.download')" />
         <UButton v-else :to="downloadUrl" external :download="attachment.filename" icon="i-lucide-arrow-down-to-line" :label="t('attachment.download')" />
       </div>

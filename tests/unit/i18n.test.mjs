@@ -65,13 +65,16 @@ const placeholders = (text) => [...new Set([...text.matchAll(/\{(\w+)\}/g)].map(
 const pluralBases = new Set(Object.keys(en).filter((key) => key.endsWith(".other")).map(baseOf));
 const isPluralKey = (key) => categoryOf(key) && pluralBases.has(baseOf(key));
 
-test("every registered catalog has the English keys and nonempty messages and label", async () => {
+// Upstream lands new English strings before their translations (its own catalogues lag by a few dozen
+// keys), and t() falls back to English for a missing key. So a catalogue may lack keys, but never carry
+// one English does not have.
+test("every registered catalog has only English keys and nonempty messages and label", async () => {
 	for (const [code, { label }] of Object.entries(i18n.locales)) {
 		const catalog = await i18n.loadMessages(code);
 		assert.ok(label.trim().length > 0, code);
 		const plain = (keys) => keys.filter((key) => !isPluralKey(key)).sort();
-		assert.deepEqual(plain(Object.keys(catalog)), plain(Object.keys(en)), `${code}: keys differ from English`);
-		for (const base of pluralBases) assert.ok(typeof catalog[`${base}.other`] === "string", `${code}: ${base}.other is required`);
+		const unknown = plain(Object.keys(catalog)).filter((key) => !(key in en));
+		assert.deepEqual(unknown, [], `${code}: keys English does not have`);
 		for (const key of Object.keys(catalog)) {
 			if (isPluralKey(key)) assert.ok(`${baseOf(key)}.other` in catalog, `${code}: ${key} has no .other`);
 			const value = catalog[key];

@@ -188,7 +188,7 @@ export async function preloadMailboxPage(href: string, mailboxId?: string, optio
   const params = getMessageQueryParams(
     folder,
     mailboxId,
-    { query: options.query?.trim() || undefined, read: 'all', limit: 25, offset: 0, group: options.grouped ? 'thread' : undefined },
+    { query: options.query?.trim() || undefined, read: 'all', limit: 25, offset: 0, group: options.grouped && folder !== 'drafts' ? 'thread' : undefined },
     customFolderMatch?.[1],
   )
   await fetchMessageList(params)

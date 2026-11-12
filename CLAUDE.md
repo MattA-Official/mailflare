@@ -12,9 +12,9 @@ explains how the server works (upstream's notes, paths mapped). User docs are in
 
 - **bun only.** Never npm, pnpm or yarn. `bun install`, `bun run <script>`, `bun add <pkg>`.
 - **Work on the `nuxt` branch line.** `nuxt` is the integration branch and deploys to production on every
-  push. `main` is upstream's Next.js app at v0.5.4, kept for reference. Branch from `nuxt`, open a PR into
+  push. `upstream` mirrors hieunc229/mailflare's `main`, fast-forwarded daily by `.github/workflows/sync-upstream.yml`. Branch from `nuxt`, open a PR into
   `nuxt`.
-- **Upstream is the reference.** Upstream's Next.js source is on the `main` branch and at
+- **Upstream is the reference.** Upstream's Next.js source is on the `upstream` branch and at
   https://github.com/hieunc229/mailflare. Comments that cite `legacy/...` paths mean upstream's tree.
 - **British English** in UI copy you write and in messages to Matt. Ported strings keep upstream's wording.
 - Cloudflare only. Do not add support for other hosts, databases, object stores or mail providers.
@@ -99,3 +99,8 @@ The server was carried across from upstream nearly unchanged, so [docs/architect
   upstream's files and keys unchanged.
 - Do not hand-edit generated files: `server/api/**` and `server/routes/**` stubs,
   `server/lib/migrations/bundle.json`, anything in `.nuxt` or `.output`.
+
+## Following upstream
+
+Upstream changes are ported daily. `node scripts/upstream/port.mjs status` lists what is unported since the
+`<!-- upstream-ported: … -->` marker in docs/PORTING.md; see that file's "Following upstream" section.

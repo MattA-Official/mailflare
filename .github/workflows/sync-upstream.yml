@@ -1,0 +1,62 @@
+name: Sync upstream
+
+# Keeps the `upstream` branch a fast-forward copy of hieunc229/mailflare's `main`, once a day and on
+# demand. Porting those commits to Nuxt is a separate, daily Claude routine; see "Following upstream"
+# in docs/PORTING.md. Scheduled workflows run from the default branch (`nuxt`).
+
+on:
+  schedule:
+    - cron: '17 5 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: upstream
+          fetch-depth: 0
+          # GITHUB_TOKEN cannot push commits that touch .github/workflows. If upstream changes its
+          # workflows, add a fine-grained token with Contents and Workflows write as the
+          # UPSTREAM_SYNC_TOKEN secret and it is used instead.
+          token: ${{ secrets.UPSTREAM_SYNC_TOKEN || github.token }}
+
+      - name: Fast-forward to upstream main
+        run: |
+          git fetch --no-tags https://github.com/hieunc229/mailflare.git main
+          before=$(git rev-parse HEAD)
+          after=$(git rev-parse FETCH_HEAD)
+          if [ "$before" = "$after" ]; then
+            echo "Already up to date at ${before:0:7}." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          if ! git merge-base --is-ancestor "$before" "$after"; then
+            echo "::error::upstream main is not a fast-forward of the upstream branch (history was rewritten). Sync it by hand."
+            exit 1
+          fi
+          git push origin "$after:refs/heads/upstream"
+          {
+            echo "Fast-forwarded \`upstream\` ${before:0:7}..${after:0:7}:"
+            echo
+            git log --format='- %h %s' "$before..$after"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report unported commits
+        run: |
+          git fetch --no-tags origin nuxt
+          ported=$(git show origin/nuxt:docs/PORTING.md | sed -n 's/.*<!-- upstream-ported: \([0-9a-f]\{40\}\) -->.*/\1/p' | head -n 1)
+          if [ -z "$ported" ]; then
+            echo "No last-ported marker in docs/PORTING.md." >> "$GITHUB_STEP_SUMMARY"
+            exit 0
+          fi
+          git fetch --no-tags origin upstream
+          count=$(git rev-list --count "$ported..origin/upstream")
+          echo "$count upstream commit(s) not yet ported to Nuxt (since ${ported:0:7})." >> "$GITHUB_STEP_SUMMARY"

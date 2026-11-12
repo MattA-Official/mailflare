@@ -1,14 +1,14 @@
 <script setup lang="ts">
-// Week and day calendar with drag-to-move, resize and an event editor.
+// Month, week and day calendar with drag-to-move, resize, an event editor and invitation answers.
 // Ported from legacy/src/app/(calendar)/calendar/page.tsx and the (calendar) layout.
 import { formatUserDate, getUserTimeZone } from '#lib/time/utils'
 import { normalizeCalendarColor } from '#lib/calendar/colors'
 import { parseCalendarRepeatDays } from '#lib/calendar/recurrence'
 import type { CalendarEvent, CalendarMailbox, CalendarView, EventDragPreview, EventResizeEdge, EventResizeSession } from '~/types/calendar'
 import {
-  addDays, calendarAnchorDay, CALENDAR_END_HOUR, CALENDAR_HOUR_HEIGHT, CALENDAR_START_HOUR,
+  addDays, addMonths, calendarAnchorDay, CALENDAR_END_HOUR, CALENDAR_HOUR_HEIGHT, CALENDAR_START_HOUR,
   currentTimePosition, dateKey, dropStartForPosition, EVENT_COLOR_CLASSES, eventPosition, expandCalendarEvents,
-  formatEventRange, formatHour, PAST_EVENT_COLOR_CLASSES, rescheduleCalendarOccurrence, resizeEventTimes, startOfDay, startOfWeek,
+  formatEventRange, formatHour, isPendingInvite, monthGridDates, PAST_EVENT_COLOR_CLASSES, rescheduleCalendarOccurrence, resizeEventTimes, startOfDay, startOfWeek,
 } from '~/utils/calendar/calendar'
 import { loadSelectedMailbox } from '~/utils/calendar/mailbox'
 
@@ -25,7 +25,10 @@ const loading = ref(true)
 const eventsVersion = ref(0)
 const currentTime = ref(Date.now())
 const visibleDate = ref(new Date())
+const VIEW_STORAGE_KEY = 'mailflare.calendar.view'
 const view = ref<CalendarView>('week')
+const subscribeOpen = ref(false)
+const pendingInvite = shallowRef<CalendarEvent | null>(null)
 const draggedEvent = shallowRef<CalendarEvent | null>(null)
 const resizingEvent = shallowRef<CalendarEvent | null>(null)
 const dragPreview = shallowRef<EventDragPreview | null>(null)
@@ -44,16 +47,27 @@ const gridColumns = computed(() => `64px repeat(${days.value.length}, minmax(0, 
 const hourCount = CALENDAR_END_HOUR - CALENDAR_START_HOUR
 const busy = computed(() => pendingId.value !== null)
 const activeEventId = computed(() => draggedEvent.value?.id ?? resizingEvent.value?.id ?? null)
-const viewItems = computed(() => [{ label: t('calendar.week'), value: 'week' }, { label: t('calendar.day'), value: 'day' }])
+const VIEWS = ['month', 'week', 'day'] as const
+const viewItems = computed(() => VIEWS.map(option => ({ label: t(`calendar.${option}`), value: option })))
 const mobileMenu = computed(() => [
-  [{ label: t('calendar.today'), onSelect: () => { visibleDate.value = new Date() } }],
-  (['week', 'day'] as const).map(option => ({
-    label: option === 'week' ? t('calendar.week') : t('calendar.day'),
+  [
+    { label: t('calendar.today'), onSelect: () => { visibleDate.value = new Date() } },
+    { label: t('calendar.subscribe'), onSelect: () => { subscribeOpen.value = true } },
+  ],
+  VIEWS.map(option => ({
+    label: t(`calendar.${option}`),
     type: 'checkbox' as const,
     checked: view.value === option,
-    onSelect: () => { view.value = option },
+    onSelect: () => chooseView(option),
   })),
 ])
+
+// Only a choice made in the view switcher is remembered; jumping into a day from the month grid is not.
+function chooseView(next: CalendarView) {
+  view.value = next
+  try { localStorage.setItem(VIEW_STORAGE_KEY, next) } catch { /* Not remembered. */ }
+}
+const chosenView = computed({ get: () => view.value, set: chooseView })
 
 const previewEvent = computed(() => {
   const source = draggedEvent.value ?? resizingEvent.value
@@ -65,14 +79,22 @@ const previewPosition = computed(() => dragPreview.value && previewEvent.value ?
 let clock: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
   clock = setInterval(() => { currentTime.value = Date.now() }, 60_000)
+  try {
+    const saved = localStorage.getItem(VIEW_STORAGE_KEY)
+    if (saved === 'month' || saved === 'week' || saved === 'day') view.value = saved
+  } catch { /* Storage can be blocked; the default view is fine. */ }
   loadSelectedMailbox().then((value) => { mailbox.value = value }).catch(() => {})
 })
 onBeforeUnmount(() => clearInterval(clock))
 
-const range = computed(() => ({
-  start: new Date(Math.min(today.value.getTime(), weekStart.value.getTime(), startOfDay(visibleDate.value).getTime())),
-  end: new Date(Math.max(addDays(today.value, 90).getTime(), addDays(weekStart.value, 7).getTime(), addDays(visibleDate.value, 1).getTime())),
-}))
+const range = computed(() => {
+  // The month view needs the whole six-week grid.
+  const monthDates = view.value === 'month' ? monthGridDates(visibleDate.value) : null
+  return {
+    start: new Date(Math.min(today.value.getTime(), weekStart.value.getTime(), startOfDay(visibleDate.value).getTime(), monthDates?.[0]?.getTime() ?? Infinity)),
+    end: new Date(Math.max(addDays(today.value, 90).getTime(), addDays(weekStart.value, 7).getTime(), addDays(visibleDate.value, 1).getTime(), monthDates?.[41] ? addDays(monthDates[41], 1).getTime() : 0)),
+  }
+})
 
 let loadGeneration = 0
 watch([() => range.value.start.getTime(), () => range.value.end.getTime(), eventsVersion], async () => {
@@ -104,6 +126,10 @@ function openNewEvent(day = visibleDate.value, startAt?: Date) {
 }
 
 function editEvent(event: CalendarEvent) {
+  if (isPendingInvite(event)) {
+    pendingInvite.value = event
+    return
+  }
   if (editor.value) editor.value.openEdit(event)
   else nextTick(() => editor.value?.openEdit(event))
 }
@@ -258,7 +284,14 @@ function onResizeCancel() {
 }
 
 function step(direction: 1 | -1) {
-  visibleDate.value = addDays(visibleDate.value, direction * (view.value === 'week' ? 7 : 1))
+  visibleDate.value = view.value === 'month'
+    ? addMonths(visibleDate.value, direction)
+    : addDays(visibleDate.value, direction * (view.value === 'week' ? 7 : 1))
+}
+
+function openDay(day: Date) {
+  visibleDate.value = day
+  view.value = 'day'
 }
 
 function previewClass(event: CalendarEvent) {
@@ -289,10 +322,11 @@ function previewClass(event: CalendarEvent) {
           <CalendarMonthPicker v-model="visibleDate" />
         </template>
         <template #right>
-          <UButton icon="i-lucide-chevron-left" color="neutral" variant="ghost" :aria-label="t(view === 'week' ? 'calendar.previousView.week' : 'calendar.previousView.day')" @click="step(-1)" />
-          <UButton icon="i-lucide-chevron-right" color="neutral" variant="ghost" :aria-label="t(view === 'week' ? 'calendar.nextView.week' : 'calendar.nextView.day')" @click="step(1)" />
+          <UButton icon="i-lucide-chevron-left" color="neutral" variant="ghost" :aria-label="t(`calendar.previousView.${view}`)" @click="step(-1)" />
+          <UButton icon="i-lucide-chevron-right" color="neutral" variant="ghost" :aria-label="t(`calendar.nextView.${view}`)" @click="step(1)" />
           <UButton :label="t('calendar.today')" color="neutral" variant="outline" class="max-md:hidden" @click="visibleDate = new Date()" />
-          <USelect v-model="view" :items="viewItems" :aria-label="t('calendar.view')" class="w-28 max-md:hidden" />
+          <UButton :label="t('calendar.subscribe')" color="neutral" variant="outline" class="max-md:hidden" @click="subscribeOpen = true" />
+          <USelect v-model="chosenView" :items="viewItems" :aria-label="t('calendar.view')" class="w-28 max-md:hidden" />
           <UDropdownMenu :items="mobileMenu" :content="{ align: 'end' }">
             <UButton icon="i-lucide-more-vertical" color="neutral" variant="ghost" class="md:hidden" :aria-label="t('calendar.options')" />
           </UDropdownMenu>
@@ -304,8 +338,18 @@ function previewClass(event: CalendarEvent) {
     </template>
 
     <template #body>
-      <section :aria-busy="loading" class="min-h-0 min-w-0">
-        <div :class="view === 'week' ? 'min-w-190' : 'min-w-90'">
+      <section :aria-busy="loading" class="min-h-0 min-w-0" :class="view === 'month' && 'h-full'">
+        <CalendarMonthGrid
+          v-if="view === 'month'"
+          :month="visibleDate"
+          :today="today"
+          :events="events"
+          :current-time="currentTime"
+          @select-day="openNewEvent($event)"
+          @open-day="openDay"
+          @edit="editEvent"
+        />
+        <div v-else :class="view === 'week' ? 'min-w-190' : 'min-w-90'">
           <div class="sticky top-0 z-30 grid h-14 border-b border-default bg-default" :style="{ gridTemplateColumns: gridColumns }">
             <div />
             <div
@@ -384,6 +428,8 @@ function previewClass(event: CalendarEvent) {
   </UDashboardPanel>
 
   <CalendarEventEditor ref="editor" v-model:open="editorOpen" :mailbox="mailbox" @saved="onSaved" />
+  <CalendarSubscribeDialog v-model:open="subscribeOpen" />
+  <CalendarInviteResponseDialog :event="pendingInvite" @close="pendingInvite = null" @answered="onSaved" />
   </div>
 </template>
 

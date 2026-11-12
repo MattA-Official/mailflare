@@ -6,7 +6,7 @@ The plan, the rules every thread follows, and the status board. Read [CLAUDE.md]
 
 The port is complete and deployed at https://mail.flytower.dev (Worker `flytower-mail`, Cloudflare
 account Flytower). Every workstream below is ticked. `legacy/` (upstream's Next.js app at v0.5.4) was
-deleted at cutover; it remains on the `main` branch and at https://github.com/hieunc229/mailflare, and
+deleted at cutover; it remains at `cee65a5`, on the `upstream` branch (upstream's `main`, synced daily) and at https://github.com/hieunc229/mailflare, and
 paths below that start `legacy/` mean upstream's tree. `nuxt` is the default branch.
 
 ## Decisions (made by Matt unless marked)
@@ -16,8 +16,9 @@ paths below that start `legacy/` mean upstream's tree. `nuxt` is the default bra
   Resend and Amazon SES, and the paid licence gate (licensed features are always on).
 - Nuxt (latest), Nuxt UI, bun. NuxtHub for the D1/R2/KV wiring.
 - Address is https://mail.flytower.dev for good. No rename of the project is needed for now.
-- Following upstream afterwards is a manual job; staying diffable with upstream on the server side
-  (same file layout, same schema, same migrations) is how that stays cheap.
+- Upstream is followed daily (Matt, 2026-11-12): see "Following upstream" below. Staying diffable
+  with upstream on the server side (same file layout, same schema, same migrations) is what keeps that
+  cheap. Staying merge-compatible with upstream's git history is not needed.
 - The migration should complete without asking Matt anything. Make decisions, record them here.
 - (Foundation) The app is a client-rendered SPA (`ssr: false`). It is a signed-in app; this removes a
   class of hydration and browser-API problems from a 40k-line port.
@@ -332,6 +333,51 @@ Tick in the PR that lands it. Add rows for anything discovered.
   through `marked` + DOMPurify with raw HTML and images dropped.
 - (10) `ContactsContactAvatar` is a plain `<img>` with an initials fallback rather than upstream's
   progressive avatar, matching the shell's decision for `UAvatar`.
+
+## Following upstream
+
+Last ported upstream commit: `be1343b` fix: clear all 88 vp lint errors (React effect state, refs, purity, types) (#284) (2026-11-12)
+<!-- upstream-ported: be1343b7cf938030450ba05a92c90227ffa51aba -->
+
+The marker above is the last commit of hieunc229/mailflare's `main` whose changes are in `nuxt`. The
+port started from `cee65a5` (v0.5.4, the tree that was `legacy/`). Read upstream's current source from the `upstream` branch or with
+`git show origin/upstream:<path>`.
+
+- **`upstream` branch.** `.github/workflows/sync-upstream.yml` fast-forwards it to upstream's `main`
+  every day at 05:17 UTC (and on demand from the Actions tab), and its summary says how many commits
+  are unported. If upstream ever changes its own `.github/workflows`, the default token cannot push
+  that; add a fine-grained token with Contents and Workflows write as the `UPSTREAM_SYNC_TOKEN` secret.
+- **Porting.** A daily Claude routine ports what is new, in one PR into `nuxt`, and merges it on green
+  CI. By hand it goes:
+  1. `node scripts/upstream/port.mjs status` lists the unported commits and sorts the changed files
+     into those carried across mechanically, those to port by hand (the React UI and the Worker entry),
+     those the fork deleted on purpose, and those ignored (other dialects, Docker, the Node runtime,
+     upstream's lockfile and CI).
+  2. `node scripts/upstream/port.mjs apply` carries the server side across with a three-way merge:
+     paths mapped onto this tree, `@/` imports rewritten to `#lib`/`#db`/`#handlers`, new tests turned
+     into vitest (`scripts/upstream/port-test.mjs`), migration bundle and route stubs regenerated.
+     Conflicts are left as markers; most are import lines, where upstream's side with our aliases wins.
+     Code for dropped features (other databases, `getNodeEnv`, `withDatabase`, `withStorage`, Resend,
+     SES, S3, the licence gate) is removed, not ported.
+  3. Port the UI by hand, commit by commit, reading each commit's diff (`git show <sha> -- src`). Each
+     React file has a Vue counterpart named in its "Ported from" header comment (`grep -rn "Ported from
+     legacy/src/components/messages/foo" app`). New strings come with upstream's `en.json` and locale
+     changes, which `apply` carries. React-only changes (render memoisation, effect rules, lint) need
+     nothing. Behaviour changes do.
+  4. `bun run typecheck`, `bun run lint`, `bun run test`, `bun run build`, then exercise what changed
+     against `bun run preview`.
+  5. `node scripts/upstream/port.mjs mark <sha>` records the new last-ported commit, in the same PR.
+- **Things to know.**
+  - Upstream's catalogues lag English by a few dozen keys at times. `t()` falls back to English, and
+    `tests/unit/i18n.test.mjs` accepts missing keys but not unknown ones (upstream's own test fails on
+    this).
+  - Upstream's calendar tests used America/Vancouver, which current tzdata keeps on permanent daylight
+    time from November 2026. The ported tests use America/Los_Angeles, which has the offsets the tests
+    expect.
+  - `tests/email-relay.test.mjs` tests upstream's `deploy/cloudflare-email-relay`, which is not ported.
+  - D1 read replicas (upstream #268): `server/worker.ts` wraps Nitro's fetch in `runWithD1Session` and
+    `getEnv()` swaps `DB` for the request's session; `DB_PRIMARY` keeps the raw binding for
+    authentication reads. Email, queue and cron keep reading the primary.
 
 ## Open items
 

@@ -10,6 +10,8 @@ import { useLatestMessagesFirst } from '~/composables/messages/useLatestMessages
 import { useMessageThread } from '~/composables/messages/useMessageThread'
 import { useRemoteContent } from '~/composables/messages/useRemoteContent'
 import { useSendViewStatus } from '~/composables/messages/useSendViewStatus'
+import { useMailingListBanner } from '~/composables/messages/useMailingListBanner'
+import { findInviteAttachment } from '#lib/calendar/invite-attachment'
 import { useShowFullRecipientAddresses } from '~/composables/messages/useShowFullRecipientAddresses'
 import { extractCloudAttachments } from '~/utils/messages/cloud-attachment-utils'
 import {
@@ -22,14 +24,18 @@ import {
   resolveInlineAttachmentUrls,
 } from '~/utils/messages/detail-utils'
 import { markMessageRead } from '~/utils/messages/mark-read'
+import { authFetch } from '~/utils/auth-client'
+import { formatRecipientAddressList, type RecipientAddressStyle } from '#lib/email/recipient-display'
+import type { NoteEmail } from '~/composables/messages/useConversationNotes'
+import { getConversationSender } from '~/utils/messages/conversation-thread-utils'
 import type { MessageAttachment, MessageDetailResponse } from '~/utils/messages/types'
 
 const props = defineProps<{ messageId: string }>()
 const { t } = useLanguage()
 const { selectedMailbox, mailboxes } = useSelectedMailbox()
-useSendViewStatus(() => props.messageId)
-
 const data = shallowRef<MessageDetailResponse | null>(null)
+useSendViewStatus(() => props.messageId, () => data.value?.scheduledAt)
+const { dismissed: unsubBannerDismissed, dismiss: dismissUnsubBanner } = useMailingListBanner(() => props.messageId)
 const loading = ref(true)
 const bodyPending = ref(false)
 const bodyError = ref(false)
@@ -128,6 +134,7 @@ const currentAccountName = computed(() => messageMailbox.value?.displayName ?? m
 const headerParties = computed(() => (message.value ? getMessageHeaderParties(message.value, currentAccountName.value ?? undefined) : null))
 const fromName = computed(() => headerParties.value?.fromName ?? '')
 const fromAddress = computed(() => headerParties.value?.fromAddress ?? '')
+const canUnsubscribe = computed(() => message.value?.direction === 'inbound' && message.value.status !== 'spam' && !!message.value.hasUnsubscribe)
 const ownAddresses = computed(() => {
   const mailbox = messageMailbox.value
   if (!mailbox) return []
@@ -160,6 +167,19 @@ async function retryBody() {
   await loadBody(props.messageId, () => true)
 }
 
+// Every attachment as one ZIP. A flagged attachment answers 409 until the user confirms.
+async function downloadAllAttachments(messageId: string) {
+  const url = `/api/messages/${messageId}/attachments.zip`
+  try {
+    const response = await authFetch(url, { method: 'HEAD' })
+    if (response.status === 409 && !window.confirm(t('attachment.downloadAllFlagged'))) return
+    window.location.assign(response.status === 409 ? `${url}?acknowledge=1` : url)
+  }
+  catch {
+    window.location.assign(url)
+  }
+}
+
 function openPreview(attachment: MessageAttachment) {
   previewAttachment.value = attachment
   previewOpen.value = true
@@ -169,10 +189,31 @@ function onRescheduled(next: string) {
   if (data.value) data.value = { ...data.value, scheduledAt: next }
 }
 
+// The emails on screen, named on the notes that are about one of them.
+const noteEmails = computed<NoteEmail[]>(() => {
+  const style: RecipientAddressStyle = showFullRecipientAddresses.value ? 'full' : 'address'
+  const noteRecipient = (item: { toAddr: string, ccAddr?: string | null }) => [item.toAddr, item.ccAddr]
+    .map(list => formatRecipientAddressList(list, style))
+    .filter(Boolean)
+    .join(', ') || undefined
+  const emails: NoteEmail[] = thread.messages.value.map(item => ({
+    id: item.id,
+    sender: getConversationSender(item, currentAccountName.value ?? undefined),
+    recipient: item.direction === 'outbound' ? noteRecipient(item) : undefined,
+    createdAt: item.createdAt,
+  }))
+  const current = message.value
+  if (current && !emails.some(item => item.id === current.id)) {
+    emails.push({ id: current.id, sender: fromName.value, recipient: current.direction === 'outbound' ? noteRecipient(current) : undefined, createdAt: current.createdAt })
+  }
+  return emails
+})
+
 useHead({ title: () => (message.value ? subject.value : t('common.loading')) })
 </script>
 
 <template>
+  <MessagesConversationNotesProvider :message-id="messageId" :conversation-key="message ? message.threadId ?? message.id : messageId" :emails="noteEmails">
   <UDashboardPanel id="message-reader" :ui="{ body: 'p-0 sm:p-0 gap-0' }">
     <template #header>
       <UDashboardNavbar :ui="{ left: 'min-w-0 flex-1 gap-3', root: 'gap-3 px-2 sm:px-2' }" :toggle="false">
@@ -230,6 +271,7 @@ useHead({ title: () => (message.value ? subject.value : t('common.loading')) })
 
       <div v-else>
         <h1 class="px-4 pb-2 pt-2 text-2xl text-highlighted sm:pr-6" :class="!anyPanelVisible ? 'sm:pl-16' : 'sm:pl-10'" :title="subject">{{ subject }}</h1>
+        <MessagesConversationNotes :inner-class="[!anyPanelVisible ? 'sm:pl-16' : 'sm:pl-10', 'px-4 pb-3 sm:pr-6'].join(' ')" />
 
         <MessagesConversationThread
           v-model:expanded-all="threadExpanded"
@@ -246,6 +288,7 @@ useHead({ title: () => (message.value ? subject.value : t('common.loading')) })
 
         <article class="py-4 sm:px-6" :class="!anyPanelVisible && 'sm:pl-12'">
           <div class="w-full">
+            <MessagesMailingListBanner v-if="canUnsubscribe && !unsubBannerDismissed" :message-id="message.id" @dismiss="dismissUnsubBanner" />
             <div class="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 px-4 pb-5 sm:px-0 sm:pl-4">
               <div class="flex min-w-0 items-start gap-3">
                 <ContactsContactAvatar
@@ -264,7 +307,7 @@ useHead({ title: () => (message.value ? subject.value : t('common.loading')) })
                     </b>
                     <span class="hidden min-w-0 flex-1 overflow-hidden text-ellipsis text-xs text-muted sm:block">&lt;{{ fromAddress }}&gt;</span>
                     <MessagesUnsubscribeButton
-                      v-if="message.direction === 'inbound' && message.status !== 'spam' && message.hasUnsubscribe"
+                      v-if="canUnsubscribe && unsubBannerDismissed"
                       :key="message.id"
                       :message-id="message.id"
                     />
@@ -360,8 +403,20 @@ useHead({ title: () => (message.value ? subject.value : t('common.loading')) })
               </div>
             </section>
 
+            <MessagesInviteCard :message-id="message.id" :has-calendar-attachment="!!findInviteAttachment(attachments)" />
+
             <section v-if="attachments.length > 0" class="mt-8 border-t border-default px-4 py-6 sm:px-0 sm:pl-16">
-              <h2 class="mb-3 text-sm font-semibold text-highlighted">{{ t('message.attachments', { count: attachments.length }) }}</h2>
+              <div class="mb-3 flex items-center justify-between gap-3">
+                <h2 class="text-sm font-semibold text-highlighted">{{ t('message.attachments', { count: attachments.length }) }}</h2>
+                <UButton
+                  icon="i-lucide-arrow-down-to-line"
+                  :label="t('attachment.downloadAll')"
+                  variant="link"
+                  size="xs"
+                  class="shrink-0"
+                  @click="downloadAllAttachments(message.id)"
+                />
+              </div>
               <div class="grid gap-2 sm:grid-cols-2">
                 <MessagesAttachmentCard v-for="attachment in attachments" :key="attachment.id" :attachment="attachment" :message-id="message.id" @preview="openPreview" />
               </div>
@@ -385,4 +440,5 @@ useHead({ title: () => (message.value ? subject.value : t('common.loading')) })
       </div>
     </template>
   </UDashboardPanel>
+  </MessagesConversationNotesProvider>
 </template>

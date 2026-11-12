@@ -17,7 +17,14 @@ import {
 	type InboundQueueMessage,
 } from "#lib/email/inbound";
 import { processOutboundQueue, type OutboundQueueMessage } from "#lib/email/send";
-import { isImportJobMessage, isInboundQueueMessage, isWebhookRetryMessage } from "./worker/utils";
+import {
+	isImportJobMessage,
+	isInboundQueueMessage,
+	isWebhookRetryMessage,
+	withD1BookmarkCookie,
+	withD1ReadSession,
+} from "./worker/utils";
+import { runWithD1Session } from "#lib/d1-session-context";
 import { sweepOrphanedRawMail } from "#lib/email/raw-sweeper";
 import { processImportJob, sweepImportJobs } from "#lib/import/jobs";
 import { processWebhookRetry, type WebhookRetryMessage } from "#lib/email/webhooks";
@@ -50,6 +57,9 @@ function bindEnv(env: CloudflareEnv): CloudflareEnv {
 
 export default {
 	async fetch(request: Request, rawEnv: CloudflareEnv, ctx: ExecutionContext) {
+		// Reads go through a D1 session anchored at the client's bookmark cookie so D1 can serve
+		// them from read replicas; email/queue/scheduled below keep primary reads on purpose.
+		const d1Session = withD1ReadSession(rawEnv, request);
 		const env = bindEnv(rawEnv);
 		const url = new URL(request.url);
 		if (url.pathname === "/api/realtime") {
@@ -71,7 +81,12 @@ export default {
 			return hub.fetch(hubRequest);
 		}
 
-		return nitroHandler.fetch!(request as never, rawEnv as never, ctx as never) as unknown as Response;
+		// getEnv() reads bindings from cloudflare:workers, so the session travels with the request
+		// through runWithD1Session rather than through the env passed to Nitro.
+		const response = await runWithD1Session(d1Session?.session, () =>
+			nitroHandler.fetch!(request as never, rawEnv as never, ctx as never) as unknown as Promise<Response>,
+		);
+		return withD1BookmarkCookie(request, response, d1Session?.session);
 	},
 
 	async email(message: ForwardableEmailMessage, rawEnv: CloudflareEnv, ctx: ExecutionContext) {
@@ -123,7 +138,8 @@ export default {
 			await env.INBOUND_QUEUE.send(payload);
 		} catch (err) {
 			console.error("Inbound enqueue failed", err);
-			message.setReject("Processing failed");
+			// setReject bounces permanently; throwing is a temporary SMTP failure, so the sender retries.
+			throw err;
 		}
 	},
 

@@ -10,6 +10,8 @@ import { root } from "./helpers/paths.mjs";
 const display = await import("../../server/lib/email/recipient-display.ts");
 const thread = await import("../../app/utils/messages/conversation-thread-utils.ts");
 const contacts = await import("../../server/lib/contacts/utils.ts");
+const notifications = await import("../../server/lib/email/inbound-notification.ts");
+const senderLabel = await import("../../server/lib/email/sender-label.ts");
 const parties = await import("../../app/utils/messages/detail-utils.ts");
 const validators = await import("../../server/lib/validators.ts");
 
@@ -75,26 +77,76 @@ test("outbound To still prefers the contact name", () => {
 
 test("a message's own From name beats a shared contact's learned name", () => {
 	const shared = { displayName: "LiveKit Hiring Team", source: "inbound" };
-	assert.equal(contacts.getSenderDisplayName('"PostHog Team" <no-reply@ashbyhq.com>', shared), "PostHog Team");
+	assert.equal(contacts.getPartyDisplayName('"PostHog Team" <no-reply@ashbyhq.com>', shared), "PostHog Team");
 	assert.equal(
-		contacts.getSenderDisplayName('"LiveKit Hiring Team" <no-reply@ashbyhq.com>', { displayName: "PostHog Team", source: "outbound" }),
+		contacts.getPartyDisplayName('"LiveKit Hiring Team" <no-reply@ashbyhq.com>', { displayName: "PostHog Team", source: "outbound" }),
+		"LiveKit Hiring Team",
+	);
+});
+
+test("a message's own To name beats a shared contact's learned name", () => {
+	const shared = { displayName: "LiveKit Hiring Team", source: "outbound" };
+	assert.equal(contacts.getPartyDisplayName('"PostHog Team" <no-reply@ashbyhq.com>', shared), "PostHog Team");
+	assert.equal(
+		contacts.getPartyDisplayName('"LiveKit Hiring Team" <no-reply@ashbyhq.com>', { displayName: "PostHog Team", source: "inbound" }),
 		"LiveKit Hiring Team",
 	);
 });
 
 test("a manually named contact overrides the message's From name", () => {
 	assert.equal(
-		contacts.getSenderDisplayName('"PostHog Team" <no-reply@ashbyhq.com>', { displayName: "Ashby Recruiting", source: "manual" }),
+		contacts.getPartyDisplayName('"PostHog Team" <no-reply@ashbyhq.com>', { displayName: "Ashby Recruiting", source: "manual" }),
 		"Ashby Recruiting",
 	);
 });
 
 test("the learned contact name fills in when the message has no From name", () => {
 	assert.equal(
-		contacts.getSenderDisplayName("no-reply@ashbyhq.com", { displayName: "PostHog Team", source: "inbound" }),
+		contacts.getPartyDisplayName("no-reply@ashbyhq.com", { displayName: "PostHog Team", source: "inbound" }),
 		"PostHog Team",
 	);
-	assert.equal(contacts.getSenderDisplayName("no-reply@ashbyhq.com", null), null);
+	assert.equal(contacts.getPartyDisplayName("no-reply@ashbyhq.com", null), null);
+});
+
+test("a notification names this message's sender, not the contact's stale learned name", () => {
+	const payload = notifications.buildNewMessageNotification({
+		messageId: "msg_1",
+		mailboxId: "mbx_1",
+		fromAddr: '"LiveKit Hiring Team" <no-reply@ashbyhq.com>',
+		contact: { displayName: "PostHog Team", source: "inbound" },
+		subject: "Interview",
+	});
+	assert.equal(payload.type, "new_message");
+	assert.equal(payload.from, '"LiveKit Hiring Team" <no-reply@ashbyhq.com>');
+	assert.equal(payload.fromName, "LiveKit Hiring Team");
+	assert.equal(payload.subject, "Interview");
+});
+
+test("a notification still prefers a manual contact name and falls back to the learned one", () => {
+	const base = {
+		messageId: "msg_1",
+		mailboxId: "mbx_1",
+		fromAddr: '"LiveKit Hiring Team" <no-reply@ashbyhq.com>',
+		subject: null,
+	};
+	assert.equal(
+		notifications.buildNewMessageNotification({ ...base, contact: { displayName: "Ashby Recruiting", source: "manual" } }).fromName,
+		"Ashby Recruiting",
+	);
+	assert.equal(
+		notifications.buildNewMessageNotification({ ...base, fromAddr: "no-reply@ashbyhq.com", contact: { displayName: "PostHog Team", source: "inbound" } }).fromName,
+		"PostHog Team",
+	);
+	assert.equal(notifications.buildNewMessageNotification({ ...base, fromAddr: "no-reply@ashbyhq.com", contact: null }).fromName, null);
+});
+
+test("notification sender labels show one name and the bare address", () => {
+	assert.equal(senderLabel.formatSenderLabel('"Example" <alerts@example.test>', "Example"), "Example <alerts@example.test>");
+	assert.equal(senderLabel.formatSenderLabel('"Example" <alerts@example.test>', "Manual Name"), "Manual Name <alerts@example.test>");
+	assert.equal(senderLabel.formatSenderLabel('"Example" <alerts@example.test>', null), "alerts@example.test");
+	assert.equal(senderLabel.formatSenderLabel("alerts@example.test", "Example"), "Example <alerts@example.test>");
+	assert.equal(senderLabel.formatSenderLabel('"Evil\u202e" <alerts@example.test>', "Evil\u202e"), "Evil <alerts@example.test>");
+	assert.equal(senderLabel.formatSenderLabel(`${"a".repeat(300)}@example.test`, null).length, 240);
 });
 
 test("the setting accepts only a boolean", () => {

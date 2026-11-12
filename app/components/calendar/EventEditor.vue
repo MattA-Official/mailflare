@@ -32,6 +32,16 @@ const guests = ref('')
 const location = ref('')
 const description = ref('')
 const pending = ref<'save' | 'delete' | null>(null)
+// Answers guests sent back to an invitation from this calendar.
+const guestReplies = computed(() => {
+  try {
+    const responses = JSON.parse(editing.value?.attendeeResponses || '{}') as Record<string, string>
+    return Object.entries(responses).map(([email, status]) => `${email} ${t(`calendar.guestResponse.${status}` as TranslationKey)}`).join(', ')
+  }
+  catch {
+    return ''
+  }
+})
 
 const NO_REMINDER = 'none'
 const reminderItems = computed(() => [
@@ -250,6 +260,9 @@ function onTimesFocusOut(event: FocusEvent) {
         <div class="grid grid-cols-[24px_minmax(0,1fr)] items-center gap-3">
           <UIcon name="i-lucide-users-round" class="size-5 text-muted" />
           <UInput v-model="guests" :placeholder="t('calendar.addGuests')" :aria-label="t('calendar.guestsLabel')" variant="ghost" class="w-full" />
+          <p v-if="guestReplies" class="col-start-2 mt-1 px-2 text-xs text-muted">
+            {{ t('calendar.guestResponses', { list: guestReplies }) }}
+          </p>
         </div>
 
         <div class="grid grid-cols-[24px_minmax(0,1fr)] items-center gap-3">
