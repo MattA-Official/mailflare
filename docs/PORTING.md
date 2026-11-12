@@ -212,10 +212,10 @@ Tick in the PR that lands it. Add rows for anything discovered.
 
 ## Open items
 
-- Fixed while porting sign-in, worth knowing for other areas: every passkey route returned 500 on
-  Workers (tsyringe needs `reflect-metadata`, now imported first in `server/worker.ts`), and MFA
-  enrolment returned 500 (qrcode's Node entry loads pngjs; aliased to its browser build). If another
-  library fails at import time on Workers, look for the same kind of Node-only entry point.
+- Fixed while porting sign-in: every passkey route returned 500 on Workers because tsyringe (via
+  `@simplewebauthn/server` and `@peculiar/x509`) needs `reflect-metadata` at import time. It is now
+  imported first in `server/worker.ts` and listed in `nitro.moduleSideEffects` so it is not
+  tree-shaken. If another library fails at import time on Workers, look for the same kind of cause.
 
 - Production has no admin yet. First-run registration is left for Matt (see workstream 12).
 - `TURNSTILE_SECRET_KEY`, VAPID keys and APNs keys are not set on the Worker. Features that need them
