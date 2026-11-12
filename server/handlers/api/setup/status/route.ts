@@ -2,13 +2,18 @@ import { NextResponse } from "#lib/http/next-compat";
 import { hasAdminAccount } from "#lib/auth/setup";
 import { getEnv } from "#lib/cloudflare";
 import { getPrimaryDomain } from "#lib/user";
+import { isMissingTableError } from "#lib/database-errors";
 
 export async function GET() {
 	const env = getEnv();
 	try {
 		const [adminAccountExists, domain] = await Promise.all([
 			hasAdminAccount(env),
-			getPrimaryDomain(env),
+			// Before first-run setup migrates it, the database has no tables: no admin and no domain.
+			getPrimaryDomain(env).catch((error) => {
+				if (isMissingTableError(error)) return null;
+				throw error;
+			}),
 		]);
 		return NextResponse.json({
 			hasAdminAccount: adminAccountExists,

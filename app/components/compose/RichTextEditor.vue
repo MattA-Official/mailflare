@@ -4,7 +4,7 @@
 // lists, quotes and links, with pasted content flattened to text so a message never carries another
 // site's markup. Nuxt UI's UEditor (TipTap) is not used: its schema would drop the
 // data-mailflare-signature and quote markers and rewrite arbitrary email HTML in drafts.
-import { prepareEmailHtml, sanitizeEditorHtml, sanitizeEmailHtml } from '#lib/email/html'
+import { sanitizeEditorHtml, sanitizeEmailHtml } from '#lib/email/html'
 import type { TranslationKey } from '#lib/i18n/types'
 
 interface ToolbarCommand { command: string, labelKey: TranslationKey, icon: string, value?: string }
@@ -19,7 +19,7 @@ const COMMANDS: ToolbarCommand[] = [
   { command: 'formatBlock', labelKey: 'editor.quote', icon: 'i-lucide-quote', value: 'blockquote' },
 ]
 
-const props = defineProps<{
+defineProps<{
   id: string
   /** Quoted or forwarded HTML shown folded under the editable area. */
   quotedHtml?: string | null
@@ -34,9 +34,6 @@ const linkOpen = ref(false)
 const linkUrl = ref('')
 const showQuoted = ref(false)
 let savedRange: Range | null = null
-
-// Until the reader's EmailHtmlRenderer lands, the folded quote is shown as sanitised reader HTML.
-const quotedPreview = computed(() => props.quotedHtml ? prepareEmailHtml(props.quotedHtml, { reader: true }).html : '')
 
 // Keep the DOM in step with the value without resetting the caret on every keystroke.
 watch([model, editor], () => {
@@ -109,7 +106,9 @@ function onPaste(event: ClipboardEvent) {
 
 function onKeydown(event: KeyboardEvent) {
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === 'k') {
+    // The window-level Cmd/Ctrl+K would also open the command palette over the link popup.
     event.preventDefault()
+    event.stopPropagation()
     openLink()
   }
 }
@@ -149,8 +148,7 @@ defineExpose({ focus: () => editor.value?.focus() })
         >
           •••
         </button>
-        <!-- eslint-disable-next-line vue/no-v-html -- sanitised by prepareEmailHtml -->
-        <div v-if="showQuoted" class="compose-editor mt-2 text-sm" v-html="quotedPreview" />
+        <MessagesEmailHtmlRenderer v-if="showQuoted" class="mt-2" :html="quotedHtml" preserve-leading-quote />
       </div>
     </div>
     <slot name="footer" />

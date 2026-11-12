@@ -328,6 +328,7 @@
 	"notification.newEmail": "ایمیل جدید",
 	"notification.from": "از {sender}",
 	"notification.dismiss": "بستن اعلان",
+	"notification.open": "باز کردن",
 	"attachment.image": "تصویر",
 	"attachment.video": "ویدیو",
 	"attachment.audio": "صوت",

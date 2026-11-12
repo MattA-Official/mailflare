@@ -173,18 +173,40 @@ Tick in the PR that lands it. Add rows for anything discovered.
 
 - [x] Foundation: Worker entry, bindings, server port, migrations, shell, CI, deploy
 - [x] 1 Shell and shared UI
-- [ ] 2 Sign-in and onboarding
-- [ ] 3 Reading mail
-- [ ] 4 Composing: composer, toasts and /compose done (`useCompose()`, `<ComposeHost>` in the dashboard layout; shared: `ComposeFollowUpMenu`, `ComposeScheduleSendSheet`, `~/utils/compose/*`). Left: `/drafts/[messageId]` and the quote renderer, once reading mail's `MessagesFolderPage` and `MessagesEmailHtmlRenderer` land
-- [ ] 5 Settings: account and security
+- [x] 2 Sign-in and onboarding: login (password, TOTP/recovery code, passkey, passkey second factor,
+  `?add=1`), first-run setup, onboarding, passkey setup links, forgot and reset password.
+  `tests/e2e/auth.spec.ts`. Passkey ceremonies use `APP_URL` as the RP ID, so they only complete on
+  https://mail.flytower.dev, not in local preview.
+- [x] 3 Reading mail: every folder list and reader, custom folders, the drafts list, the split view, bulk and row actions, swipe on phones, follow-ups, the HTML renderer. Shared for others: `MessagesFolderPage` + `~/utils/messages/folder-configs`, `MessagesEmailHtmlRenderer`, `useConversationView` / `useTwoColumnReading` / `useLatestMessagesFirst` / `useShowFullRecipientAddresses` in `app/composables/messages` (for settings). Unit tests for `app/utils/messages` are left to 11
+- [x] 4 Composing (`useCompose()` and `<ComposeHost>` in the dashboard layout; shared: `ComposeFollowUpMenu`, `ComposeScheduleSendSheet`, `~/utils/compose/*`)
+- [x] 5 Settings: account and security
 - [ ] 6 Settings: mail
 - [x] 7 Admin: email
 - [x] 8 Admin: administration
 - [x] 9 Calendar and booking
 - [x] 10 Drive, contacts and assistant
-- [ ] 11 Server clean-up and tests
+- [x] 11 Server clean-up and tests
   - [x] Licence gate, Resend, SES, B2/S3, Node runtime, other dialects, self-update merge removed
-  - [ ] Unit tests ported
+  - [x] Unit tests ported: `legacy/tests/*.test.mjs` run under vitest as `tests/unit/*.test.mjs`
+    (upstream's style, lint-ignored like other ported code). Helpers in `tests/unit/helpers` stand in
+    for `better-sqlite3` and D1 (over `node:sqlite`), `cloudflare:workers` and `useEvent`; bundling
+    tests go through `helpers/esbuild.mjs` so `#lib`, `#db`, `#handlers` and `~` resolve. Tests for
+    deleted features were dropped, and assertions about the licence gate now assert there is none.
+  - [ ] UI test ports, waiting for the owning workstream (upstream file in `legacy/tests`, to be
+    rewritten against the Vue code; drop any whose behaviour the port changed on purpose):
+    - 1 Shell: `route-title`, `layout-mail-search-provider`, `folder-client-cache` and
+      `message-detail-cache` (`app/utils` versions use Nuxt's fetch, so upstream's fetch mocks no
+      longer fit), the React parts of `i18n` (provider, selector, root layout `lang`/`dir`)
+    - 2 Sign-in: `landing-account-auth`, `current-user-permission-reset`
+    - 3 Reading mail: `authentication-details`, `message-details`, `seed-raw`, `message-action-redirect`,
+      `message-actions-overflow`, `message-list-unread`, `message-selection-navigation`,
+      `message-thread-cache`, `recipient-display`, `reply-recipients`, `send-view-status`,
+      `sender-check-notice`, and the "only the primary mailbox repaints on a profile rename" case of
+      `mailbox-identity-scope` (`avatar-preview-skip` is moot: the progressive avatar is not ported)
+    - 4 Composing: `compose-ai-review-behavior`, `compose-insert-link`, the `resolveSendViewRoute`
+      cases of `send-notice`
+    - 6 Settings: mail: `import-staging`, `domain-routing-permissions`
+    - 7 Admin: email: `domain-add-retry`
 - [ ] 12 Verification and cutover
 
 ## Shell conventions (workstream 1)
@@ -230,6 +252,19 @@ Tick in the PR that lands it. Add rows for anything discovered.
   `#lib/compose/rich-text-utils`, and the `email-html-sanitizer` re-export is gone (use
   `sanitizeEmailHtml` from `#lib/email/html`).
 
+- (3) Every folder route is a parent page (`inbox.vue`) rendering `MessagesSplitLayout`, with
+  `index.vue` (the full list) and `[messageId].vue` (the reader) as children. In the split view the
+  list is a resizable `UDashboardPanel` (`id="message-list"`) whose width the dashboard group stores,
+  instead of upstream's per-user saved column width. Below `lg` the reader is single column with a
+  back arrow, as when two-column reading is off.
+- (3) Hovering a row warms the message detail cache only; there is no route payload to prefetch.
+- (3) The "assistant open" state the reader reads is a placeholder (`useAssistantOpenState()` in
+  `app/composables/messages/useMessageListContext.ts`, always false) until workstream 10 provides
+  the assistant panel; swap it there.
+- (3) Confirmations (delete forever, empty Trash/Spam, trash without unsubscribing) still use
+  `window.confirm`, as upstream does. The scheduled-send banner reschedules from one popover on every
+  screen size.
+
 - `/` redirects to `/inbox` instead of showing upstream's marketing landing page.
 - The realtime upgrade, email, queue and cron handlers live in `server/worker.ts`; behaviour is
   upstream's.
@@ -250,12 +285,27 @@ Tick in the PR that lands it. Add rows for anything discovered.
   `selected-mailbox-id` localStorage key upstream's MailboxProvider writes (falling back to the
   primary mailbox), via `app/utils/calendar/mailbox.ts`. Switch it to the shell's mailbox composable
   once that exists.
+- The passkey setup routes (`/api/auth/passkey/setup/{context,options,verify}`) fall back to the
+  HttpOnly `ep_setup` cookie when no `token` is sent. Upstream's server-rendered `/setup/passkey` read
+  that cookie and passed it on; the client-rendered page cannot. Requests that send a token are
+  unchanged.
+- (Workstream 2) Auth pages use `layout: false` and their own two-panel `AuthShell`, as upstream did,
+  rather than the shared `auth` layout. `/setup`'s server-side branching (register, onboarding or
+  redirect) is a page middleware over `/api/setup/status` and `/api/auth/me`.
+- (Workstream 2) The Turnstile site key is runtime config `public.turnstileSiteKey`
+  (`NUXT_PUBLIC_TURNSTILE_SITE_KEY` on the Worker) in place of `NEXT_PUBLIC_TURNSTILE_SITE_KEY`.
+- `/api/setup/status` answers `hasAdminAccount: false, hasPrimaryDomain: false` on an empty database
+  instead of a 500, so the client-rendered `/login` can send a fresh install to `/setup` as upstream's
+  server page did.
 
 - Admin email (7): the Domains page offers only Cloudflare and "not selected" for sending and receiving.
   Confirmations use a Nuxt UI modal (`useAdminConfirm`) instead of `window.confirm`/`prompt`; removing a
   domain still requires typing its hostname. The mailbox pages dispatch `mailflare:mailboxes-changed`
   instead of calling the selector's cache directly. Routing rule validation errors show the server's
   field messages instead of "Request failed".
+- Settings (workstream 5): signing out a mobile device and revoking an API key confirm in a modal
+  instead of `window.confirm`. The MFA QR code is rendered with qrcode's core and SVG renderer
+  (`server/lib/auth/qr-svg.ts`) because its PNG renderer cannot load on Workers.
 
 - (10) Drive uploads: `PUT /api/drive/upload/{id}` pipes the request body through a
   `FixedLengthStream` before `uploadPart`, because R2 rejects the stream Nitro hands the handler
@@ -270,13 +320,23 @@ Tick in the PR that lands it. Add rows for anything discovered.
 
 ## Open items
 
+- Fixed while porting sign-in: every passkey route returned 500 on Workers because tsyringe (via
+  `@simplewebauthn/server` and `@peculiar/x509`) needs `reflect-metadata` at import time. It is now
+  imported first in `server/worker.ts` and listed in `nitro.moduleSideEffects` so it is not
+  tree-shaken. If another library fails at import time on Workers, look for the same kind of cause.
 - Message authentication details (`/api/messages/{id}/authentication`) only trust an SES trace, as
   upstream's do, so mail received through Cloudflare always reports `untrusted`. Reading Cloudflare's
   own `Authentication-Results` there (as the spam analyser already does) would make the panel useful.
 
 - Production has no admin yet. First-run registration is left for Matt (see workstream 12).
 - `TURNSTILE_SECRET_KEY`, VAPID keys and APNs keys are not set on the Worker. Features that need them
-  degrade as upstream's do.
+  degrade as upstream's do: sign-in works without Turnstile, and push is off without VAPID keys. The
+  Cloudflare connector these threads use cannot see the Flytower account, so neither the Turnstile
+  widget nor the secrets could be created from here. To turn them on: create a Turnstile widget for
+  mail.flytower.dev, set its secret as `TURNSTILE_SECRET_KEY` and its site key where the sign-in pages read it (workstream 2; upstream used `NEXT_PUBLIC_TURNSTILE_SITE_KEY`);
+  generate VAPID keys with `legacy/scripts/generate-vapid-keys.mjs` and set them as Worker secrets.
+- `public/locales/*.json` gained `notification.open` (added to English by workstream 1), copied from
+  each catalogue's existing `drive.open` translation of the same word.
 - Email Routing on flytower.dev is not enabled yet; first-run setup enables it through `CF_TOKEN`.
 
 ## Cloudflare resources (account Flytower, `e1c19a0c407713eac8c279a4d1d9989b`)

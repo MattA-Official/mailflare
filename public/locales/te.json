@@ -328,6 +328,7 @@
 	"notification.newEmail": "కొత్త ఇమెయిల్",
 	"notification.from": "{sender} నుండి",
 	"notification.dismiss": "నోటిఫికేషన్‌ను మూసివేయండి",
+	"notification.open": "తెరవండి",
 	"attachment.image": "చిత్రం",
 	"attachment.video": "వీడియో",
 	"attachment.audio": "ఆడియో",

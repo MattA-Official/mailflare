@@ -324,6 +324,7 @@
 	"notification.newEmail": "新着メール",
 	"notification.from": "{sender}から",
 	"notification.dismiss": "通知を閉じる",
+	"notification.open": "開く",
 	"attachment.image": "画像",
 	"attachment.video": "動画",
 	"attachment.audio": "音声",

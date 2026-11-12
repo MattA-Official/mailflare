@@ -20,6 +20,26 @@ export type EnrollmentGrantKind = "setup" | "recovery" | "admin";
 /** First-run setup token, kept in an HttpOnly cookie instead of the URL. */
 export const SETUP_COOKIE = "ep_setup";
 
+/**
+ * The first-run passkey link travels in the HttpOnly setup cookie. Upstream's
+ * server-rendered page read it and passed it on as `token`; the client-rendered
+ * app cannot, so the setup routes fall back to the cookie when no token is sent.
+ */
+export function readSetupCookie(request: Request): string | null {
+	const cookie = request.headers.get("Cookie") ?? "";
+	const match = cookie.match(new RegExp(`(?:^|;\\s*)${SETUP_COOKIE}=([^;]+)`));
+	return match ? decodeURIComponent(match[1]) : null;
+}
+
+/** A JSON body with `token` filled in from the setup cookie when it is missing or empty. */
+export function withSetupCookieToken(request: Request, body: unknown): unknown {
+	if (!body || typeof body !== "object" || Array.isArray(body)) return body;
+	const token = (body as { token?: unknown }).token;
+	if (typeof token === "string" && token) return body;
+	const fallback = readSetupCookie(request);
+	return fallback ? { ...body, token: fallback } : body;
+}
+
 export type EnrollmentGrant = {
 	id: string;
 	userId: string;

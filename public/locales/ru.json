@@ -336,6 +336,7 @@
 	"notification.newEmail": "Новое письмо",
 	"notification.from": "От {sender}",
 	"notification.dismiss": "Закрыть уведомление",
+	"notification.open": "Открыть",
 	"attachment.image": "Изображение",
 	"attachment.video": "Видео",
 	"attachment.audio": "Аудио",

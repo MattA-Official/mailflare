@@ -328,6 +328,7 @@
 	"notification.newEmail": "Barua pepe mpya",
 	"notification.from": "Kutoka kwa {sender}",
 	"notification.dismiss": "Ondoa arifa",
+	"notification.open": "Fungua",
 	"attachment.image": "Picha",
 	"attachment.video": "Video",
 	"attachment.audio": "Sauti",

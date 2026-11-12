@@ -3,13 +3,13 @@ import { eq } from "drizzle-orm";
 import { getEnv } from "#lib/cloudflare";
 import { getDb } from "#db";
 import { users } from "#db/schema";
-import { getEnrollmentGrant } from "#lib/auth/webauthn/grants";
+import { getEnrollmentGrant, readSetupCookie } from "#lib/auth/webauthn/grants";
 import { authError } from "#lib/http/auth-error";
 
 /** Shows which account an enrolment link belongs to before any browser prompt. */
 export async function GET(request: Request) {
 	const env = getEnv();
-	const token = new URL(request.url).searchParams.get("token");
+	const token = new URL(request.url).searchParams.get("token") || readSetupCookie(request);
 	if (!token) return authError("setup_invalid", 400);
 	const grant = await getEnrollmentGrant(env, token);
 	if (!grant) return authError("setup_invalid", 401);

@@ -328,6 +328,7 @@
 	"notification.newEmail": "새 이메일",
 	"notification.from": "보낸사람: {sender}",
 	"notification.dismiss": "알림 닫기",
+	"notification.open": "열기",
 	"attachment.image": "이미지",
 	"attachment.video": "동영상",
 	"attachment.audio": "오디오",

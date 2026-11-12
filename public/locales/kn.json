@@ -328,6 +328,7 @@
 	"notification.newEmail": "ಹೊಸ ಇಮೇಲ್",
 	"notification.from": "{sender} ಅವರಿಂದ",
 	"notification.dismiss": "ಅಧಿಸೂಚನೆಯನ್ನು ವಜಾಗೊಳಿಸಿ",
+	"notification.open": "ತೆರೆಯಿರಿ",
 	"attachment.image": "ಚಿತ್ರ",
 	"attachment.video": "ವೀಡಿಯೊ",
 	"attachment.audio": "ಆಡಿಯೊ",

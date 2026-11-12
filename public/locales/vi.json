@@ -324,6 +324,7 @@
 	"notification.newEmail": "Email mới",
 	"notification.from": "Từ {sender}",
 	"notification.dismiss": "Đóng thông báo",
+	"notification.open": "Mở",
 	"attachment.image": "Hình ảnh",
 	"attachment.video": "Video",
 	"attachment.audio": "Âm thanh",

@@ -328,6 +328,7 @@
 	"notification.newEmail": "নতুন ইমেইল",
 	"notification.from": "{sender}-এর কাছ থেকে",
 	"notification.dismiss": "বিজ্ঞপ্তি বন্ধ করুন",
+	"notification.open": "খুলুন",
 	"attachment.image": "ছবি",
 	"attachment.video": "ভিডিও",
 	"attachment.audio": "অডিও",

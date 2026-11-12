@@ -324,6 +324,7 @@
 	"notification.newEmail": "Email baru",
 	"notification.from": "Dari {sender}",
 	"notification.dismiss": "Tutup notifikasi",
+	"notification.open": "Buka",
 	"attachment.image": "Gambar",
 	"attachment.video": "Video",
 	"attachment.audio": "Audio",
