@@ -5,7 +5,7 @@ import type { DropdownMenuItem } from '@nuxt/ui'
 import type { BulkMessageAction } from '#handlers/api/messages/bulk/types'
 import { getPermanentDeleteConfirmText, PartialDeleteError, supportsPermanentDelete } from '#lib/messages/permanent-delete-utils'
 import type { Message, MessageDirection } from '~/types/messages'
-import { useMessageListVisibility } from '~/composables/messages/useMessageListContext'
+import { useAutoAdvance, useMessageListVisibility } from '~/composables/messages/useMessageListContext'
 import { getVisibleActionCount } from '~/utils/messages/action-overflow-utils'
 import {
   blockMessageContact,
@@ -72,6 +72,7 @@ const actionsRef = ref<HTMLDivElement | null>(null)
 const sourceOpen = ref(false)
 const snoozeOpen = ref(false)
 const listHref = computed(() => visibility.value.backHref)
+const autoAdvance = useAutoAdvance(() => props.messageId)
 
 async function runAction(action: BulkMessageAction) {
   pendingAction.value = action
@@ -79,7 +80,7 @@ async function runAction(action: BulkMessageAction) {
   try {
     await runSingleMessageAction(props.messageId, action)
     const redirect = getMessageActionRedirect(action, listHref.value)
-    if (redirect) await router.push(redirect)
+    if (redirect) await router.push(autoAdvance() ?? redirect)
   }
   catch {
     error.value = t('actions.error.update')
@@ -97,7 +98,7 @@ async function deleteForever() {
   error.value = null
   try {
     await runSingleMessageAction(props.messageId, 'delete')
-    await router.push(getMessageBackHref(props.direction, props.status))
+    await router.push(autoAdvance() ?? getMessageBackHref(props.direction, props.status))
     pendingAction.value = null
   }
   catch (deleteError) {
@@ -217,7 +218,7 @@ async function onBlockContact() {
   try {
     await blockMessageContact({ mailboxId: props.mailboxId, senderAddress: props.senderAddress })
     await runSingleMessageAction(props.messageId, 'trash')
-    await router.push(listHref.value)
+    await router.push(autoAdvance() ?? listHref.value)
   }
   catch (blockError) {
     error.value = blockError instanceof Error ? blockError.message : t('message.error.block')

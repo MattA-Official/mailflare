@@ -109,8 +109,13 @@ async function onDomainSubmit() {
   error.value = null
   const hostname = normalizedDomain.value
   if (skipDns.value) {
+    const { ok, data }: { ok: boolean, data: DomainSetupResult } = await submitPrimaryDomain(hostname, true).catch(() => ({ ok: false, data: {} }))
     loading.value = false
-    setupDomain.value = hostname
+    if (!ok || !data.domain) {
+      error.value = typeof data.error === 'string' ? data.error : t('setup.domainFailed')
+      return
+    }
+    setupDomain.value = data.domain.hostname
     setupEnableSending.value = true
     setupSkipDns.value = true
     step.value = 3
@@ -256,7 +261,7 @@ const switchUi = { root: 'flex-row-reverse justify-between gap-4 rounded-xl bg-e
         <UIcon name="i-lucide-loader-circle" class="size-4 animate-spin" />
         {{ t('setup.checkingMx') }}
       </div>
-      <UAlert v-if="mxRecordsExist === false" color="success" variant="subtle" icon="i-lucide-circle-check" :title="t('setup.noMx')" />
+      <UAlert v-if="mxRecordsExist === false && !setupSkipDns" color="success" variant="subtle" icon="i-lucide-circle-check" :title="t('setup.noMx')" />
       <UCheckbox
         v-if="mxRecordsExist === true"
         v-model="replaceMxRecords"

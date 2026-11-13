@@ -89,6 +89,14 @@ function recordUnread(messageId: string) {
   openedUnread.value = { key: navigationKey.value, ids }
 }
 
+const dropped = shallowRef<{ key: string, ids: Set<string> }>({ key: '', ids: new Set() })
+function dropEntry(messageId: string) {
+  const current = dropped.value
+  const ids = new Set(current.key === navigationKey.value ? current.ids : [])
+  ids.add(messageId)
+  dropped.value = { key: navigationKey.value, ids }
+}
+
 onMounted(() => {
   const messageId = takeOpenedUnreadMessage()
   if (messageId) recordUnread(messageId)
@@ -136,10 +144,14 @@ provideMessageDetailNavigation({
     const current = snapshot.value
     if (current.key !== navigationKey.value) return []
     const unreadIds = openedUnread.value.key === navigationKey.value ? openedUnread.value.ids : null
-    return current.entries.map(entry => ({ ...entry, unread: entry.unread || !!unreadIds?.has(entry.id) }))
+    const droppedIds = dropped.value.key === navigationKey.value ? dropped.value.ids : null
+    return current.entries
+      .filter(entry => !droppedIds?.has(entry.id))
+      .map(entry => ({ ...entry, unread: entry.unread || !!unreadIds?.has(entry.id) }))
   }),
   hrefPrefix: computed(() => props.config.hrefPrefix),
   recordUnread,
+  dropEntry,
   showBulkBar,
   bulkFolder: computed(() => (props.config.folderId ? undefined : props.config.folder)),
 })

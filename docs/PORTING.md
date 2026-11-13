@@ -248,11 +248,9 @@ Tick in the PR that lands it. Add rows for anything discovered.
   `/api/domains/{id}/resend`, `/api/domains/{id}/ses`, `/api/admin/aws`, `/api/admin/resend-key`,
   `/api/inbound`, `/api/inbound/resend`, `/api/inbound/ses`. The schema keeps upstream's
   `sending_provider`/`receiving_provider` enums.
-- (Fork addition) The assistant has an **Anthropic (Claude)** provider preset beside OpenAI, OpenRouter, Groq
-  and Custom. It uses the native Messages API through `@ai-sdk/anthropic` (`server/lib/agent/model.ts`), lists
-  models with Anthropic's headers (`provider-models.ts`), runs at `effort: "low"` and adds 8,000 tokens of
-  thinking room above each caller's visible output limit, since current Claude models always think. The
-  `agent_preset` column (plain text in D1) and the admin endpoints accept `anthropic`; no migration.
+- (Fork) Upstream added the **Anthropic** assistant provider in `5e0dfa6` (#287), replacing the fork's own
+  (which also added 8,000 tokens of thinking room per call). The port takes upstream's code, except that
+  the model list sends the key as `x-api-key` instead of a bearer token (`provider-models.ts`).
 - (11) `/api/v1/storage` always reports `{ provider: "r2", configured: true, bucket: null, endpoint: null }`.
 - (11) `/api/admin/update` is gone: the admin update card shows only pending migrations
   (`/api/admin/migrations`), since upstream's "merge upstream" workflow cannot apply to this fork.
@@ -341,8 +339,8 @@ Tick in the PR that lands it. Add rows for anything discovered.
 
 ## Following upstream
 
-Last ported upstream commit: `be1343b` fix: clear all 88 vp lint errors (React effect state, refs, purity, types) (#284) (2026-11-12)
-<!-- upstream-ported: be1343b7cf938030450ba05a92c90227ffa51aba -->
+Last ported upstream commit: `3de2363` update PR template (2026-11-13)
+<!-- upstream-ported: 3de2363787655b6044559e958ff866c29cdc0b57 -->
 
 The marker above is the last commit of hieunc229/mailflare's `main` whose changes are in `nuxt`. The
 port started from `cee65a5` (v0.5.4, the tree that was `legacy/`). Read upstream's current source from the `upstream` branch or with

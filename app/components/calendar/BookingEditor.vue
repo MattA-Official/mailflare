@@ -5,6 +5,7 @@ import { folderColorKeys } from '#lib/folders/color-keys'
 import { FOLDER_COLOR_OPTIONS } from '#lib/folders/colors'
 import { slugifyBookingName } from '#lib/booking/utils'
 import type { TranslationKey } from '#lib/i18n/types'
+import { BOOKING_TEMPLATE_PLACEHOLDERS, CONFIRMATION_BODY_MAX, CONFIRMATION_SUBJECT_MAX, DEFAULT_CONFIRMATION_BODY, DEFAULT_CONFIRMATION_SUBJECT } from '#lib/booking/confirmation-utils'
 import type { BookingEditorSection, BookingForm, BookingHost } from '~/types/calendar'
 import { bookingFormWithName, durationLabel, formAvailabilityLabel, matchBookingHost, nextBookingTimeRange, WEEKDAYS } from '~/utils/calendar/booking'
 
@@ -51,6 +52,24 @@ const moreItems = computed(() => [[
   { label: form.value.enabled ? t('booking.turnOff') : t('booking.turnOn'), onSelect: () => emit('toggleEnabled') },
   { label: t('common.delete'), color: 'error' as const, onSelect: () => emit('delete') },
 ]])
+
+const confirmationBody = useTemplateRef<{ textareaRef: HTMLTextAreaElement | null }>('confirmationBody')
+// Placeholder chips go where the cursor is in the message, or at its end.
+function insertPlaceholder(name: string) {
+  const field = confirmationBody.value?.textareaRef ?? null
+  const token = `{${name}}`
+  const start = field?.selectionStart ?? form.value.confirmationBody.length
+  const end = field?.selectionEnd ?? start
+  update({ confirmationBody: form.value.confirmationBody.slice(0, start) + token + form.value.confirmationBody.slice(end) })
+  requestAnimationFrame(() => {
+    field?.focus()
+    field?.setSelectionRange(start + token.length, start + token.length)
+  })
+}
+
+function useDefaultConfirmation() {
+  update({ confirmationSubject: form.value.confirmationSubject || DEFAULT_CONFIRMATION_SUBJECT, confirmationBody: form.value.confirmationBody || DEFAULT_CONFIRMATION_BODY })
+}
 
 function update(patch: Partial<BookingForm>) {
   form.value = { ...form.value, ...patch }
@@ -264,7 +283,7 @@ function addHost() {
         </button>
       </section>
 
-      <section class="p-5">
+      <section class="border-b border-default p-5">
         <button type="button" :aria-expanded="activeSection === 'host'" class="flex w-full items-center justify-between gap-3 text-left font-semibold text-highlighted" @click="toggle('host')">
           <span>{{ t('booking.editor.host') }}</span>
           <UIcon name="i-lucide-chevron-down" class="size-5 text-muted transition-transform" :class="activeSection === 'host' && 'rotate-180'" />
@@ -311,6 +330,62 @@ function addHost() {
             </template>
           </span>
           <span class="truncate">{{ form.hostIds.map(id => hostFor(id)?.name ?? t('booking.editor.userFallback')).join(', ') }}</span>
+        </button>
+      </section>
+
+      <section class="p-5">
+        <button type="button" :aria-expanded="activeSection === 'confirmation'" class="flex w-full items-center justify-between gap-3 text-left font-semibold text-highlighted" @click="toggle('confirmation')">
+          <span>{{ t('booking.editor.confirmation') }}</span>
+          <UIcon name="i-lucide-chevron-down" class="size-5 text-muted transition-transform" :class="activeSection === 'confirmation' && 'rotate-180'" />
+        </button>
+        <div v-if="activeSection === 'confirmation'" class="mt-4 space-y-4">
+          <p class="text-xs text-muted">
+            {{ t('booking.editor.confirmationHint') }}
+          </p>
+          <UFormField :label="t('booking.editor.confirmationSubject')">
+            <UInput :model-value="form.confirmationSubject" :placeholder="DEFAULT_CONFIRMATION_SUBJECT" :maxlength="CONFIRMATION_SUBJECT_MAX" class="w-full" @update:model-value="update({ confirmationSubject: String($event) })" />
+          </UFormField>
+          <UFormField :label="t('booking.editor.confirmationBody')">
+            <UTextarea
+              ref="confirmationBody"
+              :model-value="form.confirmationBody"
+              :placeholder="DEFAULT_CONFIRMATION_BODY"
+              :maxlength="CONFIRMATION_BODY_MAX"
+              :rows="10"
+              class="w-full"
+              :ui="{ base: 'resize-y' }"
+              @update:model-value="update({ confirmationBody: String($event) })"
+            />
+          </UFormField>
+          <UButton
+            v-if="!form.confirmationSubject || !form.confirmationBody"
+            size="xs"
+            color="neutral"
+            variant="outline"
+            class="rounded-full"
+            :label="t('booking.editor.confirmationUseDefault')"
+            @click="useDefaultConfirmation"
+          />
+          <div>
+            <p class="text-xs font-medium text-default">
+              {{ t('booking.editor.confirmationPlaceholders') }}
+            </p>
+            <div class="mt-2 flex flex-wrap gap-1.5">
+              <UButton
+                v-for="name in BOOKING_TEMPLATE_PLACEHOLDERS"
+                :key="name"
+                size="xs"
+                color="neutral"
+                variant="soft"
+                class="rounded-full font-mono"
+                :label="`{${name}}`"
+                @click="insertPlaceholder(name)"
+              />
+            </div>
+          </div>
+        </div>
+        <button v-else type="button" class="mt-2 flex w-full items-center gap-2 text-left text-sm text-muted" @click="toggle('confirmation')">
+          <UIcon name="i-lucide-mail" class="size-4" />{{ form.confirmationSubject || form.confirmationBody ? t('booking.editor.confirmationCustom') : t('booking.editor.confirmationDefault') }}
         </button>
       </section>
     </template>

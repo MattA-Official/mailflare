@@ -71,6 +71,9 @@ export interface BookingEvent {
   timeRanges: string
   timeZone: string
   enabled: boolean
+  /** The event's own guest confirmation; empty uses the built-in text. */
+  confirmationSubject?: string
+  confirmationBody?: string
   isTemplate?: true
 }
 
@@ -88,13 +91,15 @@ export interface BookingForm {
   timeRanges: BookingTimeRange[]
   timeZone: string
   enabled: boolean
+  confirmationSubject: string
+  confirmationBody: string
 }
 
 export interface BookingHost { id: string, name: string, email: string, hasAvatar?: boolean }
 
 export interface BookingHostMatch { host: BookingHost | null, error: string }
 
-export type BookingEditorSection = 'event' | 'duration' | 'location' | 'availability' | 'host' | null
+export type BookingEditorSection = 'event' | 'duration' | 'location' | 'availability' | 'host' | 'confirmation' | null
 
 export interface PublicBookingEvent {
   id: string

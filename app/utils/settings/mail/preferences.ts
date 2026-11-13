@@ -1,6 +1,6 @@
 // Per-browser mail preferences. The storage keys and change events are upstream's, so the message
 // list, reader and realtime code follow a change made here. Ported from
-// legacy/src/components/messages/use-{conversation-view,latest-messages-first,two-column-reading}.ts
+// legacy/src/components/messages/use-{conversation-view,latest-messages-first,two-column-reading,auto-advance}.ts
 // and hooks/message-realtime-utils.ts.
 
 export interface StoredToggle {
@@ -15,6 +15,8 @@ export interface StoredToggle {
 export const CONVERSATION_VIEW: StoredToggle = { key: 'mailflare-conversation-view', event: 'mailflare:conversation-view-changed', onValue: 'on', offValue: 'off', defaultValue: true }
 export const LATEST_MESSAGES_FIRST: StoredToggle = { key: 'mailflare-latest-messages-first', event: 'mailflare:latest-messages-first-changed', onValue: 'on', offValue: 'off', defaultValue: true }
 export const TWO_COLUMN_READING: StoredToggle = { key: 'mailflare-two-column-reading', event: 'mailflare:two-column-reading-changed', onValue: 'on', offValue: 'off', defaultValue: true }
+/** Whether archiving or deleting an open message opens the next one instead of the list. Off by default. Ported from use-auto-advance.ts. */
+export const AUTO_ADVANCE: StoredToggle = { key: 'mailflare-auto-advance', event: 'mailflare:auto-advance-changed', onValue: 'on', offValue: 'off', defaultValue: false }
 export const BROWSER_NOTIFICATIONS: StoredToggle = { key: 'mailflare:browser-notifications-enabled', onValue: 'true', offValue: 'false', defaultValue: true }
 
 export function readStoredToggle(toggle: StoredToggle): boolean {
