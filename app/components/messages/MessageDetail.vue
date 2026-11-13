@@ -403,7 +403,7 @@ useHead({ title: () => (message.value ? subject.value : t('common.loading')) })
               </div>
             </section>
 
-            <MessagesInviteCard :message-id="message.id" :has-calendar-attachment="!!findInviteAttachment(attachments)" />
+            <MessagesInviteCard :key="message.id" :message-id="message.id" :has-calendar-attachment="!!findInviteAttachment(attachments)" />
 
             <section v-if="attachments.length > 0" class="mt-8 border-t border-default px-4 py-6 sm:px-0 sm:pl-16">
               <div class="mb-3 flex items-center justify-between gap-3">

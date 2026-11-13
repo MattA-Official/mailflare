@@ -68,7 +68,7 @@ export function buildMcpAgentPrompt(origin: string, { mode, apiKey }: { mode: 'm
 
 export const PROVIDER_PRESETS: { id: AgentProviderPreset, label: string }[] = [
   { id: 'openai', label: 'OpenAI' },
-  { id: 'anthropic', label: 'Anthropic (Claude)' },
+  { id: 'anthropic', label: 'Anthropic' },
   { id: 'openrouter', label: 'OpenRouter' },
   { id: 'groq', label: 'Groq' },
   { id: 'custom', label: 'Custom endpoint' },

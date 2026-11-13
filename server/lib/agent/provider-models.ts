@@ -48,21 +48,15 @@ export async function listCompatibleAgentModels(env: CloudflareEnv, input: { pre
 	const saved = await getAgentProviderConfig(env);
 	const key = input.apiKey?.trim() || (saved.provider === "compatible" && saved.preset === input.preset && saved.baseUrl === baseUrl ? saved.apiKey : "");
 	if (!key) throw new Error("Enter an API key to load models");
-	if (input.preset === "anthropic") return listAnthropicModels(baseUrl, key);
-	const response = await fetch(`${baseUrl}/models`, { headers: { Authorization: `Bearer ${key}`, Accept: "application/json" }, signal: AbortSignal.timeout(10_000), redirect: "manual" });
+	// Anthropic's model list is its native API: it needs a version header and pages at 20 by default.
+	const anthropic = new URL(baseUrl).hostname === "api.anthropic.com";
+	const headers: Record<string, string> = { Authorization: `Bearer ${key}`, Accept: "application/json" };
+	// Fork: Anthropic takes its API key as x-api-key, not a bearer token.
+	if (anthropic) { delete headers.Authorization; headers["x-api-key"] = key; headers["anthropic-version"] = "2023-06-01"; }
+	const response = await fetch(`${baseUrl}/models${anthropic ? "?limit=1000" : ""}`, { headers, signal: AbortSignal.timeout(10_000), redirect: "manual" });
 	if (!response.ok) throw new Error(`Model list request failed (${response.status})`);
-	const json = await response.json() as { data?: { id?: unknown; name?: unknown; pricing?: unknown }[] };
-	const models = (json.data ?? []).filter((item) => typeof item.id === "string" && item.id.length <= 200).map((item) => ({ id: item.id as string, name: typeof item.name === "string" ? item.name : item.id as string, rates: input.preset === "openrouter" ? openRouterRates(item.pricing) : undefined })).slice(0, 2_000).sort((a, b) => a.name.localeCompare(b.name));
-	if (!models.length) throw new Error("Provider returned no models");
-	return { models, source: "catalog" as const };
-}
-
-// Fork addition: Anthropic's model list takes x-api-key and anthropic-version, and names models in display_name.
-async function listAnthropicModels(baseUrl: string, key: string) {
-	const response = await fetch(`${baseUrl}/models?limit=1000`, { headers: { "x-api-key": key, "anthropic-version": "2023-06-01", Accept: "application/json" }, signal: AbortSignal.timeout(10_000), redirect: "manual" });
-	if (!response.ok) throw new Error(`Model list request failed (${response.status})`);
-	const json = await response.json() as { data?: { id?: unknown; display_name?: unknown }[] };
-	const models = (json.data ?? []).filter((item) => typeof item.id === "string" && item.id.length <= 200).map((item) => ({ id: item.id as string, name: typeof item.display_name === "string" ? item.display_name : item.id as string }));
+	const json = await response.json() as { data?: { id?: unknown; name?: unknown; display_name?: unknown; pricing?: unknown }[] };
+	const models = (json.data ?? []).filter((item) => typeof item.id === "string" && item.id.length <= 200).map((item) => ({ id: item.id as string, name: typeof item.name === "string" ? item.name : typeof item.display_name === "string" ? item.display_name : item.id as string, rates: input.preset === "openrouter" ? openRouterRates(item.pricing) : undefined })).slice(0, 2_000).sort((a, b) => a.name.localeCompare(b.name));
 	if (!models.length) throw new Error("Provider returned no models");
 	return { models, source: "catalog" as const };
 }

@@ -12,6 +12,8 @@ const rules = [
 	[/^import test, \{ ([^}]+) \} from "node:test";$/m, 'import { test, onTestFinished, $1 } from "vitest";'],
 	[/^import test from "node:test";$/m, 'import { test, onTestFinished } from "vitest";'],
 	[/\bt\.after\(/g, "onTestFinished("],
+	// node:test's t.mock.method(object, "name", impl) -> vi.spyOn; vitest.config restores mocks between tests
+	[/\b(?:t|context)\.mock\.method\(([^,]+), (["'][^"']+["']), /g, "vi.spyOn($1, $2).mockImplementation("],
 	// esbuild through the helper that knows the #lib/#db/#handlers aliases
 	[/^import \{ build \} from "esbuild";$/m, 'import { build } from "./helpers/esbuild.mjs";'],
 	[/^import \* as esbuild from "esbuild";$/m, 'import * as esbuild from "./helpers/esbuild.mjs";'],
@@ -46,5 +48,7 @@ for (const file of process.argv.slice(2)) {
 	for (const [pattern, replacement] of rules) source = source.replace(pattern, replacement);
 	// drop onTestFinished from the import when the file never calls it
 	if (!/onTestFinished\(/.test(source)) source = source.replace(/, onTestFinished(?=[,} ])/, "");
+	// add vi to the vitest import when a rule introduced it
+	if (/\bvi\.spyOn\(/.test(source) && !/import \{[^}]*\bvi\b[^}]*\} from "vitest"/.test(source)) source = source.replace(/ \} from "vitest";/, ', vi } from "vitest";');
 	writeFileSync(file, source);
 }

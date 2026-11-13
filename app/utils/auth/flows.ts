@@ -106,8 +106,8 @@ export async function getSetupStatus(): Promise<SetupStatus> {
   return data
 }
 
-export async function submitPrimaryDomain(hostname: string): Promise<Result<DomainSetupResult>> {
-  const response = await postJson('/api/setup/domain', { hostname }, 60_000)
+export async function submitPrimaryDomain(hostname: string, skipDns = false): Promise<Result<DomainSetupResult>> {
+  const response = await postJson('/api/setup/domain', skipDns ? { hostname, skipDns: true } : { hostname }, 60_000)
   return { ok: response.ok, data: await readJson(response) }
 }
 

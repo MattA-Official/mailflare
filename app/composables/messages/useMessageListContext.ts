@@ -6,6 +6,8 @@ import type { ComputedRef, InjectionKey, Ref } from 'vue'
 import type { MessageNavigationEntry } from '#handlers/api/messages/navigation/types'
 import type { MessageFolder } from '~/types/messages'
 import type { SelectedMessage } from '~/utils/messages/types'
+import { getAutoAdvanceId } from '~/utils/messages/detail-navigation-utils'
+import { AUTO_ADVANCE, readStoredToggle } from '~/utils/settings/mail/preferences'
 
 export type MessageListStateControl = {
   selectedMessages: Ref<SelectedMessage[]>
@@ -25,6 +27,8 @@ export type MessageDetailNavigationContext = {
   entries: ComputedRef<MessageNavigationEntry[]>
   hrefPrefix: ComputedRef<string>
   recordUnread: (messageId: string) => void
+  /** Hides a message that was moved out of this list until the window reloads. */
+  dropEntry: (messageId: string) => void
   /** The split view's selection bar above the reader. */
   showBulkBar: ComputedRef<boolean>
   bulkFolder: ComputedRef<MessageFolder | undefined>
@@ -58,6 +62,23 @@ export function provideMessageDetailNavigation(value: MessageDetailNavigationCon
 
 export function useMessageDetailNavigationContext(): MessageDetailNavigationContext | null {
   return inject(navigationKey, null)
+}
+
+/**
+ * Call after `messageId` was moved out of the open list. With auto-advance on it returns the next
+ * message's href (and hides the moved one from the arrows); otherwise null, so the caller falls back
+ * to the list. Ported from useAutoAdvance in message-detail-navigation.tsx.
+ */
+export function useAutoAdvance(messageId: () => string): () => string | null {
+  const context = useMessageDetailNavigationContext()
+  return () => {
+    if (!context || !readStoredToggle(AUTO_ADVANCE)) return null
+    const id = messageId()
+    const targetId = getAutoAdvanceId(context.entries.value, id)
+    if (!targetId) return null
+    context.dropEntry(id)
+    return `${context.hrefPrefix.value}/${targetId}`
+  }
 }
 
 /** Whether the assistant panel is open beside the reader. The assistant workstream owns the real state. */

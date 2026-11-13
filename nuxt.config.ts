@@ -97,7 +97,7 @@ export default defineNuxtConfig({
             { binding: 'AGENT_QUEUE', queue: 'mailflare-agent' },
           ],
           consumers: [
-            { queue: 'mailflare-inbound', max_batch_size: 5, max_retries: 3 },
+            { queue: 'mailflare-inbound', max_batch_size: 5, max_batch_timeout: 1, max_retries: 3 },
             { queue: 'mailflare-outbound', max_batch_size: 5, max_retries: 3 },
             { queue: 'mailflare-agent', max_batch_size: 1, max_retries: 3 },
           ],
