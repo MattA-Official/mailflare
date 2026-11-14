@@ -24,6 +24,8 @@ export const settingsNavSections: SettingsNavSection[] = [
       { href: '/settings/api-keys', labelKey: 'settings.nav.apiKeys' },
       { href: '/settings/app-passwords', labelKey: 'settings.nav.appPasswords' },
       { href: '/settings/rules', labelKey: 'settings.nav.rules' },
+      // Fork-only: groups you belong to.
+      { href: '/settings/groups', labelKey: 'groups.title' },
     ],
   },
   {

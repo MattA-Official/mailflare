@@ -9,7 +9,8 @@ import {
   createMailboxAlias, deleteMailbox, deleteMailboxAlias, fetchMailbox, fetchMailboxAliases, fetchSharedInboxAccess,
   getMailboxAddress, getMailboxesBase, grantSharedInboxAccess, revokeSharedInboxAccess, updateMailboxSettings,
 } from '~/utils/admin/email/mailboxes'
-import { fetchMailboxGroupAccess, grantMailboxGroupAccess, revokeMailboxGroupAccess } from '~/utils/admin/system/groups'
+import type { AccessRoute, AccessSummaryPerson } from '~/utils/admin/system/groups'
+import { fetchMailboxAccessSummary, fetchMailboxGroupAccess, grantMailboxGroupAccess, revokeMailboxGroupAccess } from '~/utils/admin/system/groups'
 
 const props = defineProps<{ mailboxId: string }>()
 const { t } = useLanguage()
@@ -128,6 +129,33 @@ async function addMember() {
     memberBusy.value = false
   }
 }
+// Fork-only: everyone who can use the inbox and how, loaded when opened and after each change.
+const summaryOpen = ref(false)
+const summary = ref<AccessSummaryPerson[] | null>(null)
+const summaryError = ref(false)
+async function loadSummary() {
+  if (!summaryOpen.value) return
+  summaryError.value = false
+  try {
+    summary.value = (await fetchMailboxAccessSummary(props.mailboxId)).people
+  } catch {
+    summaryError.value = true
+  }
+}
+watch(summaryOpen, loadSummary)
+watch([sharedAccess, groupAccess], loadSummary)
+const permissionLabels = computed<Record<AccessSummaryPerson['permission'], string>>(() => ({
+  read_only: t('groups.permission.readOnly'),
+  send_on_behalf: t('groups.permission.sendOnBehalf'),
+  send_as: t('groups.permission.sendAs'),
+  full_access: t('groups.permission.fullAccess'),
+}))
+function routeLabel(route: AccessRoute) {
+  if (route.kind === 'owner') return t('groups.via.owner')
+  if (route.kind === 'direct') return t('groups.via.direct')
+  return t('groups.via.group', { name: route.groupName ?? '' })
+}
+
 async function removeGroup(groupId: string) {
   memberBusy.value = true
   memberError.value = null
@@ -299,6 +327,25 @@ async function remove() {
         <p v-if="memberError" class="text-sm text-error">
           {{ memberError }}
         </p>
+        <UCollapsible v-model:open="summaryOpen" class="rounded-lg border border-default">
+          <UButton color="neutral" variant="ghost" block class="justify-between px-4 py-3" trailing-icon="i-lucide-chevron-down" :label="t('groups.whoHasAccess')" :ui="{ trailingIcon: 'transition-transform group-data-[state=open]:rotate-180' }" />
+          <template #content>
+            <p v-if="summaryError" class="px-4 pb-3 text-sm text-error">
+              {{ t('groups.whoHasAccessFailed') }}
+            </p>
+            <USkeleton v-else-if="!summary" class="mx-4 mb-3 h-10 rounded-lg" />
+            <ul v-else class="divide-y divide-default border-t border-default">
+              <li v-for="person in summary" :key="person.userId" class="flex items-center gap-3 px-4 py-2.5">
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm font-medium text-highlighted">{{ person.name }}</span>
+                  <span class="block truncate text-xs text-muted">{{ person.routes.map(routeLabel).join(' · ') }}</span>
+                </span>
+                <UBadge v-if="person.disabled" color="warning" variant="subtle" :label="t('groups.disabled')" />
+                <UBadge color="neutral" variant="outline" :label="permissionLabels[person.permission]" />
+              </li>
+            </ul>
+          </template>
+        </UCollapsible>
         <div v-if="noAccountsToAdd" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed border-default px-4 py-3">
           <p class="text-sm text-muted">
             {{ sharedAccess?.availableUsers.length || groupAccess?.groups.length ? t('mailbox.allAccountsAdded') : t('mailbox.noOtherAccounts') }}

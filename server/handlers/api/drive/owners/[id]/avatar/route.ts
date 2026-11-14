@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import { getDb } from "#db";
-import { driveItems, driveShares, users } from "#db/schema";
+import { driveGroupShares, driveItems, driveShares, groupMembers, users } from "#db/schema";
 import { getEnv } from "#lib/cloudflare";
 import { requireSessionUser } from "#lib/api/auth";
 import { getAvatarImageResponse } from "#lib/avatar-images";
@@ -18,7 +18,15 @@ export async function GET(request: Request, { params }: DriveItemParams) {
 	const db = getDb(env);
 	if (id !== user.id) {
 		const [shared] = await db.select({ id: driveShares.id }).from(driveShares).innerJoin(driveItems, eq(driveShares.itemId, driveItems.id)).where(and(eq(driveShares.userId, user.id), eq(driveItems.ownerId, id))).limit(1);
-		if (!shared) return new Response("Not found", { status: 404 });
+		// Fork: or shared with a group the viewer belongs to.
+		const [viaGroup] = shared ? [shared] : await db
+			.select({ id: driveGroupShares.id })
+			.from(driveGroupShares)
+			.innerJoin(groupMembers, eq(driveGroupShares.groupId, groupMembers.groupId))
+			.innerJoin(driveItems, eq(driveGroupShares.itemId, driveItems.id))
+			.where(and(eq(groupMembers.userId, user.id), eq(driveItems.ownerId, id)))
+			.limit(1);
+		if (!viaGroup) return new Response("Not found", { status: 404 });
 	}
 	const [owner] = await db.select({ avatarKey: users.avatarKey }).from(users).where(eq(users.id, id)).limit(1);
 	if (!owner?.avatarKey) return new Response("Not found", { status: 404 });

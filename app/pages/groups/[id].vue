@@ -1,7 +1,6 @@
 <script setup lang="ts">
 // Fork-only. One group: its name, its members and the shared inboxes it can reach.
-import { fetchAccounts } from '~/utils/admin/system/accounts'
-import { addGroupMember, deleteGroup, fetchGroup, getGroupMailboxAddress, removeGroupMember, updateGroup } from '~/utils/admin/system/groups'
+import { deleteGroup, fetchGroup, getGroupMailboxAddress, updateGroup } from '~/utils/admin/system/groups'
 
 definePageMeta({ layout: 'dashboard', nav: 'admin', auth: { role: 'admin', requireMailbox: true } })
 
@@ -10,7 +9,6 @@ const route = useRoute()
 const id = computed(() => String(route.params.id))
 const { data, error, refresh } = useAsyncData(() => `group-${id.value}`, () => fetchGroup(id.value))
 const canManage = computed(() => data.value?.canManage === true)
-const { data: accounts } = useAsyncData('group-candidate-accounts', () => canManage.value ? fetchAccounts() : Promise.resolve(null), { watch: [canManage] })
 useHead({ title: () => data.value?.group.name ?? t('groups.title') })
 
 const name = ref('')
@@ -35,40 +33,6 @@ async function save() {
     message.value = { ok: false, text: cause instanceof Error ? cause.message : t('groups.saveFailed') }
   } finally {
     saving.value = false
-  }
-}
-
-const memberIds = computed(() => new Set((data.value?.group.members ?? []).map(member => member.userId)))
-const candidateItems = computed(() => (accounts.value?.accounts ?? [])
-  .filter(account => !account.disabled && !account.deletedAt && !memberIds.value.has(account.id))
-  .map(account => ({ label: `${account.name} (${account.email})`, value: account.id })))
-const selectedUserId = ref<string | undefined>()
-const memberBusy = ref(false)
-const memberError = ref<string | null>(null)
-async function addMember() {
-  if (!selectedUserId.value) return
-  memberBusy.value = true
-  memberError.value = null
-  try {
-    await addGroupMember(id.value, selectedUserId.value)
-    selectedUserId.value = undefined
-    await refresh()
-  } catch (cause) {
-    memberError.value = cause instanceof Error ? cause.message : t('groups.memberAddFailed')
-  } finally {
-    memberBusy.value = false
-  }
-}
-async function removeMember(userId: string) {
-  memberBusy.value = true
-  memberError.value = null
-  try {
-    await removeGroupMember(id.value, userId)
-    await refresh()
-  } catch (cause) {
-    memberError.value = cause instanceof Error ? cause.message : t('groups.memberRemoveFailed')
-  } finally {
-    memberBusy.value = false
   }
 }
 
@@ -119,54 +83,7 @@ async function remove() {
         {{ data.group.description }}
       </p>
 
-      <UCard :ui="{ body: 'p-0 sm:p-0' }">
-        <template #header>
-          <h2 class="text-sm font-semibold text-highlighted">
-            {{ t('groups.membersTitle') }}
-          </h2>
-          <p class="mt-1 text-xs text-muted">
-            {{ t('groups.membersHint') }}
-          </p>
-        </template>
-        <p v-if="!data.group.members.length" class="px-5 py-4 text-sm text-muted">
-          {{ t('groups.noMembers') }}
-        </p>
-        <ul v-else class="divide-y divide-default">
-          <li v-for="member in data.group.members" :key="member.userId" class="flex items-center gap-3 px-5 py-3">
-            <AdminSystemAvatar :name="member.name" :email="member.email" />
-            <NuxtLink :to="`/accounts/${member.userId}`" class="min-w-0 flex-1 hover:underline">
-              <span class="block truncate text-sm font-medium text-highlighted">{{ member.name }}</span>
-              <span class="block truncate text-xs text-muted">{{ member.email }}</span>
-            </NuxtLink>
-            <UBadge v-if="member.disabled" color="warning" variant="subtle" :label="t('groups.disabled')" />
-            <UButton
-              v-if="canManage"
-              icon="i-lucide-user-minus"
-              color="error"
-              variant="ghost"
-              :aria-label="t('groups.removeMember', { name: member.name })"
-              :disabled="memberBusy"
-              @click="removeMember(member.userId)"
-            />
-          </li>
-        </ul>
-        <template v-if="canManage" #footer>
-          <form class="flex gap-2" @submit.prevent="addMember">
-            <USelectMenu
-              v-model="selectedUserId"
-              :items="candidateItems"
-              value-key="value"
-              :placeholder="candidateItems.length ? t('groups.chooseAccount') : t('groups.noAccountsToAdd')"
-              :disabled="!candidateItems.length"
-              class="min-w-0 flex-1"
-            />
-            <UButton type="submit" icon="i-lucide-user-plus" :disabled="!selectedUserId || memberBusy" :label="t('groups.addMember')" />
-          </form>
-          <p v-if="memberError" role="alert" class="mt-2 text-sm text-error">
-            {{ memberError }}
-          </p>
-        </template>
-      </UCard>
+      <GroupsMembersCard :data="data" account-links @changed="refresh()" />
 
       <UCard :ui="{ body: 'p-0 sm:p-0' }">
         <template #header>

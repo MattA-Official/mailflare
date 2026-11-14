@@ -61,8 +61,38 @@ export function createGroup(input: { name: string, description?: string | null }
   return api<{ group: { id: string, name: string } }>('/api/groups', { method: 'POST', body: input })
 }
 
+export type GroupResponse = {
+  group: GroupDetail
+  /** Rename, delete and choose managers. */
+  canManage: boolean
+  /** Add and remove ordinary members. */
+  canManageMembers: boolean
+  myRole: GroupMember['role'] | null
+}
+
+export type MyGroup = { id: string, name: string, description: string | null, role: GroupMember['role'], memberCount: number, mailboxCount: number }
+
+export type AccessRoute = { kind: 'owner' | 'direct' | 'group', permission: MailboxPermission, groupId?: string, groupName?: string }
+export type AccessSummaryPerson = { userId: string, name: string, email: string, disabled: boolean, permission: MailboxPermission, routes: AccessRoute[] }
+
 export function fetchGroup(id: string) {
-  return api<{ group: GroupDetail, canManage: boolean }>(`/api/groups/${encodeURIComponent(id)}`)
+  return api<GroupResponse>(`/api/groups/${encodeURIComponent(id)}`)
+}
+
+export function fetchMyGroups() {
+  return api<{ groups: MyGroup[] }>('/api/groups/mine')
+}
+
+export function fetchGroupCandidates(id: string) {
+  return api<{ candidates: { id: string, name: string, email: string }[] }>(`/api/groups/${encodeURIComponent(id)}/members`)
+}
+
+export async function setGroupMemberRole(id: string, userId: string, role: GroupMember['role']) {
+  await api(`/api/groups/${encodeURIComponent(id)}/members`, { method: 'PATCH', body: { userId, role } })
+}
+
+export function fetchMailboxAccessSummary(mailboxId: string) {
+  return api<{ people: AccessSummaryPerson[] }>(`/api/mailboxes/${mailboxId}/access-summary`)
 }
 
 export function updateGroup(id: string, input: { name: string, description?: string | null }) {

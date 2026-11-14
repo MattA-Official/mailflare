@@ -361,6 +361,14 @@ Tick in the PR that lands it. Add rows for anything discovered.
   account except the owner can be given a shared inbox, not only accounts the acting admin created.
   Creating and editing groups needs `canManageUsers`; any admin can read them. `group_members.role`
   (`member` / `manager`) is in place for delegated management, which is phase 2.
+- (fork) Groups, phase 2. A group's managers (`group_members.role = 'manager'`, any account) add and
+  remove ordinary members; only `canManageUsers` admins promote or remove managers
+  (`authorizeGroupAccess` in `#lib/groups/admin`). Settings → Groups (`/settings/groups`, backed by
+  `/api/groups/mine`) lets any account see its groups and, as a manager, edit membership. The Shared
+  access card has a "Who has access" panel (`/api/mailboxes/[id]/access-summary`) that shows each
+  person's effective permission and the routes that give it. Migration `0090_drive_group_shares` adds
+  `drive_group_shares`; `#lib/drive/access` folds group shares into roles, "Shared with me" and the
+  shared flag. The share dialog's GET response gains `groupShares` and `availableGroups` (additive).
 - (upstream 2b58ed7) Upstream's `0087_message_invite_response` shares its number with the fork's
   `0087_oidc_provider`. The runner records migrations by full file name, so both apply; keep
   upstream's file names as they are rather than renumbering.

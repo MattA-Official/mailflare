@@ -1,6 +1,6 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, inArray, ne, type SQL } from "drizzle-orm";
 import { getDb } from "#db";
-import { driveItems, driveShares, driveUploadParts, users } from "#db/schema";
+import { driveGroupShares, driveItems, driveShares, driveUploadParts, groupMembers, users } from "#db/schema";
 import { DRIVE_MAX_DEPTH, driveObjectKey } from "./utils";
 import type { DriveItemDto, DriveRole, DriveRow } from "./types";
 import { deleteUnreferencedObjects } from "#lib/drive/shared-objects";
@@ -33,9 +33,59 @@ export async function getDriveRole(db: Db, userId: string, item: DriveRow, allow
 	const chain = await getDriveChain(db, item);
 	if (!allowTrashed && chain.some((entry) => entry.trashedAt)) return null;
 	if (item.ownerId === userId) return "owner";
-	const shares = await db.select({ role: driveShares.role }).from(driveShares).where(and(eq(driveShares.userId, userId), inArray(driveShares.itemId, chain.map((entry) => entry.id))));
+	const chainIds = chain.map((entry) => entry.id);
+	const shares = [
+		...await db.select({ role: driveShares.role }).from(driveShares).where(and(eq(driveShares.userId, userId), inArray(driveShares.itemId, chainIds))),
+		// Fork-only: shares to a group the user belongs to.
+		...await db
+			.select({ role: driveGroupShares.role })
+			.from(driveGroupShares)
+			.innerJoin(groupMembers, eq(driveGroupShares.groupId, groupMembers.groupId))
+			.where(and(eq(groupMembers.userId, userId), inArray(driveGroupShares.itemId, chainIds))),
+	];
 	if (shares.some((share) => share.role === "edit")) return "edit";
 	return shares.length ? "view" : null;
+}
+
+/** Fork-only. Whether the item itself is shared with the user, directly or through one of their groups. */
+export async function isDriveItemSharedWith(db: Db, itemId: string, userId: string): Promise<boolean> {
+	const [direct] = await db.select({ id: driveShares.id }).from(driveShares).where(and(eq(driveShares.itemId, itemId), eq(driveShares.userId, userId))).limit(1);
+	if (direct) return true;
+	const [viaGroup] = await db
+		.select({ id: driveGroupShares.id })
+		.from(driveGroupShares)
+		.innerJoin(groupMembers, eq(driveGroupShares.groupId, groupMembers.groupId))
+		.where(and(eq(driveGroupShares.itemId, itemId), eq(groupMembers.userId, userId)))
+		.limit(1);
+	return !!viaGroup;
+}
+
+/** Fork-only. Items shared with the user, directly or through a group, with the highest role for each. */
+export async function listDriveItemsSharedWith(db: Db, userId: string, condition?: SQL) {
+	const [direct, viaGroups] = await Promise.all([
+		db
+			.select({ item: driveItems, role: driveShares.role, sharedAt: driveShares.createdAt })
+			.from(driveShares)
+			.innerJoin(driveItems, eq(driveShares.itemId, driveItems.id))
+			.where(and(eq(driveShares.userId, userId), condition)),
+		db
+			.select({ item: driveItems, role: driveGroupShares.role, sharedAt: driveGroupShares.createdAt })
+			.from(driveGroupShares)
+			.innerJoin(groupMembers, eq(driveGroupShares.groupId, groupMembers.groupId))
+			.innerJoin(driveItems, eq(driveGroupShares.itemId, driveItems.id))
+			.where(and(eq(groupMembers.userId, userId), ne(driveItems.ownerId, userId), condition)),
+	]);
+	const byId = new Map<string, (typeof direct)[number]>();
+	for (const row of [...direct, ...viaGroups]) {
+		const existing = byId.get(row.item.id);
+		if (!existing) byId.set(row.item.id, row);
+		else byId.set(row.item.id, {
+			item: row.item,
+			role: existing.role === "edit" || row.role === "edit" ? "edit" : "view",
+			sharedAt: existing.sharedAt > row.sharedAt ? existing.sharedAt : row.sharedAt,
+		});
+	}
+	return [...byId.values()].sort((a, b) => b.sharedAt.getTime() - a.sharedAt.getTime());
 }
 
 /** Resolves a public link token to its root item, optionally narrowed to a descendant file. */
@@ -63,7 +113,8 @@ export async function toDriveItemDtos(db: Db, rows: DriveRow[], userId: string, 
 	for (let index = 0; index < rows.length; index += 50) {
 		const slice = rows.slice(index, index + 50).map((row) => row.id);
 		const shares = await db.select({ itemId: driveShares.itemId }).from(driveShares).where(inArray(driveShares.itemId, slice));
-		for (const share of shares) sharedIds.add(share.itemId);
+		const groupShares = await db.select({ itemId: driveGroupShares.itemId }).from(driveGroupShares).where(inArray(driveGroupShares.itemId, slice));
+		for (const share of [...shares, ...groupShares]) sharedIds.add(share.itemId);
 	}
 	return rows.map((row) => ({
 		id: row.id,
@@ -110,6 +161,7 @@ export async function deleteDriveItems(env: CloudflareEnv, roots: DriveRow[]): P
 	for (let index = 0; index < ids.length; index += 50) {
 		const slice = ids.slice(index, index + 50);
 		await db.delete(driveShares).where(inArray(driveShares.itemId, slice));
+		await db.delete(driveGroupShares).where(inArray(driveGroupShares.itemId, slice));
 		await db.delete(driveUploadParts).where(inArray(driveUploadParts.itemId, slice));
 		await db.delete(driveItems).where(inArray(driveItems.id, slice));
 	}

@@ -24,6 +24,11 @@ await build({
 			export * as groupAccessRoute from "./server/handlers/api/mailboxes/[id]/group-access/route.ts";
 			export * as accessRoute from "./server/handlers/api/mailboxes/[id]/access/route.ts";
 			export * as detail from "./server/handlers/api/mailboxes/[id]/route.ts";
+			export * as mineRoute from "./server/handlers/api/groups/mine/route.ts";
+			export * as summaryRoute from "./server/handlers/api/mailboxes/[id]/access-summary/route.ts";
+			export * as driveSharesRoute from "./server/handlers/api/drive/items/[id]/shares/route.ts";
+			export * as driveItemsRoute from "./server/handlers/api/drive/items/route.ts";
+			export { getDriveRole, getDriveItem } from "./server/lib/drive/access.ts";
 		`,
 		resolveDir: root,
 		sourcefile: "groups-test-entry.ts",
@@ -40,7 +45,7 @@ await build({
 const {
 	SqliteDatabase, applyMigrations, getDb, createSession, getMailboxAccessLevel, listAccessibleMailboxes,
 	listSharedMailboxUserIds, getMailboxNotificationUserIds, groupsRoute, groupRoute, membersRoute, groupAccessRoute,
-	accessRoute, detail,
+	accessRoute, detail, mineRoute, summaryRoute, driveSharesRoute, driveItemsRoute, getDriveRole, getDriveItem,
 } = await import(pathToFileURL(join(directory, "entry.mjs")).href);
 const context = id => ({ params: Promise.resolve({ id }) });
 
@@ -205,4 +210,98 @@ test("every enabled account except the owner can be given a shared inbox, whoeve
 	assert.equal(granted.status, 200);
 	const disabled = await accessRoute.POST(f.request("primary", "/api/mailboxes/m-support/access", "POST", { userId: "off", permission: "read_only" }), context("m-support"));
 	assert.equal(disabled.status, 404);
+});
+
+// Phase 2: group managers, Settings -> Groups, who has access, and Drive.
+
+test("a group's managers add and remove ordinary members; only account managers choose managers", async () => {
+	const f = await fixture();
+	const groupId = await supportGroup(f);
+	const promote = (actor, userId, role) => membersRoute.PATCH(f.request(actor, `/api/groups/${groupId}/members`, "PATCH", { userId, role }), context(groupId));
+	assert.equal((await promote("anna", "anna", "manager")).status, 403);
+	assert.equal((await promote("primary", "anna", "manager")).status, 200);
+
+	const candidates = await (await membersRoute.GET(f.request("anna", `/api/groups/${groupId}/members`), context(groupId))).json();
+	assert.ok(candidates.candidates.some(account => account.id === "plain-admin"));
+	assert.ok(!candidates.candidates.some(account => ["anna", "ben", "off"].includes(account.id)));
+
+	assert.equal((await f.addMember("anna", groupId, "plain-admin")).status, 200);
+	const asManager = await membersRoute.POST(f.request("anna", `/api/groups/${groupId}/members`, "POST", { userId: "mailbox-admin", role: "manager" }), context(groupId));
+	assert.equal(asManager.status, 403, "managers cannot make managers");
+	const removeBen = await membersRoute.DELETE(f.request("anna", `/api/groups/${groupId}/members?userId=ben`, "DELETE"), context(groupId));
+	assert.equal(removeBen.status, 200);
+	await promote("primary", "plain-admin", "manager");
+	const removeManager = await membersRoute.DELETE(f.request("anna", `/api/groups/${groupId}/members?userId=plain-admin`, "DELETE"), context(groupId));
+	assert.equal(removeManager.status, 403);
+
+	// Ordinary members cannot change membership, rename or delete.
+	await f.addMember("primary", groupId, "ben");
+	assert.equal((await f.addMember("ben", groupId, "mailbox-admin")).status, 403);
+	assert.equal((await groupRoute.PATCH(f.request("anna", `/api/groups/${groupId}`, "PATCH", { name: "Renamed" }), context(groupId))).status, 403);
+	assert.equal((await groupRoute.DELETE(f.request("anna", `/api/groups/${groupId}`, "DELETE"), context(groupId))).status, 403);
+});
+
+test("members can read their own groups, and nobody else's", async () => {
+	const f = await fixture();
+	const groupId = await supportGroup(f);
+	const other = (await (await f.createGroup("primary", "Finance")).json()).group.id;
+	await f.grant("primary", "m-support", groupId);
+
+	const mine = await (await mineRoute.GET(f.request("ben", "/api/groups/mine"))).json();
+	assert.deepEqual(mine.groups.map(group => [group.name, group.role, group.memberCount, group.mailboxCount]), [["Support", "member", 2, 1]]);
+	const read = await groupRoute.GET(f.request("ben", `/api/groups/${groupId}`), context(groupId));
+	assert.equal(read.status, 200);
+	const body = await read.json();
+	assert.equal(body.canManage, false);
+	assert.equal(body.canManageMembers, false);
+	assert.equal(body.myRole, "member");
+	assert.equal((await groupRoute.GET(f.request("ben", `/api/groups/${other}`), context(other))).status, 403);
+});
+
+test("who has access lists each person once with every route in", async () => {
+	const f = await fixture();
+	const groupId = await supportGroup(f);
+	await f.grant("primary", "m-support", groupId, "send_on_behalf");
+	f.sql.exec("INSERT INTO mailbox_access (id, mailbox_id, user_id, permission, created_at) VALUES ('direct', 'm-support', 'anna', 'full_access', 1)");
+	const response = await summaryRoute.GET(f.request("mailbox-admin", "/api/mailboxes/m-support/access-summary"), context("m-support"));
+	assert.equal(response.status, 200);
+	const { people } = await response.json();
+	const byId = Object.fromEntries(people.map(person => [person.userId, person]));
+	assert.deepEqual(Object.keys(byId).sort(), ["anna", "ben", "primary"]);
+	assert.equal(byId.anna.permission, "full_access");
+	assert.deepEqual(byId.anna.routes.map(route => route.kind).sort(), ["direct", "group"]);
+	assert.equal(byId.ben.permission, "send_on_behalf");
+	assert.equal(byId.ben.routes[0].groupName, "Support");
+	assert.equal(byId.primary.routes[0].kind, "owner");
+	assert.equal((await summaryRoute.GET(f.request("plain-admin", "/api/mailboxes/m-support/access-summary"), context("m-support"))).status, 404);
+});
+
+test("Drive items shared with a group reach its members, at the highest role", async () => {
+	const f = await fixture();
+	const groupId = await supportGroup(f);
+	f.sql.exec(`INSERT INTO drive_items (id, owner_id, parent_id, kind, name, created_at, updated_at) VALUES
+		('folder', 'anna', NULL, 'folder', 'Rota', 1, 1),
+		('file', 'anna', 'folder', 'file', 'week.pdf', 1, 1)`);
+	const share = (actor, body) => driveSharesRoute.POST(f.request(actor, "/api/drive/items/folder/shares", "POST", body), context("folder"));
+	const listed = await (await driveSharesRoute.GET(f.request("anna", "/api/drive/items/folder/shares"), context("folder"))).json();
+	assert.deepEqual(listed.availableGroups.map(group => group.name), ["Support"]);
+	const other = (await (await f.createGroup("primary", "Finance")).json()).group.id;
+	assert.equal((await share("anna", { groupId: other })).status, 404, "people share only with groups they belong to");
+
+	const shared = await share("anna", { groupId, role: "view" });
+	assert.equal(shared.status, 200);
+	assert.deepEqual((await shared.json()).groupShares.map(row => [row.name, row.role]), [["Support", "view"]]);
+	const file = await getDriveItem(f.db, "file");
+	assert.equal(await getDriveRole(f.db, "ben", file), "view");
+	assert.equal(await getDriveRole(f.db, "plain-admin", file), null);
+
+	f.sql.exec("INSERT INTO drive_shares (id, item_id, user_id, role, created_at) VALUES ('direct', 'folder', 'ben', 'edit', 1)");
+	assert.equal(await getDriveRole(f.db, "ben", file), "edit");
+	const sharedView = await (await driveItemsRoute.GET(f.request("ben", "/api/drive/items?view=shared"))).json();
+	assert.deepEqual(sharedView.items.map(item => [item.id, item.role]), [["folder", "edit"]]);
+
+	const groupShareId = (await (await driveSharesRoute.GET(f.request("anna", "/api/drive/items/folder/shares"), context("folder"))).json()).groupShares[0].id;
+	await driveSharesRoute.DELETE(f.request("anna", `/api/drive/items/folder/shares?groupShareId=${groupShareId}`, "DELETE"), context("folder"));
+	f.sql.exec("DELETE FROM drive_shares");
+	assert.equal(await getDriveRole(f.db, "ben", file), null);
 });

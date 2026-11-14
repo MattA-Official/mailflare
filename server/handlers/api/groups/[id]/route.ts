@@ -5,19 +5,20 @@ import { NextResponse } from "#lib/http/next-compat";
 import { getDb } from "#db";
 import { groups } from "#db/schema";
 import { isUniqueConstraintError } from "#lib/database-errors";
-import { authorizeGroupAdmin } from "#lib/groups/admin";
-import { canManageGroups } from "#lib/groups/permissions";
+import { authorizeGroupAccess, authorizeGroupAdmin } from "#lib/groups/admin";
 import { getGroupDetail } from "#lib/groups/service";
 import { createAuditLog } from "#lib/mailboxes/audit";
 import { groupSchema } from "#lib/validators";
 import type { GroupRouteParams } from "./types";
 
+/** Admins and the group's own members may read it. */
 export async function GET(request: Request, { params }: GroupRouteParams) {
-	const access = await authorizeGroupAdmin(request);
+	const { id } = await params;
+	const access = await authorizeGroupAccess(request, id, "read");
 	if (access.error) return access.error;
-	const group = await getGroupDetail(getDb(access.env), (await params).id);
+	const group = await getGroupDetail(getDb(access.env), id);
 	if (!group) return NextResponse.json({ error: "Group not found" }, { status: 404 });
-	return NextResponse.json({ group, canManage: canManageGroups(access.user) });
+	return NextResponse.json({ group, canManage: access.canManage, canManageMembers: access.canManageMembers, myRole: access.myRole });
 }
 
 export async function PATCH(request: Request, { params }: GroupRouteParams) {

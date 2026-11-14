@@ -1,9 +1,9 @@
 import { and, desc, eq, isNotNull, isNull, or, sql } from "drizzle-orm";
 import { NextResponse } from "#lib/http/next-compat";
-import { driveItems, driveShares } from "#db/schema";
+import { driveItems } from "#db/schema";
 import { newId } from "#lib/ids";
 import { authorizeDrive } from "#lib/drive/auth";
-import { getDriveChain, getDriveItem, getDriveRole, toDriveItemDtos, withoutTrashedAncestors } from "#lib/drive/access";
+import { getDriveChain, getDriveItem, getDriveRole, isDriveItemSharedWith, listDriveItemsSharedWith, toDriveItemDtos, withoutTrashedAncestors } from "#lib/drive/access";
 import { canEditDrive, normalizeDriveName, toDriveCrumbs } from "#lib/drive/utils";
 import { driveTypesCondition, parseDriveCategories } from "#lib/drive/categories";
 import { listDriveAttachments } from "#lib/drive/attachments";
@@ -40,12 +40,8 @@ export async function GET(request: Request) {
 	if (view === "attachments") return respond(await listDriveAttachments(db, user, types), { role: "view" });
 
 	if (view === "shared") {
-		const rows = await db
-			.select({ item: driveItems, role: driveShares.role })
-			.from(driveShares)
-			.innerJoin(driveItems, eq(driveShares.itemId, driveItems.id))
-			.where(and(eq(driveShares.userId, user.id), isNull(driveItems.trashedAt), isNull(driveItems.uploadId), typeFilter))
-			.orderBy(desc(driveShares.createdAt));
+		// Fork: includes items shared with a group the user belongs to.
+		const rows = await listDriveItemsSharedWith(db, user.id, and(isNull(driveItems.trashedAt), isNull(driveItems.uploadId), typeFilter));
 		const roles = new Map(rows.map((row) => [row.item.id, row.role as DriveRole]));
 		return respond(await toDriveItemDtos(db, rows.map((row) => row.item), user.id, (row) => roles.get(row.id) ?? "view"), { role: "view" });
 	}
@@ -72,8 +68,7 @@ export async function GET(request: Request) {
 
 async function trimToSharedRoot(db: Parameters<typeof getDriveRole>[0], userId: string, chain: Awaited<ReturnType<typeof getDriveChain>>) {
 	for (let index = 0; index < chain.length; index += 1) {
-		const [share] = await db.select({ id: driveShares.id }).from(driveShares).where(and(eq(driveShares.itemId, chain[index].id), eq(driveShares.userId, userId))).limit(1);
-		if (share) return chain.slice(index);
+		if (await isDriveItemSharedWith(db, chain[index].id, userId)) return chain.slice(index);
 	}
 	return chain;
 }
