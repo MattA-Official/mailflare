@@ -31,7 +31,11 @@ const reviewable = computed(() => request.value?.status === 'pending' && !reques
 <template>
   <UDashboardPanel id="agent-review">
     <template #header>
-      <AppNavbar :title="t('agent.review.title')" />
+      <AppNavbar :title="t('agent.review.title')">
+        <template #right>
+          <UButton color="neutral" variant="ghost" icon="i-lucide-arrow-left" to="/inbox" :label="t('navigation.inbox')" />
+        </template>
+      </AppNavbar>
     </template>
     <template #body>
       <UAlert v-if="error" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error" role="alert" />
