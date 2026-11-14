@@ -35,7 +35,7 @@ export async function loadFixture({ name, entryPoint, mocks }) {
 // An in-memory SQLite database behind drizzle's sqlite-proxy driver. The hooks
 // let a test inject a competing write immediately before or after a query.
 export function sqliteProxy({ schema = "", beforeQuery, afterQuery } = {}) {
-	const sqlite = new DatabaseSync(":memory:");
+	const sqlite = new DatabaseSync(":memory:", { enableDoubleQuotedStringLiterals: true });
 	sqlite.exec(schema);
 	const db = drizzle(async (sql, params, method) => {
 		beforeQuery?.(sql, sqlite);

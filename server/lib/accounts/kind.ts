@@ -23,20 +23,33 @@ export function isPersonCondition() {
 	return sql`"users"."kind" = 'person'`;
 }
 
-/** True when the account is a person's. A database not yet migrated to 0093 has only people. */
+/**
+ * True when the account is a person's. A database not yet migrated to 0093 has only people.
+ *
+ * The column is selected table-qualified on purpose. SQLite reads an unqualified `"kind"` that names no column as
+ * the string literal 'kind', so before 0093 an unqualified select answers "kind" for every account instead of
+ * failing, and every session was refused. A qualified name fails with "no such column: users.kind" instead. Only
+ * the hidden kinds count as not a person, so an unexpected value can never lock people out.
+ */
 export async function isPersonAccountId(db: AppDatabase, id: string): Promise<boolean> {
 	try {
-		const [row] = await db.select({ kind: accountKinds.kind }).from(accountKinds).where(eq(accountKinds.id, id)).limit(1);
-		return !row || row.kind === "person";
+		const [row] = await db
+			.select({ kind: sql<string>`"users"."kind"` })
+			.from(accountKinds)
+			.where(eq(accountKinds.id, id))
+			.limit(1);
+		return !row || !HIDDEN_KINDS.has(row.kind);
 	} catch (error) {
 		if (isMissingKindColumn(error)) return true;
 		throw error;
 	}
 }
 
+const HIDDEN_KINDS: ReadonlySet<string> = new Set(["inbox", "drive"]);
+
 function isMissingKindColumn(error: unknown): boolean {
 	for (let current: unknown = error; current; current = (current as { cause?: unknown }).cause) {
-		if (current instanceof Error && /no such column: "?kind\b/i.test(current.message)) return true;
+		if (current instanceof Error && /no such column: "?(?:users\.)?kind\b/i.test(current.message)) return true;
 		if (!(current instanceof Error)) break;
 	}
 	return false;
