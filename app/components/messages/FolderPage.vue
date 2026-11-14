@@ -2,6 +2,7 @@
 // A folder's message list: selection, bulk actions, pagination, the unread filter and emptying
 // Trash or Spam. Ported from message-folder-page.tsx. In the split view it is the compact list
 // beside the reader; otherwise it fills the page.
+import { alertDialog, confirmDestructive } from '~/utils/confirm-dialog'
 import { useMediaQuery } from '@vueuse/core'
 import type { BulkMessageAction } from '#handlers/api/messages/bulk/types'
 import {
@@ -170,7 +171,7 @@ async function emptyFolder() {
   const folder = permanentDeleteFolder.value
   const mailboxId = selectedMailbox.value?.id
   if (!folder || !mailboxId) return
-  if (!window.confirm(getEmptyFolderConfirmText(folder, titleTotal.value, t))) return
+  if (!(await confirmDestructive(getEmptyFolderConfirmText(folder, titleTotal.value, t)))) return
   emptyingFolder.value = true
   try {
     await emptyMessageFolder(mailboxId, folder)
@@ -178,7 +179,7 @@ async function emptyFolder() {
   }
   catch (error) {
     console.error(error)
-    window.alert(t('list.emptyFailed', { folder: getPermanentDeleteFolderLabel(folder, t) }))
+    void alertDialog(t('list.emptyFailed', { folder: getPermanentDeleteFolderLabel(folder, t) }))
   }
   finally {
     emptyingFolder.value = false
@@ -215,7 +216,7 @@ async function runSelectedActionReportingErrors(action: BulkMessageAction, folde
 async function runSelectedAction(action: BulkMessageAction, folderId?: string) {
   const ids = selectedIds.value
   if (ids.length === 0) return
-  if (action === 'delete' && !window.confirm(getPermanentDeleteConfirmText(expandSelectedIds(ids).length, t))) return
+  if (action === 'delete' && !(await confirmDestructive(getPermanentDeleteConfirmText(expandSelectedIds(ids).length, t)))) return
 
   pendingBulkAction.value = true
   const previousMessages = messages.value

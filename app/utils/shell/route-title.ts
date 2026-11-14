@@ -22,6 +22,7 @@ const routeTitles: Array<[string, TranslationKey]> = [
   ['/calendar', 'account.calendar'],
   ['/booking', 'booking.title'],
   ['/drive', 'drive.title'],
+  ['/contacts', 'navigation.contacts'],
   ['/compose', 'compose.pageTitle'],
   ...settingsNavSections.flatMap(section => section.items.map((item): [string, TranslationKey] => [item.href, item.labelKey])),
 ]

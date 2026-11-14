@@ -2,10 +2,11 @@
 // The reader for one message, its conversation around it, attachments and actions.
 // Ported from legacy/src/app/(dashboard)/inbox/[messageId]/page.tsx, which every folder's
 // [messageId] route reuses.
+import { confirmDialog } from '~/utils/confirm-dialog'
 import { getEmailAddress, splitEmailAddressList } from '#lib/email/address'
 import { formatUserDate } from '#lib/time/utils'
 import { formatScheduledSendTime } from '~/utils/compose/schedule-send-utils'
-import { useAssistantOpenState, useMessageDetailNavigationContext, useMessageListState, useMessageListVisibility } from '~/composables/messages/useMessageListContext'
+import { useAssistantOpenState, useMessageDetailNavigationContext, useMessageListState } from '~/composables/messages/useMessageListContext'
 import { useLatestMessagesFirst } from '~/composables/messages/useLatestMessagesFirst'
 import { useMessageThread } from '~/composables/messages/useMessageThread'
 import { useRemoteContent } from '~/composables/messages/useRemoteContent'
@@ -45,11 +46,9 @@ const threadExpanded = ref(false)
 const detailsOpen = ref(false)
 const [latestMessagesFirst] = useLatestMessagesFirst()
 const { enabled: showFullRecipientAddresses } = useShowFullRecipientAddresses()
-const visibility = useMessageListVisibility()
 const assistantVisible = useAssistantOpenState()
 const listState = useMessageListState()
 const navigationContext = useMessageDetailNavigationContext()
-const anyPanelVisible = computed(() => visibility.value.visible || assistantVisible.value)
 
 const message = computed(() => data.value?.message)
 const remote = useRemoteContent(() => (message.value ? getEmailAddress(message.value.fromAddr) : undefined), () => message.value?.status === 'spam')
@@ -172,7 +171,7 @@ async function downloadAllAttachments(messageId: string) {
   const url = `/api/messages/${messageId}/attachments.zip`
   try {
     const response = await authFetch(url, { method: 'HEAD' })
-    if (response.status === 409 && !window.confirm(t('attachment.downloadAllFlagged'))) return
+    if (response.status === 409 && !(await confirmDialog(t('attachment.downloadAllFlagged')))) return
     window.location.assign(response.status === 409 ? `${url}?acknowledge=1` : url)
   }
   catch {
@@ -270,8 +269,9 @@ useHead({ title: () => (message.value ? subject.value : t('common.loading')) })
       <p v-else-if="!message" class="px-6 py-4 text-sm text-muted">{{ data?.error ?? t('message.notFound') }}</p>
 
       <div v-else>
-        <h1 class="px-4 pb-2 pt-2 text-2xl text-highlighted sm:pr-6" :class="!anyPanelVisible ? 'sm:pl-16' : 'sm:pl-10'" :title="subject">{{ subject }}</h1>
-        <MessagesConversationNotes :inner-class="[!anyPanelVisible ? 'sm:pl-16' : 'sm:pl-10', 'px-4 pb-3 sm:pr-6'].join(' ')" />
+        <h1 class="px-4 pb-2 pt-2 text-2xl text-highlighted sm:pr-6 sm:pl-[78px]" :title="subject">{{ subject }}</h1>
+        <MessagesInviteCard :key="message.id" :message-id="message.id" :has-calendar-attachment="!!findInviteAttachment(attachments)" class="mx-4 mb-3 sm:mr-6 sm:ml-[78px]" />
+        <MessagesConversationNotes :inner-class="'px-4 sm:pl-[78px] sm:pr-6'" />
 
         <MessagesConversationThread
           v-model:expanded-all="threadExpanded"
@@ -286,10 +286,10 @@ useHead({ title: () => (message.value ? subject.value : t('common.loading')) })
           :show-full-recipient-addresses="showFullRecipientAddresses"
         />
 
-        <article class="py-4 sm:px-6" :class="!anyPanelVisible && 'sm:pl-12'">
+        <article class="pb-4 sm:pl-0 sm:pr-6">
           <div class="w-full">
             <MessagesMailingListBanner v-if="canUnsubscribe && !unsubBannerDismissed" :message-id="message.id" @dismiss="dismissUnsubBanner" />
-            <div class="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 px-4 pb-5 sm:px-0 sm:pl-4">
+            <div class="flex flex-wrap items-start justify-between gap-x-3 gap-y-1 px-4 pb-2 sm:px-0 sm:pl-[78px]">
               <div class="flex min-w-0 items-start gap-3">
                 <ContactsContactAvatar
                   :mailbox-id="message.mailboxId"
@@ -297,7 +297,7 @@ useHead({ title: () => (message.value ? subject.value : t('common.loading')) })
                   :name="fromName"
                   :has-managed-avatar="message.direction === 'inbound'"
                   :managed-avatar-url="message.direction === 'outbound' && message.mailboxId ? `/api/mailboxes/${message.mailboxId}/avatar` : undefined"
-                  class="mt-2"
+                  class="mt-2 sm:-ml-12"
                 />
                 <div class="min-w-0 flex-1">
                   <p class="mt-1.25 flex w-full flex-row items-center gap-1 overflow-hidden text-sm text-highlighted">
@@ -343,17 +343,15 @@ useHead({ title: () => (message.value ? subject.value : t('common.loading')) })
               </div>
             </div>
 
-            <div class="mb-4 px-4 sm:px-0 sm:pl-4 sm:pr-4">
-              <MessagesSenderCheckNotice :message="message" :details-open="detailsOpen" announce @view-details="detailsOpen = !detailsOpen" />
-            </div>
-            <div v-if="detailsOpen" class="mb-4 px-4 sm:px-0 sm:pl-4 sm:pr-4">
+            <MessagesSenderCheckNotice :message="message" :details-open="detailsOpen" announce class="mb-4 px-4 sm:px-0 sm:pl-[78px] sm:pr-4" @view-details="detailsOpen = !detailsOpen" />
+            <div v-if="detailsOpen" class="mb-4 px-4 sm:px-0 sm:pl-[78px] sm:pr-4">
               <MessagesMessageDetailsPanel :message="message" closable @close="detailsOpen = false" />
             </div>
-            <div v-if="scheduledAt" class="px-4 sm:px-0 sm:pl-10">
+            <div v-if="scheduledAt" class="px-4 sm:px-0 sm:pl-[78px]">
               <MessagesScheduledSendBanner :message-id="message.id" :scheduled-at="scheduledAt" @rescheduled="onRescheduled" />
             </div>
 
-            <div class="max-w-none px-4 text-highlighted sm:px-0 sm:pl-16">
+            <div class="max-w-none px-4 text-highlighted sm:px-0 sm:pl-[78px]">
               <div v-if="bodyError" role="alert" class="rounded-lg border border-default bg-elevated p-4">
                 <p class="text-sm text-toned">{{ t('source.loadFailed') }}</p>
                 <UButton color="neutral" variant="outline" size="sm" class="mt-3" :label="t('webhooks.retry')" @click="retryBody" />
@@ -381,7 +379,7 @@ useHead({ title: () => (message.value ? subject.value : t('common.loading')) })
               />
             </div>
 
-            <section v-if="cloudAttachmentResult.attachments.length > 0" class="mt-8 border-t border-default px-4 py-6 sm:px-0 sm:pl-16">
+            <section v-if="cloudAttachmentResult.attachments.length > 0" class="mt-8 border-t border-default px-4 py-6 sm:px-0 sm:pl-[78px]">
               <h2 class="mb-3 text-sm font-semibold text-highlighted">{{ t('message.cloudFiles', { count: cloudAttachmentResult.attachments.length }) }}</h2>
               <div class="grid gap-2 sm:grid-cols-2">
                 <a
@@ -403,9 +401,7 @@ useHead({ title: () => (message.value ? subject.value : t('common.loading')) })
               </div>
             </section>
 
-            <MessagesInviteCard :key="message.id" :message-id="message.id" :has-calendar-attachment="!!findInviteAttachment(attachments)" />
-
-            <section v-if="attachments.length > 0" class="mt-8 border-t border-default px-4 py-6 sm:px-0 sm:pl-16">
+            <section v-if="attachments.length > 0" class="mt-8 border-t border-default px-4 py-6 sm:px-0 sm:pl-[78px]">
               <div class="mb-3 flex items-center justify-between gap-3">
                 <h2 class="text-sm font-semibold text-highlighted">{{ t('message.attachments', { count: attachments.length }) }}</h2>
                 <UButton

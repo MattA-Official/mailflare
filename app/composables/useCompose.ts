@@ -7,6 +7,8 @@ export type { ComposeNotice, ComposeNoticeAction, ComposeNoticeOptions, ComposeN
 
 const open = ref(false)
 const draftId = ref<string | null>(null)
+/** Recipients the next fresh composer starts with, e.g. "Send email" from the Contacts page. */
+const initialTo = ref<string[] | null>(null)
 const notice = shallowRef<ComposeNotice | null>(null)
 let noticeId = 0
 let noticeTimer: ReturnType<typeof setTimeout> | undefined
@@ -29,21 +31,24 @@ function setNotice(next: ComposeNotice | null) {
   }, timeout)
 }
 
-function openComposer() {
+function openComposer(options?: { to?: string[] }) {
   rememberOpener()
   draftId.value = null
+  initialTo.value = options?.to?.length ? options.to : null
   open.value = true
 }
 
 function openDraftComposer(nextDraftId: string) {
   if (!open.value) rememberOpener()
   draftId.value = nextDraftId
+  initialTo.value = null
   open.value = true
 }
 
 function closeComposer() {
   open.value = false
   draftId.value = null
+  initialTo.value = null
   const previous = opener
   opener = null
   if (previous) requestAnimationFrame(() => { if (previous.isConnected) previous.focus() })
@@ -77,6 +82,7 @@ export function useCompose() {
   return {
     open: readonly(open),
     draftId: readonly(draftId),
+    initialTo: readonly(initialTo),
     notice: computed(() => notice.value),
     openComposer,
     openDraftComposer,

@@ -3,7 +3,6 @@
 // Ported from ConversationMessageCard in legacy/src/components/messages/conversation-thread.tsx.
 import { formatUserDate } from '#lib/time/utils'
 import type { ThreadMessage } from '~/types/messages'
-import { useMessageListVisibility, useAssistantOpenState } from '~/composables/messages/useMessageListContext'
 import { useRemoteContent } from '~/composables/messages/useRemoteContent'
 import { getConversationRecipients, getConversationSender, getConversationSenderEmail } from '~/utils/messages/conversation-thread-utils'
 import { getMessageBodyDisplay, resolveInlineAttachmentUrls } from '~/utils/messages/detail-utils'
@@ -39,9 +38,6 @@ const remote = useRemoteContent(senderEmail, () => props.message.status === 'spa
 const recipients = computed(() => getConversationRecipients(props.message, props.showFullRecipientAddresses ? 'full' : 'address'))
 const outbound = computed(() => props.message.direction === 'outbound')
 const attachments = computed(() => props.message.attachments.filter(attachment => attachment.disposition === 'attachment'))
-const visibility = useMessageListVisibility()
-const assistantOpen = useAssistantOpenState()
-const anyPanelVisible = computed(() => visibility.value.visible || assistantOpen.value)
 const fullDate = computed(() => formatUserDate(props.message.createdAt, { month: 'short', day: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }))
 const shortDate = computed(() => formatUserDate(props.message.createdAt, { month: 'short', day: '2-digit', year: 'numeric' }))
 
@@ -68,9 +64,9 @@ function toggle() {
 </script>
 
 <template>
-  <article :data-message-id="message.id" class="bg-default px-3 transition-colors sm:px-6" :class="[!expanded && 'hover:bg-elevated/50', !anyPanelVisible && 'sm:pl-12']">
+  <article :data-message-id="message.id" class="bg-default px-3 transition-colors sm:pl-0 sm:pr-6" :class="!expanded && 'hover:bg-elevated/50'">
     <div class="w-full">
-      <div class="flex w-full flex-wrap items-start gap-x-3 py-3 sm:pl-4">
+      <div class="flex w-full flex-wrap items-start gap-x-3 py-3 sm:pl-[78px]">
         <button type="button" :aria-expanded="expanded" class="flex min-w-0 flex-1 basis-40 cursor-pointer items-center gap-3 text-left" @click="toggle">
           <ContactsContactAvatar
             :mailbox-id="mailboxId"
@@ -78,7 +74,8 @@ function toggle() {
             :name="sender"
             :has-managed-avatar="message.fromContactHasAvatar"
             :managed-avatar-url="outbound && mailboxId ? `/api/mailboxes/${mailboxId}/avatar` : undefined"
-            :class="expanded ? 'mt-1' : ''"
+            class="sm:-ml-12"
+            :class="expanded && 'mt-1'"
           />
           <span class="min-w-0 flex-1">
             <span class="flex flex-col">
@@ -111,11 +108,11 @@ function toggle() {
           <span>{{ shortDate }}</span>
         </div>
       </div>
-      <MessagesSenderCheckNotice v-if="expanded" :message="message" :details-open="detailsOpen" class="mb-3 sm:ml-16" @view-details="detailsOpen = !detailsOpen" />
-      <div v-if="detailsOpen" class="mb-3 sm:pl-16">
+      <MessagesSenderCheckNotice v-if="expanded" :message="message" :details-open="detailsOpen" class="mb-3 sm:ml-[78px]" @view-details="detailsOpen = !detailsOpen" />
+      <div v-if="detailsOpen" class="mb-3 sm:pl-[78px]">
         <MessagesMessageDetailsPanel :message="message" closable @close="detailsOpen = false" />
       </div>
-      <div v-if="expanded && body" class="pb-4 pt-2 sm:pl-16">
+      <div v-if="expanded && body" class="pb-4 pt-2 sm:pl-[78px]">
         <MessagesMessageOpenStatus v-if="outbound" :message-id="message.id" />
         <MessagesFollowUpStatus v-if="outbound && message.status !== 'draft'" :message-id="message.id" />
         <MessagesEmailHtmlRenderer v-if="body.html" :html="body.html" :auto-allow-remote="remote.autoAllow.value" @allow-remote="remote.allowSender" />

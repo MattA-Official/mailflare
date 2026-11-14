@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // The reader's toolbar. Actions keep a priority order and the width decides where the overflow
 // menu starts. Ported from legacy/src/components/message-actions/message-actions.tsx.
+import { confirmDestructive } from '~/utils/confirm-dialog'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import type { BulkMessageAction } from '#handlers/api/messages/bulk/types'
 import { getPermanentDeleteConfirmText, PartialDeleteError, supportsPermanentDelete } from '#lib/messages/permanent-delete-utils'
@@ -93,7 +94,7 @@ async function runAction(action: BulkMessageAction) {
 // In Trash and Spam the delete button removes the message for good, after the user confirms.
 const canDeleteForever = computed(() => supportsPermanentDelete(props.status))
 async function deleteForever() {
-  if (!window.confirm(getPermanentDeleteConfirmText(1, t))) return
+  if (!(await confirmDestructive(getPermanentDeleteConfirmText(1, t)))) return
   pendingAction.value = 'delete'
   error.value = null
   try {
@@ -191,7 +192,7 @@ async function onUnsubscribe() {
     }
     return
   }
-  if (!confirmTrashWithoutUnsubscribe()) return
+  if (!(await confirmTrashWithoutUnsubscribe())) return
   pendingAction.value = 'unsubscribe'
   if (!props.mailboxId) {
     error.value = t('actions.error.trashRule')
@@ -234,7 +235,7 @@ async function onUnsubscribeDeleteAll() {
   try {
     const preview = await requestUnsubscribe(props.messageId, { action: 'unsubscribe_and_trash', previewOnly: true })
     const count = 'preview' in preview ? preview.preview.count : 0
-    if (!window.confirm(t('actions.unsubscribeDeleteConfirm', { count }))) return
+    if (!(await confirmDestructive(t('actions.unsubscribeDeleteConfirm', { count })))) return
     const result = await requestUnsubscribe(props.messageId, { action: 'unsubscribe_and_trash' })
     if (result.method === 'link') openUnsubscribeUrl(result.url)
     showNotice(t('actions.unsubscribeTrashDone', { count: result.trashedCount ?? 0 }))
@@ -260,12 +261,17 @@ const disabled = computed(() => pendingAction.value !== null)
 
 const inlineActions = computed<InlineAction[]>(() => {
   const actions: InlineAction[] = []
-  const { status, direction, read } = props
+  const { status, direction } = props
   if (status !== 'archived') {
     actions.push({ id: 'archive', label: t('common.archive'), hint: t('actions.archiveHint'), icon: 'i-lucide-archive', onSelect: () => void runAction('archive'), group: 'primary' })
   }
   else if (direction === 'inbound') {
     actions.push({ id: 'unarchive', label: t('common.unarchive'), icon: 'i-lucide-archive-restore', onSelect: () => void runAction('inbox'), group: 'primary' })
+  }
+  if (direction === 'inbound') {
+    actions.push(status === 'spam'
+      ? { id: 'notSpam', label: t('common.notSpam'), icon: 'i-lucide-shield-check', onSelect: () => void runAction('inbox'), group: 'primary' }
+      : { id: 'spam', label: t('common.reportSpam'), hint: t('actions.reportSpamHint'), icon: 'i-lucide-shield-alert', onSelect: () => void runAction('spam'), group: 'primary' })
   }
   actions.push({
     id: canDeleteForever.value ? 'deleteForever' : 'trash',
@@ -275,13 +281,6 @@ const inlineActions = computed<InlineAction[]>(() => {
     onSelect: () => (canDeleteForever.value ? void deleteForever() : void runAction('trash')),
     group: 'primary',
     destructive: canDeleteForever.value,
-  })
-  actions.push({
-    id: read ? 'unread' : 'read',
-    label: read ? t('common.markUnread') : t('common.markRead'),
-    icon: read ? 'i-lucide-mail' : 'i-lucide-mail-open',
-    onSelect: () => void runAction(read ? 'unread' : 'read'),
-    group: 'primary',
   })
   if (notes) {
     const noteCount = notes.notes.value.length
@@ -295,11 +294,6 @@ const inlineActions = computed<InlineAction[]>(() => {
     })
   }
   actions.push({ id: 'reply', label: t('message.reply'), hint: t('actions.replyHint'), icon: 'i-lucide-reply', onSelect: () => void handleReply('reply'), group: 'secondary' })
-  if (direction === 'inbound') {
-    actions.push(status === 'spam'
-      ? { id: 'notSpam', label: t('common.notSpam'), icon: 'i-lucide-shield-check', onSelect: () => void runAction('inbox'), group: 'secondary' }
-      : { id: 'spam', label: t('common.reportSpam'), hint: t('actions.reportSpamHint'), icon: 'i-lucide-shield-alert', onSelect: () => void runAction('spam'), group: 'secondary' })
-  }
   if (canReplyAll.value) {
     actions.push({ id: 'replyAll', label: t('message.replyAll'), icon: 'i-lucide-reply-all', onSelect: () => void handleReply('replyAll'), group: 'secondary' })
   }
@@ -352,11 +346,11 @@ const menuItems = computed<DropdownMenuItem[][]>(() => {
 </script>
 
 <template>
-  <div class="flex min-w-0 flex-1 items-center gap-2 text-toned">
+  <div class="ml-4 flex min-w-0 flex-1 items-center gap-2 text-toned">
     <span v-if="error" role="alert" class="text-xs text-error">{{ error }}</span>
     <div ref="actionsRef" class="flex min-w-0 flex-1 items-center gap-2 overflow-hidden">
       <template v-for="(action, index) in shownActions" :key="action.id">
-        <span v-if="index === dividerIndex" class="h-5 w-px shrink-0 bg-accented" aria-hidden="true" />
+        <span v-if="index === dividerIndex" class="mx-2 h-5 w-px shrink-0 bg-accented/60" aria-hidden="true" />
         <UTooltip :text="action.hint && shortcutsEnabled ? action.hint : action.label">
           <UButton
             :color="action.destructive ? 'error' : 'neutral'"

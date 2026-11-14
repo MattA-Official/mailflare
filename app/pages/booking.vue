@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Booking event types: list, switch on and off, copy links, and edit in a side panel.
 // Ported from legacy/src/app/(calendar)/booking/page.tsx.
+import { confirmDestructive } from '~/utils/confirm-dialog'
 import { getUserTimeZone } from '#lib/time/utils'
 import type { BookingEvent, BookingForm, BookingHost } from '~/types/calendar'
 import { availabilityLabel, durationLabel, emptyBookingForm, formFromEvent, visibleBookingEvents } from '~/utils/calendar/booking'
@@ -105,7 +106,7 @@ async function setEnabled(event: BookingEvent, enabled: boolean) {
 }
 
 async function remove(event: BookingEvent) {
-  if (!window.confirm(t('booking.deleteConfirm', { name: event.name }))) return
+  if (!(await confirmDestructive(t('booking.deleteConfirm', { name: event.name })))) return
   try {
     await api(`/api/booking/${event.id}`, { method: 'DELETE' })
     events.value = events.value.filter(item => item.id !== event.id)
