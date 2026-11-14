@@ -4,6 +4,7 @@ import { getDb } from "#db";
 import { mailboxes, users } from "#db/schema";
 import { requireUser } from "#lib/auth/cookies";
 import { getEnv } from "#lib/cloudflare";
+import { canManageSharedInbox } from "#lib/groups/permissions";
 import { getMailboxSettingsAccess } from "#lib/mailboxes/settings-access";
 import { ensureMailboxDomainRouting, removeMailboxDomainRouting } from "#lib/mailboxes/domain-addresses";
 import { isPrimaryMailbox, tracksAccountIdentity } from "#lib/profile/identity-utils";
@@ -35,7 +36,7 @@ export async function GET(request: Request, { params }: MailboxRouteParams) {
 			displayName: identity ? ownerName : mailbox.displayName,
 			hasAvatar: identity ? !!ownerAvatarKey : !!avatarKey,
 			permission: access.permission,
-			canManageSharing: user.role === "admin" && mailbox.type === "shared" && mailbox.userId === user.id,
+			canManageSharing: canManageSharedInbox(user, mailbox),
 			isPrimary: isPrimaryMailbox(mailbox, ownerEmail),
 		},
 	});
@@ -107,7 +108,7 @@ export async function PATCH(request: Request, { params }: MailboxRouteParams) {
 			displayName: identity ? ownerName : mailbox!.displayName,
 			hasAvatar: identity ? !!ownerAvatarKey : !!avatarKey,
 			permission: access.permission,
-			canManageSharing: user.role === "admin" && mailbox!.type === "shared" && mailbox!.userId === user.id,
+			canManageSharing: canManageSharedInbox(user, mailbox!),
 			isPrimary: isPrimaryMailbox(mailbox!, ownerEmail),
 		},
 	});

@@ -293,6 +293,21 @@ export const mailboxAccessSchema = z.object({
 	permission: z.enum(["read_only", "send_as", "send_on_behalf", "full_access"]),
 });
 
+// Fork-only: groups.
+export const mailboxGroupAccessSchema = z.object({
+	groupId: z.string().min(1),
+	permission: z.enum(["read_only", "send_as", "send_on_behalf", "full_access"]),
+});
+
+export const groupSchema = z.object({
+	name: z.string().trim().min(1).max(80),
+	description: z.string().trim().max(500).nullish(),
+});
+
+export const groupMemberSchema = z.object({
+	userId: z.string().min(1),
+});
+
 export const accountMailboxAccessSchema = z.object({
 	mailboxId: z.string().min(1),
 	permission: z.enum(["read_only", "send_as", "send_on_behalf", "full_access"]),

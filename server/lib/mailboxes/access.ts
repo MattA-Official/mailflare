@@ -1,6 +1,6 @@
 import { and, eq } from "drizzle-orm";
 import type { AppDatabase } from "#db";
-import { domains, mailboxAccess, mailboxes, users } from "#db/schema";
+import { domains, groupMembers, mailboxAccess, mailboxGroupAccess, mailboxes, users } from "#db/schema";
 import { getAccountStatus } from "#lib/accounts/deletion-utils";
 import type { SessionUser } from "#lib/auth/types";
 import type { MailboxAccessLevel, MailboxPermission } from "./types";
@@ -28,14 +28,32 @@ export async function getMailboxAccessLevel(
 	if (isOwner) return buildAccess(mailbox, "full_access", true);
 	if (mailbox.type !== "shared") return null;
 
-	const [delegatedAccess] = await db
-		.select({ permission: mailboxAccess.permission })
-		.from(mailboxAccess)
-		.where(and(eq(mailboxAccess.mailboxId, mailbox.id), eq(mailboxAccess.userId, user.id)))
-		.limit(1);
-	if (delegatedAccess) return buildAccess(mailbox, delegatedAccess.permission, false);
+	const [directGrants, groupGrants] = await Promise.all([
+		db
+			.select({ permission: mailboxAccess.permission })
+			.from(mailboxAccess)
+			.where(and(eq(mailboxAccess.mailboxId, mailbox.id), eq(mailboxAccess.userId, user.id)))
+			.limit(1),
+		// Fork-only: grants to any group the user belongs to.
+		db
+			.select({ permission: mailboxGroupAccess.permission })
+			.from(mailboxGroupAccess)
+			.innerJoin(groupMembers, eq(mailboxGroupAccess.groupId, groupMembers.groupId))
+			.where(and(eq(mailboxGroupAccess.mailboxId, mailbox.id), eq(groupMembers.userId, user.id))),
+	]);
+	const permission = highestPermission([...directGrants, ...groupGrants].map((grant) => grant.permission));
+	if (permission) return buildAccess(mailbox, permission, false);
 
 	return null;
+}
+
+/** The highest of several permission levels, or null when there are none. */
+export function highestPermission(permissions: MailboxPermission[]): MailboxPermission | null {
+	let highest: MailboxPermission | null = null;
+	for (const permission of permissions) {
+		if (!highest || permissionRank[permission] > permissionRank[highest]) highest = permission;
+	}
+	return highest;
 }
 
 export async function listAccessibleMailboxes(db: AppDatabase, user: Pick<SessionUser, "id" | "email" | "role">) {
@@ -106,7 +124,47 @@ export async function listAccessibleMailboxes(db: AppDatabase, user: Pick<Sessio
 				eq(mailboxes.disabled, false),
 			),
 		);
-	const shared = sharedRows.map((row) => {
+	// Fork-only: shared inboxes reached through a group. The same columns as above, joined through membership.
+	const groupRows = await db
+		.select({
+			id: mailboxes.id,
+			userId: mailboxes.userId,
+			domainId: mailboxes.domainId,
+			localPart: mailboxes.localPart,
+			displayName: mailboxes.displayName,
+			signature: mailboxes.signature,
+			autoReplyEnabled: mailboxes.autoReplyEnabled,
+			autoReplySubject: mailboxes.autoReplySubject,
+			autoReplyBody: mailboxes.autoReplyBody,
+			useAllDomains: mailboxes.useAllDomains,
+			avatarKey: mailboxes.avatarKey,
+			type: mailboxes.type,
+			disabled: mailboxes.disabled,
+			createdAt: mailboxes.createdAt,
+			hostname: domains.hostname,
+			permission: mailboxGroupAccess.permission,
+		})
+		.from(mailboxGroupAccess)
+		.innerJoin(groupMembers, eq(mailboxGroupAccess.groupId, groupMembers.groupId))
+		.innerJoin(mailboxes, eq(mailboxGroupAccess.mailboxId, mailboxes.id))
+		.innerJoin(domains, eq(mailboxes.domainId, domains.id))
+		.where(
+			and(
+				eq(groupMembers.userId, user.id),
+				eq(mailboxes.type, "shared"),
+				eq(mailboxes.disabled, false),
+			),
+		);
+
+	// One row per mailbox: an owned mailbox wins, otherwise the highest grant.
+	const ownedIds = new Set(owned.map((mailbox) => mailbox.id));
+	const sharedById = new Map<string, (typeof sharedRows)[number]>();
+	for (const row of [...sharedRows, ...groupRows]) {
+		if (ownedIds.has(row.id)) continue;
+		const existing = sharedById.get(row.id);
+		if (!existing || permissionRank[row.permission] > permissionRank[existing.permission]) sharedById.set(row.id, row);
+	}
+	const shared = [...sharedById.values()].map((row) => {
 		const { avatarKey, ...mailbox } = row;
 		return {
 			...mailbox,
@@ -118,6 +176,22 @@ export async function listAccessibleMailboxes(db: AppDatabase, user: Pick<Sessio
 	});
 
 	return [...owned, ...shared];
+}
+
+/**
+ * Fork-only. Everyone given a shared inbox, directly or through a group. Owners are not included; a
+ * personal mailbox has nobody.
+ */
+export async function listSharedMailboxUserIds(db: AppDatabase, mailboxId: string): Promise<string[]> {
+	const [direct, viaGroups] = await Promise.all([
+		db.select({ userId: mailboxAccess.userId }).from(mailboxAccess).where(eq(mailboxAccess.mailboxId, mailboxId)),
+		db
+			.select({ userId: groupMembers.userId })
+			.from(mailboxGroupAccess)
+			.innerJoin(groupMembers, eq(mailboxGroupAccess.groupId, groupMembers.groupId))
+			.where(eq(mailboxGroupAccess.mailboxId, mailboxId)),
+	]);
+	return [...new Set([...direct, ...viaGroups].map((row) => row.userId))];
 }
 
 export async function listAccessibleMailboxIds(db: AppDatabase, user: Pick<SessionUser, "id" | "email" | "role">) {

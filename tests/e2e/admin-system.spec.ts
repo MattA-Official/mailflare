@@ -15,6 +15,7 @@ test.beforeEach(async ({ page }) => {
 const pages: [string, RegExp][] = [
   ['/admin', /Admin settings/],
   ['/accounts', /Accounts/],
+  ['/groups', /Groups/],
   ['/api-keys', /Admin API keys/],
   ['/general', /General/],
   ['/agent', /Agent/],

@@ -32,6 +32,8 @@ const sections: { id?: string, labelKey?: TranslationKey, links: AdminLink[] }[]
       { href: '/general', labelKey: 'admin.nav.general', icon: 'i-lucide-settings', permission: 'primary' },
       { href: '/agent', labelKey: 'admin.nav.agent', icon: 'i-lucide-bot', permission: 'primary' },
       { href: '/accounts', labelKey: 'admin.nav.accounts', icon: 'i-lucide-users' },
+      // Fork-only: groups of accounts that shared inboxes can be given to.
+      { href: '/groups', labelKey: 'admin.nav.groups', icon: 'i-lucide-users-round' },
       { href: '/activity', labelKey: 'admin.nav.activity', icon: 'i-lucide-activity', permission: 'primary' },
       { href: '/backups', labelKey: 'admin.nav.backups', icon: 'i-lucide-database-backup', permission: 'primary' },
     ],
