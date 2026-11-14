@@ -336,6 +336,11 @@ Tick in the PR that lands it. Add rows for anything discovered.
   through `marked` + DOMPurify with raw HTML and images dropped.
 - (10) `ContactsContactAvatar` is a plain `<img>` with an initials fallback rather than upstream's
   progressive avatar, matching the shell's decision for `UAvatar`.
+- (fork) Mailflare is an OpenID Connect provider for staff apps: migration `0087_oidc_provider`
+  (tables `oidc_*` and `sessions.amr`), `server/lib/oidc`, `server/handlers/oauth`,
+  `/.well-known/openid-configuration`, the Apps admin pages and an Apps tab on accounts. Upstream has
+  none of this, so it never conflicts with a port. `completeLogin` takes the sign-in method (`amr`)
+  and `/login` accepts `?next=/oauth/authorize?…`. See [oidc.md](oidc.md).
 
 ## Following upstream
 
