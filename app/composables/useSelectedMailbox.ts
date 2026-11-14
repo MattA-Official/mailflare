@@ -61,7 +61,12 @@ export async function fetchMailboxOptions(force = false): Promise<MailboxOption[
   const requestGeneration = cacheGeneration
   mailboxesRequestSessionToken = sessionToken
   mailboxesRequest = authFetch('/api/mailboxes')
-    .then(response => response.json())
+    // Fork-only: a failed request must not be cached as "no mailboxes", or the switcher and every
+    // inbox picker stay empty until a full reload even after the server recovers.
+    .then((response) => {
+      if (!response.ok) throw new Error(`Failed to load mailboxes (${response.status})`)
+      return response.json()
+    })
     .then((data) => {
       const items = ((data as { mailboxes?: MailboxOption[] }).mailboxes ?? []).map(m => ({
         id: m.id,
@@ -116,11 +121,27 @@ function storeId(id: string | null) {
   }
 }
 
+let retryTimer: ReturnType<typeof setTimeout> | null = null
+let retryDelay = 5_000
+function scheduleRetry() {
+  if (!import.meta.client || retryTimer) return
+  const retry = () => {
+    if (retryTimer) clearTimeout(retryTimer)
+    retryTimer = null
+    window.removeEventListener('focus', retry)
+    void loadMailboxes(true)
+  }
+  retryTimer = setTimeout(retry, retryDelay)
+  retryDelay = Math.min(retryDelay * 2, 60_000)
+  window.addEventListener('focus', retry)
+}
+
 async function loadMailboxes(force = false) {
   const sessionToken = getClientSessionToken()
   try {
     const items = await fetchMailboxOptions(force)
     if (sessionToken !== getClientSessionToken()) return
+    retryDelay = 5_000
     mailboxes.value = items
     const keep = items.find(mb => mb.id === (selectedMailbox.value?.id ?? readStoredId()))
     const next = keep ?? items.find(mb => mb.isPrimary) ?? items[0] ?? null
@@ -128,6 +149,9 @@ async function loadMailboxes(force = false) {
     if (next && !keep) storeId(next.id)
   } catch {
     // A failed load leaves the previous list; pages show their own errors.
+    // Fork-only: try again shortly, and when the tab regains focus, so a server hiccup (such as a
+    // pending migration) does not leave the inbox list empty until the person signs out.
+    scheduleRetry()
   } finally {
     if (sessionToken === getClientSessionToken()) isLoading.value = false
   }
