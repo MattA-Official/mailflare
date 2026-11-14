@@ -7,6 +7,15 @@ const emit = defineEmits<{ close: [], changed: [] }>()
 const { t } = useLanguage()
 const toast = useToast()
 const shares = ref<DriveShareDto[]>([])
+// Fork-only: shares with a group, and the groups the owner may share with.
+type GroupShare = { id: string, groupId: string, name: string, role: DriveShareRole }
+type ShareState = { shares?: DriveShareDto[], groupShares?: GroupShare[], linkToken?: string | null }
+const groupShares = ref<GroupShare[]>([])
+const availableGroups = ref<{ id: string, name: string }[]>([])
+const groupId = ref<string | undefined>()
+const groupItems = computed(() => availableGroups.value
+  .filter(group => !groupShares.value.some(share => share.groupId === group.id))
+  .map(group => ({ label: group.name, value: group.id })))
 const linkToken = ref<string | null>(null)
 const email = ref('')
 const role = ref<DriveShareRole>('view')
@@ -16,13 +25,18 @@ const linkUrl = computed(() => linkToken.value ? `${window.location.origin}/d/${
 
 watch(() => props.item?.id, async (id) => {
   shares.value = []
+  groupShares.value = []
+  availableGroups.value = []
+  groupId.value = undefined
   linkToken.value = null
   email.value = ''
   if (!id) return
   try {
-    const data = await api<{ shares: DriveShareDto[], linkToken: string | null }>(`/api/drive/items/${id}/shares`)
+    const data = await api<{ shares: DriveShareDto[], groupShares?: GroupShare[], availableGroups?: { id: string, name: string }[], linkToken: string | null }>(`/api/drive/items/${id}/shares`)
     if (props.item?.id !== id) return
     shares.value = data.shares
+    groupShares.value = data.groupShares ?? []
+    availableGroups.value = data.availableGroups ?? []
     linkToken.value = data.linkToken
   } catch {
     toast.add({ title: t('drive.shareFailed'), color: 'error' })
@@ -32,7 +46,7 @@ watch(() => props.item?.id, async (id) => {
 async function request(url: string, method: string, body?: unknown) {
   busy.value = true
   try {
-    const data = await api<{ shares?: DriveShareDto[], linkToken?: string | null }>(url, { method, body })
+    const data = await api<ShareState>(url, { method, body })
     emit('changed')
     return data ?? {}
   } catch (error) {
@@ -56,6 +70,21 @@ async function removePerson(shareId: string) {
   if (!props.item) return
   const data = await request(`/api/drive/items/${props.item.id}/shares?shareId=${encodeURIComponent(shareId)}`, 'DELETE')
   if (data?.shares) shares.value = data.shares
+}
+
+async function addGroup() {
+  if (!props.item || !groupId.value) return
+  const data = await request(`/api/drive/items/${props.item.id}/shares`, 'POST', { groupId: groupId.value, role: role.value })
+  if (data?.groupShares) {
+    groupShares.value = data.groupShares
+    groupId.value = undefined
+  }
+}
+
+async function removeGroup(groupShareId: string) {
+  if (!props.item) return
+  const data = await request(`/api/drive/items/${props.item.id}/shares?groupShareId=${encodeURIComponent(groupShareId)}`, 'DELETE')
+  if (data?.groupShares) groupShares.value = data.groupShares
 }
 
 async function toggleLink() {
@@ -95,6 +124,21 @@ async function copyLink() {
           <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" class="rounded-full" :disabled="busy" :aria-label="t('drive.remove')" @click="removePerson(share.id)" />
         </li>
       </ul>
+      <template v-if="availableGroups.length || groupShares.length">
+        <h3 class="mb-2 mt-6 text-sm font-medium text-highlighted">{{ t('groups.driveGroupsWithAccess') }}</h3>
+        <form v-if="groupItems.length" class="mb-2 flex gap-2" @submit.prevent="addGroup">
+          <USelect v-model="groupId" :items="groupItems" class="min-w-0 flex-1" :placeholder="t('groups.driveChooseGroup')" :aria-label="t('groups.driveChooseGroup')" />
+          <UButton type="submit" :disabled="busy || !groupId" :label="t('drive.shareAdd')" />
+        </form>
+        <ul v-if="groupShares.length" class="space-y-1">
+          <li v-for="share in groupShares" :key="share.id" class="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm hover:bg-elevated">
+            <UIcon name="i-lucide-network" class="size-4 shrink-0 text-muted" />
+            <span class="min-w-0 flex-1 truncate text-highlighted">{{ share.name }}</span>
+            <span class="shrink-0 text-xs text-muted">{{ share.role === 'edit' ? t('drive.canEdit') : t('drive.canView') }}</span>
+            <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" class="rounded-full" :disabled="busy" :aria-label="t('drive.remove')" @click="removeGroup(share.id)" />
+          </li>
+        </ul>
+      </template>
       <h3 class="mb-2 mt-6 text-sm font-medium text-highlighted">{{ t('drive.generalAccess') }}</h3>
       <div class="flex items-center gap-3 rounded-lg border border-default p-3 text-sm">
         <UIcon name="i-lucide-link-2" class="size-[18px] shrink-0 text-muted" />

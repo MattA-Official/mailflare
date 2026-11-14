@@ -306,6 +306,12 @@ export const groupSchema = z.object({
 
 export const groupMemberSchema = z.object({
 	userId: z.string().min(1),
+	role: z.enum(["member", "manager"]).optional(),
+});
+
+export const groupMemberRoleSchema = z.object({
+	userId: z.string().min(1),
+	role: z.enum(["member", "manager"]),
 });
 
 export const accountMailboxAccessSchema = z.object({

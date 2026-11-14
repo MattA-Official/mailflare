@@ -26,6 +26,24 @@ export async function listGroups(db: AppDatabase) {
 	return rows.map((row) => ({ ...row, mailboxCount: inboxes.get(row.id) ?? 0 }));
 }
 
+/** Groups one account belongs to, with its role in each. */
+export async function listGroupsForMember(db: AppDatabase, userId: string) {
+	const mine = await db
+		.select({ id: groups.id, name: groups.name, description: groups.description, role: groupMembers.role })
+		.from(groupMembers)
+		.innerJoin(groups, eq(groupMembers.groupId, groups.id))
+		.where(eq(groupMembers.userId, userId))
+		.orderBy(asc(groups.name));
+	if (mine.length === 0) return [];
+	const all = await listGroups(db);
+	const counts = new Map(all.map((group) => [group.id, group]));
+	return mine.map((group) => ({
+		...group,
+		memberCount: counts.get(group.id)?.memberCount ?? 0,
+		mailboxCount: counts.get(group.id)?.mailboxCount ?? 0,
+	}));
+}
+
 export async function getGroupDetail(db: AppDatabase, groupId: string) {
 	const [group] = await db
 		.select({ id: groups.id, name: groups.name, description: groups.description, createdAt: groups.createdAt })

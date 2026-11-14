@@ -1555,3 +1555,16 @@ export const mailboxGroupAccess = sqliteTable(
 		index("mailbox_group_access_group_idx").on(t.groupId),
 	],
 );
+
+/** Fork-only (migration 0090): a Drive item shared with every member of a group. */
+export const driveGroupShares = sqliteTable("drive_group_shares", {
+	id: text("id").primaryKey(),
+	itemId: text("item_id").notNull().references(() => driveItems.id, { onDelete: "cascade" }),
+	groupId: text("group_id").notNull().references(() => groups.id, { onDelete: "cascade" }),
+	role: text("role", { enum: ["view", "edit"] }).notNull().default("view"),
+	createdByUserId: text("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+	createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+}, (t) => [
+	uniqueIndex("drive_group_shares_item_group_idx").on(t.itemId, t.groupId),
+	index("drive_group_shares_group_idx").on(t.groupId),
+]);
