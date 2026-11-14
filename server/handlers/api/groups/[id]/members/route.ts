@@ -9,6 +9,7 @@ import { newId } from "#lib/ids";
 import { createAuditLog } from "#lib/mailboxes/audit";
 import { groupMemberRoleSchema, groupMemberSchema } from "#lib/validators";
 import type { GroupRouteParams } from "./types";
+import { isPersonCondition } from "#lib/accounts/kind";
 
 /** Accounts that can be added: enabled, not deleted and not already in the group. */
 export async function GET(request: Request, { params }: GroupRouteParams) {
@@ -20,7 +21,7 @@ export async function GET(request: Request, { params }: GroupRouteParams) {
 	const candidates = await db
 		.select({ id: users.id, name: users.name, email: users.email })
 		.from(users)
-		.where(and(eq(users.disabled, false), isNull(users.deletedAt), notInArray(users.id, existing)))
+		.where(and(eq(users.disabled, false), isNull(users.deletedAt), isPersonCondition(), notInArray(users.id, existing)))
 		.orderBy(asc(users.name));
 	return NextResponse.json({ candidates });
 }
@@ -38,7 +39,7 @@ export async function POST(request: Request, { params }: GroupRouteParams) {
 	const [user] = await db
 		.select({ id: users.id })
 		.from(users)
-		.where(and(eq(users.id, parsed.data.userId), eq(users.disabled, false), isNull(users.deletedAt)))
+		.where(and(eq(users.id, parsed.data.userId), eq(users.disabled, false), isNull(users.deletedAt), isPersonCondition()))
 		.limit(1);
 	if (!user) return NextResponse.json({ error: "Account not found" }, { status: 404 });
 

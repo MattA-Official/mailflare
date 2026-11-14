@@ -7,6 +7,7 @@ import { authenticateAdminApiKey } from "#lib/api/admin-auth";
 import { newId } from "#lib/ids";
 import { mailboxSchema } from "#lib/validators";
 import { ensureMailboxDomainRouting } from "#lib/mailboxes/domain-addresses";
+import { createInboxPrincipal, discardInboxPrincipal, grantCreatorFullAccess, inboxPrincipalId } from "#lib/mailboxes/principals";
 
 export async function GET(request: Request) {
 	const env = getEnv();
@@ -30,8 +31,10 @@ export async function POST(request: Request) {
 	if (!parsed.success) return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
 	const db = getDb(env);
 	const mailboxType = parsed.data.type ?? "personal";
-	const ownerUserId = mailboxType === "shared" ? auth.userId : parsed.data.ownerUserId ?? auth.userId;
-	if (ownerUserId !== auth.userId) {
+	// Fork-only: a shared inbox is held by its own hidden account, not by the key's admin.
+	const id = newId("mbx");
+	const ownerUserId = mailboxType === "shared" ? inboxPrincipalId(id) : parsed.data.ownerUserId ?? auth.userId;
+	if (mailboxType !== "shared" && ownerUserId !== auth.userId) {
 		const [owner] = await db.select({ id: users.id }).from(users).where(and(eq(users.id, ownerUserId), eq(users.createdByUserId, auth.userId))).limit(1);
 		if (!owner) return NextResponse.json({ error: "Account not found" }, { status: 404 });
 	}
@@ -42,13 +45,15 @@ export async function POST(request: Request) {
 	if (existing) return NextResponse.json({ error: "Mailbox already exists" }, { status: 409 });
 	const [alias] = await db.select({ id: mailboxAliases.id }).from(mailboxAliases).where(and(eq(mailboxAliases.domainId, domain.id), eq(mailboxAliases.localPart, localPart))).limit(1);
 	if (alias) return NextResponse.json({ error: "An alias already uses this address" }, { status: 409 });
-	const id = newId("mbx");
+	if (mailboxType === "shared") await createInboxPrincipal(db, { mailboxId: id, name: parsed.data.displayName || localPart });
 	await db.insert(mailboxes).values({ id, userId: ownerUserId, domainId: domain.id, localPart, displayName: parsed.data.displayName, type: mailboxType });
 	try {
 		await ensureMailboxDomainRouting(env, db, { id, domainId: domain.id, localPart, useAllDomains: true });
 	} catch (error) {
 		await db.delete(mailboxes).where(eq(mailboxes.id, id));
+		if (mailboxType === "shared") await discardInboxPrincipal(db, id);
 		return NextResponse.json({ error: error instanceof Error ? error.message : "Failed to create Cloudflare routing rule" }, { status: 502 });
 	}
+	if (mailboxType === "shared") await grantCreatorFullAccess(db, id, auth.userId);
 	return NextResponse.json({ id, address: `${localPart}@${domain.hostname}`, type: mailboxType }, { status: 201 });
 }

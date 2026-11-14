@@ -8,6 +8,7 @@ import { newId } from "#lib/ids";
 import { tracksAccountIdentity } from "#lib/profile/identity-utils";
 import { mailboxSchema } from "#lib/validators";
 import { ensureMailboxDomainRouting, getMailboxDomainAddresses } from "#lib/mailboxes/domain-addresses";
+import { createInboxPrincipal, discardInboxPrincipal, grantCreatorFullAccess, inboxPrincipalId } from "#lib/mailboxes/principals";
 import { ensurePersonalMailbox } from "./utils";
 
 export async function GET(request: Request) {
@@ -42,8 +43,10 @@ export async function POST(request: Request) {
 			return NextResponse.json({ error: "Only admins can create shared inboxes" }, { status: 403 });
 		}
 	}
-	const ownerUserId = mailboxType === "shared" ? user.id : parsed.data.ownerUserId ?? user.id;
-	if (ownerUserId !== user.id) {
+	// Fork-only: a shared inbox is held by its own hidden account, not by the admin creating it.
+	const id = newId("mbx");
+	const ownerUserId = mailboxType === "shared" ? inboxPrincipalId(id) : parsed.data.ownerUserId ?? user.id;
+	if (mailboxType !== "shared" && ownerUserId !== user.id) {
 		if (user.role !== "admin") {
 			return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 		}
@@ -85,7 +88,9 @@ export async function POST(request: Request) {
 		return NextResponse.json({ error: "An alias already uses this address" }, { status: 409 });
 	}
 
-	const id = newId("mbx");
+	if (mailboxType === "shared") {
+		await createInboxPrincipal(db, { mailboxId: id, name: parsed.data.displayName || localPart, settingsFrom: user });
+	}
 	await db.insert(mailboxes).values({
 		id,
 		userId: ownerUserId,
@@ -98,10 +103,12 @@ export async function POST(request: Request) {
 		await ensureMailboxDomainRouting(env, db, { id, domainId: domain.id, localPart, useAllDomains: true });
 	} catch (err) {
 		await db.delete(mailboxes).where(eq(mailboxes.id, id));
+		if (mailboxType === "shared") await discardInboxPrincipal(db, id);
 		const message = err instanceof Error ? err.message : "Failed to create Cloudflare routing rule";
 		return NextResponse.json({ error: message }, { status: 502 });
 	}
 
+	if (mailboxType === "shared") await grantCreatorFullAccess(db, id, user.id);
 	const address = `${localPart}@${domain.hostname}`;
 
 	return NextResponse.json({

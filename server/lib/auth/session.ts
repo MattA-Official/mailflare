@@ -3,6 +3,7 @@ import { revokeAllDeviceKeys } from "#lib/auth/device-keys";
 import { newId } from "#lib/ids";
 import { getDb } from "#db";
 import { sessions, users } from "#db/schema";
+import { isPersonAccountId } from "#lib/accounts/kind";
 
 export const SESSION_COOKIE = "ep_session";
 const SESSION_DAYS = 30;
@@ -62,7 +63,8 @@ export async function getUserFromSession(
 	// Same reason as below: `disabled` must be seen as soon as another admin writes it.
 	const db = getDb({ DB: env.DB_PRIMARY ?? env.DB });
 	const [user] = await db.select().from(users).where(eq(users.id, session.userId)).limit(1);
-	return user ?? null;
+	// Fork-only: the hidden account holding a shared inbox never has a session.
+	return user && (await isPersonAccountId(db, user.id)) ? user : null;
 }
 
 export async function getSessionFromToken(

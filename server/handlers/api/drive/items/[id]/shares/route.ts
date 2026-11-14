@@ -5,6 +5,7 @@ import { newId } from "#lib/ids";
 import { authorizeDrive } from "#lib/drive/auth";
 import { getDriveItem } from "#lib/drive/access";
 import type { DriveItemParams } from "../types";
+import { isPersonCondition } from "#lib/accounts/kind";
 
 type Db = Parameters<typeof getDriveItem>[0];
 
@@ -79,7 +80,7 @@ export async function POST(request: Request, { params }: DriveItemParams) {
 		return NextResponse.json(await shareState(db, item.id));
 	}
 	if (!email) return NextResponse.json({ error: "Enter an email address" }, { status: 400 });
-	const [target] = await db.select({ id: users.id }).from(users).where(eq(users.email, email)).limit(1);
+	const [target] = await db.select({ id: users.id }).from(users).where(and(eq(users.email, email), isPersonCondition())).limit(1);
 	if (!target) return NextResponse.json({ error: "No account uses that email address" }, { status: 404 });
 	if (target.id === user.id) return NextResponse.json({ error: "You already own this item" }, { status: 400 });
 	await db.insert(driveShares).values({ id: newId("dshr"), itemId: item.id, userId: target.id, role }).onConflictDoUpdate({ target: [driveShares.itemId, driveShares.userId], set: { role } });

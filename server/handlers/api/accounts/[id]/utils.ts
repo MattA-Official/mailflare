@@ -3,6 +3,7 @@ import type { getDb } from "#db";
 import { mailboxes, users } from "#db/schema";
 import { hasPasswordHash, hashPassword } from "#lib/auth/password";
 import { bumpSecurityVersion } from "#lib/auth/webauthn/grants";
+import { isPersonAccountId } from "#lib/accounts/kind";
 
 export class PasskeyOnlyPasswordError extends Error {
 	constructor() {
@@ -23,7 +24,8 @@ type Db = ReturnType<typeof getDb>;
 
 export async function selectAccountById(db: Db, id: string) {
 	const [account] = await db.select().from(users).where(eq(users.id, id)).limit(1);
-	return account ?? null;
+	// Fork-only: a shared inbox's hidden account is managed through its inbox, never as an account.
+	return account && (await isPersonAccountId(db, account.id)) ? account : null;
 }
 
 export async function emailBelongsToAnotherAccount(db: Db, accountId: string, email: string) {

@@ -1,6 +1,6 @@
 // Fork-only. Who can use a shared inbox, and why: its owner, people given it directly and the members of
 // groups it is shared with (and of groups beneath them). Each person appears once, at their highest permission, with every route in.
-import { eq, inArray } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "#lib/http/next-compat";
 import { getDb } from "#db";
 import { groupMembers, groups, mailboxAccess, mailboxGroupAccess, users } from "#db/schema";
@@ -11,6 +11,7 @@ import { highestPermission } from "#lib/mailboxes/access";
 import type { MailboxPermission } from "#lib/mailboxes/types";
 import { getSharedMailboxForAdmin } from "../access/utils";
 import type { MailboxAccessSummaryRouteParams } from "./types";
+import { isPersonCondition } from "#lib/accounts/kind";
 
 type Route = { kind: "owner" | "direct" | "group"; permission: MailboxPermission; groupId?: string; groupName?: string; ownsInbox?: boolean; memberGroupId?: string; memberGroupName?: string };
 
@@ -24,7 +25,8 @@ export async function GET(request: Request, { params }: MailboxAccessSummaryRout
 
 	const person = { userId: users.id, name: users.name, email: users.email, disabled: users.disabled };
 	const [owner, direct, groupGrants, ownerGroupId] = await Promise.all([
-		db.select(person).from(users).where(eq(users.id, mailbox.userId)).limit(1),
+		// Fork-only: a shared inbox's hidden holder is not a person and is not listed.
+		db.select(person).from(users).where(and(eq(users.id, mailbox.userId), isPersonCondition())).limit(1),
 		db
 			.select({ ...person, permission: mailboxAccess.permission })
 			.from(mailboxAccess)

@@ -5,6 +5,7 @@ import { domains, mailboxes, users } from "#db/schema";
 import { assertAdmin } from "#lib/auth/admin";
 import { requireUser } from "#lib/auth/cookies";
 import { getEnv } from "#lib/cloudflare";
+import { isPersonCondition } from "#lib/accounts/kind";
 
 type Db = ReturnType<typeof getDb>;
 
@@ -29,6 +30,7 @@ export function listAccountsForAdmin(db: Db) {
 			deletedAt: users.deletedAt,
 		})
 		.from(users)
+		.where(isPersonCondition())
 		.orderBy(desc(users.createdAt));
 }
 
@@ -126,6 +128,6 @@ export async function requireTeamAdmin(request: Request) {
 
 /** Enabled accounts, including the primary admin. */
 export async function countUsedAccountSeats(env: CloudflareEnv): Promise<number> {
-	const [row] = await getDb(env).select({ total: count() }).from(users).where(eq(users.disabled, false));
+	const [row] = await getDb(env).select({ total: count() }).from(users).where(and(eq(users.disabled, false), isPersonCondition()));
 	return row?.total ?? 0;
 }
