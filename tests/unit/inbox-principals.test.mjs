@@ -31,6 +31,7 @@ await build({
 			export * as accountsRoute from "./server/handlers/api/accounts/route.ts";
 			export * as sharedInboxesRoute from "./server/handlers/api/shared-inboxes/route.ts";
 			export * as restoreRoute from "./server/handlers/api/shared-inboxes/[id]/restore/route.ts";
+			export * as inboxSettingsRoute from "./server/handlers/api/mailboxes/[id]/inbox-settings/route.ts";
 		`,
 		resolveDir: root,
 		sourcefile: "inbox-principals-test-entry.ts",
@@ -47,7 +48,7 @@ await build({
 const {
 	SqliteDatabase, applyMigrations, getDb, createSession, getMailboxAccessLevel, listAccessibleMailboxes, createInboxPrincipal,
 	grantCreatorFullAccess, inboxPrincipalId, listAccountsForAdmin, countUsedAccountSeats, selectAccountById, deleteAccounts,
-	membersRoute, groupsRoute, accessRoute, summaryRoute, detail, domainRoute, accountsRoute, sharedInboxesRoute, restoreRoute,
+	membersRoute, groupsRoute, accessRoute, summaryRoute, detail, domainRoute, accountsRoute, sharedInboxesRoute, restoreRoute, inboxSettingsRoute,
 } = await import(pathToFileURL(join(directory, "entry.mjs")).href);
 const context = id => ({ params: Promise.resolve({ id }) });
 const primary = { id: "primary", role: "admin", isPrimaryAdmin: true, canManageUsers: true, canManageMailboxes: false };
@@ -263,4 +264,39 @@ test("admins who manage shared inboxes see every one, and can restore a deleted 
 	assert.equal(f.sql.prepare("SELECT deleted_at FROM users WHERE id = ?").get(inboxPrincipalId("m-support")).deleted_at, null);
 	// A personal mailbox is never "restored" through this route.
 	assert.equal((await restoreRoute.POST(f.request("primary", "/api/shared-inboxes/m-owner/restore", "POST"), context("m-owner"))).status, 404);
+});
+
+test("a shared inbox has its own spam and trash settings, and renaming it renames its hidden account", async () => {
+	const f = await fixture();
+	const principal = inboxPrincipalId("m-support");
+	const settings = async (actor, mailboxId = "m-support", body) => {
+		const response = body === undefined
+			? await inboxSettingsRoute.GET(f.request(actor, `/api/mailboxes/${mailboxId}/inbox-settings`), context(mailboxId))
+			: await inboxSettingsRoute.PATCH(f.request(actor, `/api/mailboxes/${mailboxId}/inbox-settings`, "PATCH", body), context(mailboxId));
+		return { status: response.status, body: await response.json() };
+	};
+
+	// The upgrade copied the former holder's settings onto the inbox.
+	assert.deepEqual(await settings("primary"), { status: 200, body: { settings: { spamProtectionEnabled: false, trashRetentionDays: 30 }, canManage: true } });
+	// A personal mailbox has no inbox settings, and someone without access sees nothing.
+	assert.equal((await settings("primary", "m-owner")).status, 404);
+	assert.equal((await settings("anna")).status, 404);
+
+	// Read-only access shows the settings but cannot change them.
+	f.sql.exec("INSERT INTO mailbox_access (id, mailbox_id, user_id, permission, created_at) VALUES ('anna-ro', 'm-support', 'anna', 'read_only', 1)");
+	assert.equal((await settings("anna")).body.canManage, false);
+	assert.equal((await settings("anna", "m-support", { spamProtectionEnabled: true })).status, 404);
+
+	// Full access can change them, and the change lands on the inbox, not on the person.
+	f.sql.exec("UPDATE mailbox_access SET permission = 'full_access' WHERE id = 'anna-ro'");
+	const updated = await settings("anna", "m-support", { spamProtectionEnabled: true, trashRetentionDays: null });
+	assert.deepEqual(updated.body.settings, { spamProtectionEnabled: true, trashRetentionDays: null });
+	assert.deepEqual(f.sql.prepare("SELECT spam_protection_enabled, trash_retention_days FROM users WHERE id = ?").get(principal), { spam_protection_enabled: 1, trash_retention_days: null });
+	assert.deepEqual(f.sql.prepare("SELECT spam_protection_enabled, trash_retention_days FROM users WHERE id = 'anna'").get(), { spam_protection_enabled: 1, trash_retention_days: null });
+	assert.equal((await settings("anna", "m-support", { trashRetentionDays: 0 })).status, 400);
+
+	const renamed = await detail.PATCH(f.request("anna", "/api/mailboxes/m-support", "PATCH", { displayName: "Customer support" }), context("m-support"));
+	assert.equal(renamed.status, 200);
+	assert.equal(f.sql.prepare("SELECT name FROM users WHERE id = ?").get(principal).name, "Customer support");
+	assert.equal(f.sql.prepare("SELECT name FROM users WHERE id = 'anna'").get().name, "Anna");
 });

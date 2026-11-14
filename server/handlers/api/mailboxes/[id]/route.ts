@@ -99,6 +99,12 @@ export async function PATCH(request: Request, { params }: MailboxRouteParams) {
 			.set(updateValues)
 			.where(eq(mailboxes.id, id));
 	}
+	// Fork-only: a shared inbox's hidden account carries the inbox's name, so invites and
+	// notifications sent on its behalf use the current one.
+	const newName = updateValues.displayName?.trim();
+	if (newName && existing.type === "shared" && existing.userId === inboxPrincipalId(id)) {
+		await db.update(users).set({ name: newName }).where(eq(users.id, existing.userId));
+	}
 
 	const [mailbox] = await selectMailboxById(db, id);
 	const { avatarKey, ownerName, ownerEmail, ownerAvatarKey, ...mailboxDetails } = mailbox!;

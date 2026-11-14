@@ -412,6 +412,12 @@ Tick in the PR that lands it. Add rows for anything discovered.
   inboxes (`/shared-inboxes`, `GET /api/shared-inboxes`) lists every shared inbox for admins who manage them,
   and `POST /api/shared-inboxes/[id]/restore` brings back a deleted one before its holder is purged.
   `moveGroupOwnedMailboxes` is gone: inboxes no longer belong to a person.
+- (fork) Standalone shared inboxes, phase 4. A shared inbox's mailbox page has an Inbox settings card
+  (`GET/PATCH /api/mailboxes/[id]/inbox-settings`, `{ spamProtectionEnabled, trashRetentionDays }`) that
+  writes to its hidden account, because inbound spam checks read the mailbox holder and trash retention runs
+  per message owner. Anyone who can configure the mailbox may change them; read-only access sees them.
+  Renaming a shared inbox also renames its hidden account. Remote-content and other reading preferences
+  stay per reader, and saving an attachment to Drive always puts it in the saver's own Drive.
 - (upstream 2b58ed7) Upstream's `0087_message_invite_response` shares its number with the fork's
   `0087_oidc_provider`. The runner records migrations by full file name, so both apply; keep
   upstream's file names as they are rather than renumbering.

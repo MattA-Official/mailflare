@@ -92,3 +92,17 @@ export async function uploadMailboxAvatar(mailboxId: string, file: File): Promis
   await api(`/api/mailboxes/${mailboxId}/avatar`, { method: 'POST', body })
   notifyMailboxesChanged()
 }
+
+/** Fork-only: settings held by a shared inbox's hidden account. */
+export interface SharedInboxSettings {
+  spamProtectionEnabled: boolean
+  trashRetentionDays: number | null
+}
+
+export function fetchSharedInboxSettings(id: string) {
+  return api<{ settings: SharedInboxSettings, canManage: boolean }>(`/api/mailboxes/${id}/inbox-settings`)
+}
+
+export function updateSharedInboxSettings(id: string, input: Partial<SharedInboxSettings>) {
+  return api<{ settings: SharedInboxSettings, canManage: boolean }>(`/api/mailboxes/${id}/inbox-settings`, { method: 'PATCH', body: input })
+}
