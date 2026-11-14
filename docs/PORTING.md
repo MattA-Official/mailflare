@@ -384,6 +384,11 @@ Tick in the PR that lands it. Add rows for anything discovered.
 - (upstream 2b58ed7) Upstream's `0087_message_invite_response` shares its number with the fork's
   `0087_oidc_provider`. The runner records migrations by full file name, so both apply; keep
   upstream's file names as they are rather than renumbering.
+- (fork) UI consistency pass. Every signed-in page header is `AppNavbar`, so the assistant toggle and
+  apps menu are on admin, Drive, Calendar and Compose pages too (upstream has them on mail pages only).
+  Admin pages centre their column like settings pages. The phone Compose button is hidden on `/compose`,
+  and mail lists leave room under it. Sent's empty state uses the new English-only key
+  `folder.empty.sent` ("No sent emails") instead of reusing the inbox's "No emails".
 
 ## Following upstream
 
