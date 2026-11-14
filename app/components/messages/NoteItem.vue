@@ -1,5 +1,6 @@
 <script setup lang="ts">
 // One note: author, time, the email it is about, and edit or delete for those allowed.
+import { confirmDestructive } from '~/utils/confirm-dialog'
 import { htmlToPlainText } from '#lib/compose/rich-text-utils'
 import type { ConversationNote } from '#lib/notes/types'
 import { formatUserDate } from '#lib/time/utils'
@@ -42,7 +43,7 @@ async function save() {
 }
 
 async function remove() {
-  if (!window.confirm(t('note.deleteConfirm'))) return
+  if (!(await confirmDestructive(t('note.deleteConfirm')))) return
   pending.value = true
   error.value = null
   try {

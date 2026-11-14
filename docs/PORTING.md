@@ -336,11 +336,15 @@ Tick in the PR that lands it. Add rows for anything discovered.
   through `marked` + DOMPurify with raw HTML and images dropped.
 - (10) `ContactsContactAvatar` is a plain `<img>` with an initials fallback rather than upstream's
   progressive avatar, matching the shell's decision for `UAvatar`.
+- (upstream f4a17bd) Upstream's splash screen is not carried across (the Nuxt app has no first-paint
+  splash), nor its `changelog/` entries or version bump. The Contacts page is also linked from the
+  `NavApps` sidebar, not only the new apps menu. `tests/unit/message-actions-overflow.test.mjs`
+  expects the 17px group divider upstream's a2a75fd introduced; upstream left its own test on 1px.
 
 ## Following upstream
 
-Last ported upstream commit: `3de2363` update PR template (2026-11-13)
-<!-- upstream-ported: 3de2363787655b6044559e958ff866c29cdc0b57 -->
+Last ported upstream commit: `f4a17bd` fix: sync package-lock.json for npm 10 (#301) (2026-11-14)
+<!-- upstream-ported: f4a17bd98d8ad9dbcf95be911ac21cea1e471d91 -->
 
 The marker above is the last commit of hieunc229/mailflare's `main` whose changes are in `nuxt`. The
 port started from `cee65a5` (v0.5.4, the tree that was `legacy/`). Read upstream's current source from the `upstream` branch or with

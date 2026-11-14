@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Shown above a scheduled message: rescheduling moves the send time, editing or cancelling
 // returns it to Drafts. Ported from scheduled-send-banner.tsx and scheduled-send-reschedule.tsx.
+import { alertDialog } from '~/utils/confirm-dialog'
 import { getUserTimeZone } from '#lib/time/utils'
 import { authFetch } from '~/utils/auth-client'
 import { formatDateTimeLocal, formatScheduledSend, formatScheduledSendTime, getScheduleSendOptions, isPastSchedule, parseDateTimeLocal } from '~/utils/compose/schedule-send-utils'
@@ -34,7 +35,7 @@ async function cancelSend(edit: boolean) {
     if (edit) openDraftComposer(props.messageId)
   }
   catch {
-    window.alert(t('schedule.cancelFailed'))
+    void alertDialog(t('schedule.cancelFailed'))
     cancelling.value = false
   }
 }
@@ -54,7 +55,7 @@ async function reschedule(date: Date) {
     emit('rescheduled', date.toISOString())
   }
   catch {
-    window.alert(t('schedule.rescheduleFailed'))
+    void alertDialog(t('schedule.rescheduleFailed'))
   }
   finally {
     rescheduling.value = false

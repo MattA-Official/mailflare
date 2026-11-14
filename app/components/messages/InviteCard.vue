@@ -41,11 +41,12 @@ watch(() => [props.messageId, props.hasCalendarAttachment] as const, ([messageId
   let active = true
   onCleanup(() => { active = false })
   void authFetch(`/api/messages/${messageId}/invite`)
-    .then(async response => (response.ok ? await response.json() as { invite: InviteView | null, eventId: string | null } : null))
+    .then(async response => (response.ok ? await response.json() as { invite: InviteView | null, eventId: string | null, response?: InviteResponse | null } : null))
     .then((data) => {
       if (active && data?.invite) {
         invite.value = data.invite
         eventId.value = data.eventId
+        answered.value = data.response ?? null
       }
     })
     .catch(() => undefined)
@@ -69,6 +70,23 @@ const when = computed(() => {
   const last = formatUserDate(new Date(end.getTime() - 1), { dateStyle: 'full' })
   return first === last ? first : `${first} - ${last}`
 })
+
+const OPTIONS: InviteResponse[] = ['accepted', 'tentative', 'declined']
+const SELECTED_COLOUR: Record<InviteResponse, string> = { accepted: 'text-success', tentative: 'text-warning', declined: 'text-error' }
+function optionLabel(option: InviteResponse) {
+  const selected = answered.value === option
+  if (option === 'accepted') return selected ? t('invite.acceptedLabel') : t('invite.accept')
+  if (option === 'declined') return selected ? t('invite.declinedLabel') : t('invite.decline')
+  return t('invite.maybe')
+}
+function optionIcon(option: InviteResponse) {
+  if (answered.value !== option) return undefined
+  return option === 'accepted' ? 'i-lucide-check' : option === 'declined' ? 'i-lucide-x' : undefined
+}
+// Before an answer, Accept is the primary action; after one, the chosen answer stands out and the others fade.
+function optionPrimary(option: InviteResponse) {
+  return answered.value === null && option === 'accepted'
+}
 
 async function respond(response: InviteResponse) {
   pending.value = response
@@ -94,51 +112,69 @@ async function respond(response: InviteResponse) {
 </script>
 
 <template>
-  <section v-if="invite" class="mt-6 rounded-xl border border-default bg-elevated/50 p-4 sm:ml-16">
+  <section v-if="invite" class="rounded-xl bg-elevated p-4">
     <div class="flex items-start gap-3">
       <UIcon name="i-lucide-calendar-days" class="mt-0.5 size-5 shrink-0 text-primary" />
       <div v-if="reply" class="min-w-0 flex-1">
-        <p class="text-xs font-medium text-muted uppercase">
+        <p class="text-[11px] font-medium text-muted uppercase">
           {{ t('invite.reply.heading') }}
         </p>
-        <h2 class="mt-0.5 text-base font-semibold break-words text-highlighted">
+        <h2 class="mt-0.5 text-sm font-semibold break-words text-highlighted">
           {{ invite.title }}
         </h2>
-        <p v-if="reply.text" class="mt-1 text-sm text-default">
+        <p v-if="reply.text" class="mt-1 text-xs text-default">
           {{ reply.text }}
         </p>
       </div>
       <div v-else class="min-w-0 flex-1">
-        <p class="text-xs font-medium text-muted uppercase">
+        <p class="text-[11px] font-medium text-muted uppercase">
           {{ cancelled ? t('invite.cancelled') : t('invite.heading') }}
         </p>
-        <h2 class="mt-0.5 text-base font-semibold break-words text-highlighted">
+        <h2 class="mt-0.5 text-sm font-semibold break-words text-highlighted">
           {{ invite.title }}
         </h2>
-        <p class="mt-1 text-sm text-default">
+        <p class="mt-1 text-xs text-default">
           {{ when }}
         </p>
-        <p v-if="invite.location" class="mt-0.5 text-sm break-words text-muted">
+        <p v-if="invite.location" class="mt-0.5 text-xs break-words text-muted">
           {{ invite.location }}
         </p>
-        <p v-if="invite.organizer" class="mt-0.5 text-sm text-muted">
+        <p v-if="invite.organizer" class="mt-0.5 text-xs text-muted">
           {{ t('invite.organizer', { organizer: invite.organizer }) }}
         </p>
         <div class="mt-3 flex flex-wrap items-center gap-2">
           <UButton
             v-if="cancelled"
+            size="sm"
             :label="t('invite.removeFromCalendar')"
             color="neutral"
-            variant="outline"
+            variant="solid"
+            class="rounded-full bg-default text-default hover:bg-muted"
             :disabled="pending !== null || !eventId"
             @click="respond('declined')"
           />
           <template v-else>
-            <UButton :label="t('invite.accept')" :aria-pressed="answered === 'accepted'" :loading="pending === 'accepted'" :disabled="pending !== null" @click="respond('accepted')" />
-            <UButton :label="t('invite.maybe')" color="neutral" :variant="answered === 'tentative' ? 'subtle' : 'outline'" :aria-pressed="answered === 'tentative'" :loading="pending === 'tentative'" :disabled="pending !== null" @click="respond('tentative')" />
-            <UButton :label="t('invite.decline')" color="neutral" :variant="answered === 'declined' ? 'subtle' : 'outline'" :aria-pressed="answered === 'declined'" :loading="pending === 'declined'" :disabled="pending !== null" @click="respond('declined')" />
+            <UButton
+              v-for="option in OPTIONS"
+              :key="option"
+              size="sm"
+              :label="optionLabel(option)"
+              :leading-icon="optionIcon(option)"
+              :color="optionPrimary(option) ? 'primary' : 'neutral'"
+              variant="solid"
+              class="rounded-full"
+              :class="[
+                !optionPrimary(option) && 'bg-default hover:bg-muted',
+                answered === option ? ['font-semibold', SELECTED_COLOUR[option]] : !optionPrimary(option) && 'text-default',
+                answered !== null && answered !== option && 'opacity-50',
+              ]"
+              :aria-pressed="answered === option"
+              :loading="pending === option"
+              :disabled="pending !== null"
+              @click="respond(option)"
+            />
           </template>
-          <ULink v-if="eventId && answered !== 'declined'" :to="`/calendar?event=${eventId}`" class="text-sm font-medium text-primary hover:underline">
+          <ULink v-if="eventId && answered !== 'declined'" :to="`/calendar?event=${eventId}`" class="ms-auto text-xs font-medium text-primary hover:underline">
             {{ t('invite.viewOnCalendar') }}
           </ULink>
         </div>

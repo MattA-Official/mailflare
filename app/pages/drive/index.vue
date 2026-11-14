@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Drive: My Drive, shared with me, email attachments and the trash, all one listing driven by the
 // query string (view, folder, q, types). Ported from legacy/src/app/(drive)/drive/page.tsx.
+import { confirmDestructive } from '~/utils/confirm-dialog'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import { isDriveCategory, type DriveCategory } from '#lib/drive/category-names'
 import type { DriveItemDto } from '#lib/drive/types'
@@ -278,8 +279,8 @@ function rowMenu(item: DriveItemDto): DropdownMenuItem[][] {
       label: t('drive.deleteForever'),
       icon: 'i-lucide-x',
       color: 'error',
-      onSelect: () => {
-        if (!window.confirm(t('drive.confirmDelete', { name: item.name }))) return
+      onSelect: async () => {
+        if (!(await confirmDestructive(t('drive.confirmDelete', { name: item.name })))) return
         void (item.source
           ? mutate('/api/drive/attachments', 'POST', { action: 'delete', ids: [item.id] }, t('drive.deleted'))
           : mutate(`/api/drive/items/${item.id}`, 'DELETE', undefined, t('drive.deleted')))

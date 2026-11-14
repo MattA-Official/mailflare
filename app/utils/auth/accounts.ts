@@ -34,6 +34,18 @@ export async function switchBrowserAccount(userId: string): Promise<string | nul
   return null
 }
 
+/** Signs another account on this browser out. Returns an error message, or null once it is gone. */
+export async function signOutBrowserAccount(userId: string): Promise<string | null> {
+  const response = await authFetch('/api/auth/accounts', {
+    method: 'DELETE',
+    redirectOnUnauthorized: false,
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ userId }),
+  })
+  if (response.ok) return null
+  return ((await response.json().catch(() => ({}))) as { error?: string }).error ?? 'Could not remove account'
+}
+
 /** Returns true when another signed-in account on this browser took over. */
 export async function logoutClientSession(): Promise<boolean> {
   let nextToken: string | undefined

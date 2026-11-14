@@ -11,7 +11,7 @@ import { buildSendFormData, fetchDraft, formatAttachmentSize } from '~/utils/com
 import { getCachedComposePreferences, loadComposePreferences } from '~/utils/compose/compose-preferences'
 import { followUpOptionKey } from '~/utils/compose/follow-up-utils'
 import { useIsPhone } from '~/utils/compose/media'
-import { headerToRecipients, isValidRecipient, recipientsToHeader } from '~/utils/compose/recipient-utils'
+import { headerToRecipients, isValidRecipient, mergeRecipients, recipientsToHeader } from '~/utils/compose/recipient-utils'
 import { applyMailboxSignatureHtml, hasMeaningfulHtml, htmlToPlainText, joinQuotedHtml, splitQuotedHtml, textToHtml } from '~/utils/compose/rich-text-utils'
 import { formatScheduledSendTime, isPastSchedule } from '~/utils/compose/schedule-send-utils'
 import { DELIVERY_WAIT_MS, SCHEDULED_NOTICE_MS, SENT_NOTICE_MS, resolveSendNotice, splitSendTemplate } from '~/utils/compose/send-notice-utils'
@@ -19,7 +19,12 @@ import type { SendResult } from '~/utils/compose/send-notice-utils'
 import { getSheetViewportStyle } from '~/utils/compose/sheet-viewport-utils'
 import { clearMessageDetailCache } from '~/utils/messages/detail-cache'
 
-const props = withDefaults(defineProps<{ mode?: 'page' | 'popup', draftIdToLoad?: string | null }>(), { mode: 'page', draftIdToLoad: null })
+const props = withDefaults(defineProps<{
+  mode?: 'page' | 'popup'
+  draftIdToLoad?: string | null
+  /** Recipients a fresh composer starts with, e.g. from the Contacts page. */
+  initialTo?: readonly string[] | null
+}>(), { mode: 'page', draftIdToLoad: null, initialTo: null })
 const emit = defineEmits<{ close: [] }>()
 const isPopup = computed(() => props.mode === 'popup')
 
@@ -32,7 +37,8 @@ const { selectedMailbox, setSelectedMailbox, mailboxes } = useSelectedMailbox()
 const draftId = ref<string | null>(null)
 const agentRevision = ref<number | null>(null)
 const agentReview = shallowRef<{ approvalId: string, snapshot: ReviewSnapshot } | null>(null)
-const to = ref<string[]>([])
+// Recipients handed in by the caller (Contacts "Send email", etc.) seed a fresh composer.
+const to = ref<string[]>(props.draftIdToLoad ? [] : mergeRecipients([], [...(props.initialTo ?? [])]))
 const cc = ref<string[]>([])
 const bcc = ref<string[]>([])
 const showCc = ref(false)
@@ -745,6 +751,7 @@ const iconButton = 'rounded-md p-1.5 hover:bg-elevated disabled:pointer-events-n
         v-model="to"
         :label="t('compose.to')"
         :placeholder="t('compose.toPlaceholder')"
+        :mailbox-id="selectedMailbox?.id"
         required
         :autofocus="!draftIdToLoad"
         :disabled="loadingDraft"
@@ -760,6 +767,7 @@ const iconButton = 'rounded-md p-1.5 hover:bg-elevated disabled:pointer-events-n
         v-model="cc"
         :label="t('compose.cc')"
         :placeholder="t('compose.ccPlaceholder')"
+        :mailbox-id="selectedMailbox?.id"
         :disabled="loadingDraft"
         :autofocus="!loadingDraft && cc.length === 0"
       />
@@ -769,6 +777,7 @@ const iconButton = 'rounded-md p-1.5 hover:bg-elevated disabled:pointer-events-n
         v-model="bcc"
         :label="t('compose.bcc')"
         :placeholder="t('compose.bccPlaceholder')"
+        :mailbox-id="selectedMailbox?.id"
         :disabled="loadingDraft"
         :autofocus="!loadingDraft && bcc.length === 0"
       />

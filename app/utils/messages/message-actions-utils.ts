@@ -1,3 +1,4 @@
+import { confirmDestructive } from "~/utils/confirm-dialog";
 import type { BulkMessageAction } from "#handlers/api/messages/bulk/types";
 import { authFetch } from "~/utils/auth-client";
 import { throwIfDeleteSkipped } from "#lib/messages/permanent-delete-utils";
@@ -56,7 +57,7 @@ export function openUnsubscribeUrl(url: string) {
 }
 
 export function confirmTrashWithoutUnsubscribe() {
-  return window.confirm(
+  return confirmDestructive(
     "This email does not provide an unsubscribe link. It will be moved to Trash, and future emails from this sender will also be moved to Trash.",
   );
 }
