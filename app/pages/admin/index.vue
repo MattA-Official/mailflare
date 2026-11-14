@@ -23,6 +23,7 @@ const sections: AdminSection[] = [
   { to: '/domains', titleKey: 'admin.nav.domains', descriptionKey: 'admin.section.domains', icon: 'i-lucide-globe', permission: 'domains' },
   { to: '/branding', titleKey: 'admin.nav.branding', descriptionKey: 'admin.section.branding', icon: 'i-lucide-palette', permission: 'primary' },
   { to: '/accounts', titleKey: 'admin.nav.accounts', descriptionKey: 'admin.section.accounts', icon: 'i-lucide-users' },
+  { to: '/groups', titleKey: 'admin.nav.groups', descriptionKey: 'admin.section.groups', icon: 'i-lucide-network' },
   { to: '/api-keys', titleKey: 'admin.section.apiKeysTitle', descriptionKey: 'admin.section.apiKeys', icon: 'i-lucide-key-round', permission: 'primary' },
 ]
 

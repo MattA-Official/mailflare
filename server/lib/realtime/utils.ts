@@ -1,6 +1,7 @@
 import { eq } from "drizzle-orm";
 import { getDb } from "#db";
-import { domains, mailboxAccess, mailboxes } from "#db/schema";
+import { domains, mailboxes } from "#db/schema";
+import { listSharedMailboxUserIds } from "#lib/mailboxes/access";
 import type { NewMessageNotification, AgentDraftNotification } from "./types";
 import { sendPushNotifications } from "#lib/push/server";
 import { sendNativePush } from "#lib/push/native";
@@ -32,13 +33,8 @@ export async function getMailboxNotificationUserIds(
 		.innerJoin(domains, eq(mailboxes.domainId, domains.id))
 		.where(eq(mailboxes.id, mailboxId))
 		.limit(1);
-	const sharedUserIds = mailboxRows[0]?.type === "shared"
-		? (await db
-			.select({ userId: mailboxAccess.userId })
-			.from(mailboxAccess)
-			.where(eq(mailboxAccess.mailboxId, mailboxId)))
-			.map((access) => access.userId)
-		: [];
+	// Fork: includes members of groups the shared inbox is granted to.
+	const sharedUserIds = mailboxRows[0]?.type === "shared" ? await listSharedMailboxUserIds(db, mailboxId) : [];
 
 	return [
 		...new Set([

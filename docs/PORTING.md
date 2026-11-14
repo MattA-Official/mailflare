@@ -349,6 +349,18 @@ Tick in the PR that lands it. Add rows for anything discovered.
   splash), nor its `changelog/` entries or version bump. The Contacts page is also linked from the
   `NavApps` sidebar, not only the new apps menu. `tests/unit/message-actions-overflow.test.mjs`
   expects the 17px group divider upstream's a2a75fd introduced; upstream left its own test on 1px.
+- (fork) Groups of accounts, phase 1 of the plan Matt approved on 14 Nov 2026 (groups within one
+  instance, not separate workspaces). Migration `0089_groups` adds `groups`, `group_members` and
+  `mailbox_group_access`; upstream's `mailbox_access` is untouched. `#lib/mailboxes/access` gives a
+  member the highest of their direct grant and every group grant, for shared inboxes only, and
+  `listSharedMailboxUserIds` feeds realtime and push. APIs: `/api/groups`, `/api/groups/[id]`,
+  `/api/groups/[id]/members`, `/api/mailboxes/[id]/group-access`. Pages `/groups` and `/groups/[id]`; the
+  Shared access card offers groups and people in one picker. Two behaviour changes from upstream: any
+  admin with `canManageMailboxes` or `canManageUsers` (and the primary admin) manages any shared inbox's
+  access and settings, not only the admin who owns it (`#lib/groups/permissions`); and every enabled
+  account except the owner can be given a shared inbox, not only accounts the acting admin created.
+  Creating and editing groups needs `canManageUsers`; any admin can read them. `group_members.role`
+  (`member` / `manager`) is in place for delegated management, which is phase 2.
 - (upstream 2b58ed7) Upstream's `0087_message_invite_response` shares its number with the fork's
   `0087_oidc_provider`. The runner records migrations by full file name, so both apply; keep
   upstream's file names as they are rather than renumbering.

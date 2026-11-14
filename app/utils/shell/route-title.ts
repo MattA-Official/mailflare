@@ -15,6 +15,7 @@ const routeTitles: Array<[string, TranslationKey]> = [
   ['/general', 'admin.nav.general'],
   ['/agent', 'admin.nav.agent'],
   ['/accounts', 'admin.nav.accounts'],
+  ['/groups', 'admin.nav.groups'],
   ['/activity', 'admin.nav.activity'],
   ['/backups', 'admin.nav.backups'],
   ['/branding', 'admin.nav.branding'],

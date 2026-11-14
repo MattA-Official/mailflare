@@ -157,10 +157,12 @@ test("user managers can configure ordinary accounts but cannot manage administra
 		assert.equal((await f.patch("manager", id, { displayName: "Managed" })).status, 200);
 	}
 	assert.equal((await accountMailboxes.GET(f.request("manager", "/api/accounts/remote/mailboxes"), context("remote"))).status, 200);
-	for (const id of ["m-owner", "m-other", "m-shared"]) {
+	for (const id of ["m-owner", "m-other"]) {
 		assert.equal((await f.read("manager", id)).status, 404);
 		assert.equal((await f.patch("manager", id, { displayName: "Denied" })).status, 404);
 	}
+	// Fork: admins trusted with accounts or mailboxes may manage shared inboxes (see #lib/groups/permissions).
+	assert.equal((await f.read("manager", "m-shared")).status, 200);
 	assert.equal((await f.patch("primary", "m-other", { displayName: "Other Updated" })).status, 200);
 });
 
@@ -249,7 +251,8 @@ test("configuration access does not grant message access, sending rights or shar
 	const foreign = await f.patch("primary", "m-other-shared", { displayName: "Managed Team" });
 	assert.equal(foreign.status, 200);
 	const { mailbox } = await foreign.json();
-	assert.equal(mailbox.canManageSharing, false);
+	// Fork: the primary admin manages every shared inbox's access, not only its own (upstream: false).
+	assert.equal(mailbox.canManageSharing, true);
 	assert.equal(mailbox.permission, null);
 	assert.equal(mailbox.displayName, "Managed Team");
 	assert.equal(await getMailboxAccessLevel(f.db, { id: "primary", role: "admin" }, "m-other-shared"), null);

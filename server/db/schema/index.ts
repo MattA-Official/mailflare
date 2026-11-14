@@ -1493,3 +1493,65 @@ export const oidcSigningKeys = sqliteTable("oidc_signing_keys", {
 		.$defaultFn(() => new Date()),
 	retiredAt: timestamp("retired_at"),
 });
+
+// Fork-only: groups of accounts (migration 0089_groups). Group names are unique without regard to case.
+export const groups = sqliteTable(
+	"groups",
+	{
+		id: text("id").primaryKey(),
+		name: text("name").notNull(),
+		description: text("description"),
+		createdByUserId: text("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+		createdAt: timestamp("created_at")
+			.notNull()
+			.$defaultFn(() => new Date()),
+	},
+);
+
+/** One account in one group. `manager` is reserved for delegated membership management. */
+export const groupMembers = sqliteTable(
+	"group_members",
+	{
+		id: text("id").primaryKey(),
+		groupId: text("group_id")
+			.notNull()
+			.references(() => groups.id, { onDelete: "cascade" }),
+		userId: text("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		role: text("role", { enum: ["member", "manager"] }).notNull().default("member"),
+		addedByUserId: text("added_by_user_id").references(() => users.id, { onDelete: "set null" }),
+		createdAt: timestamp("created_at")
+			.notNull()
+			.$defaultFn(() => new Date()),
+	},
+	(t) => [
+		uniqueIndex("group_members_group_user_idx").on(t.groupId, t.userId),
+		index("group_members_user_idx").on(t.userId),
+	],
+);
+
+/** A shared inbox granted to every member of a group, with the same levels as `mailbox_access`. */
+export const mailboxGroupAccess = sqliteTable(
+	"mailbox_group_access",
+	{
+		id: text("id").primaryKey(),
+		mailboxId: text("mailbox_id")
+			.notNull()
+			.references(() => mailboxes.id, { onDelete: "cascade" }),
+		groupId: text("group_id")
+			.notNull()
+			.references(() => groups.id, { onDelete: "cascade" }),
+		permission: text("permission", { enum: ["read_only", "send_as", "send_on_behalf", "full_access"] })
+			.notNull()
+			.default("read_only"),
+		createdByUserId: text("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+		createdAt: timestamp("created_at")
+			.notNull()
+			.$defaultFn(() => new Date()),
+	},
+	(t) => [
+		uniqueIndex("mailbox_group_access_mailbox_group_idx").on(t.mailboxId, t.groupId),
+		index("mailbox_group_access_group_idx").on(t.groupId),
+	],
+);

@@ -9,6 +9,7 @@ import {
   createMailboxAlias, deleteMailbox, deleteMailboxAlias, fetchMailbox, fetchMailboxAliases, fetchSharedInboxAccess,
   getMailboxAddress, getMailboxesBase, grantSharedInboxAccess, revokeSharedInboxAccess, updateMailboxSettings,
 } from '~/utils/admin/email/mailboxes'
+import { fetchMailboxGroupAccess, grantMailboxGroupAccess, revokeMailboxGroupAccess } from '~/utils/admin/system/groups'
 
 const props = defineProps<{ mailboxId: string }>()
 const { t } = useLanguage()
@@ -87,21 +88,52 @@ const { data: sharedAccess, status: sharedStatus, error: sharedError, refresh: r
   () => canManageSharing.value ? fetchSharedInboxAccess(props.mailboxId) : Promise.resolve(null),
   { watch: [canManageSharing] },
 )
-const memberItems = computed(() => (sharedAccess.value?.availableUsers ?? [])
+// Fork-only: shared inboxes can also be given to a group; the picker offers groups and people together.
+const { data: groupAccess, refresh: refreshGroups } = useAsyncData(
+  `mailbox-${props.mailboxId}-group-access`,
+  () => canManageSharing.value ? fetchMailboxGroupAccess(props.mailboxId) : Promise.resolve(null),
+  { watch: [canManageSharing] },
+)
+const accountItems = computed(() => (sharedAccess.value?.availableUsers ?? [])
   .filter(account => !sharedAccess.value?.members.some(member => member.userId === account.id))
-  .map(account => ({ label: `${account.name} (${account.email})`, value: account.id })))
+  .map(account => ({ label: `${account.name} (${account.email})`, value: `user:${account.id}`, icon: 'i-lucide-user' })))
+const groupItems = computed(() => (groupAccess.value?.availableGroups ?? [])
+  .filter(group => !groupAccess.value?.groups.some(grant => grant.groupId === group.id))
+  .map(group => ({ label: `${group.name} (${t('groups.memberCount', { count: group.memberCount })})`, value: `group:${group.id}`, icon: 'i-lucide-network' })))
+const memberItems = computed(() => [
+  ...(groupItems.value.length ? [[{ type: 'label' as const, label: t('groups.title') }, ...groupItems.value]] : []),
+  ...(accountItems.value.length ? [[{ type: 'label' as const, label: t('groups.people') }, ...accountItems.value]] : []),
+])
 // Nobody left to add: either no other accounts exist yet, or every account already has access.
-const noAccountsToAdd = computed(() => !!sharedAccess.value && memberItems.value.length === 0)
+const noAccountsToAdd = computed(() => !!sharedAccess.value && accountItems.value.length === 0 && groupItems.value.length === 0)
 const memberBusy = ref(false)
 const memberError = ref<string | null>(null)
 async function addMember() {
   if (!selectedUserId.value) return
   memberBusy.value = true
   memberError.value = null
+  const [kind, id] = selectedUserId.value.split(/:(.*)/s) as ['user' | 'group', string]
   try {
-    await grantSharedInboxAccess(props.mailboxId, selectedUserId.value)
+    if (kind === 'group') {
+      await grantMailboxGroupAccess(props.mailboxId, id)
+      await refreshGroups()
+    } else {
+      await grantSharedInboxAccess(props.mailboxId, id)
+      await refreshShared()
+    }
     selectedUserId.value = undefined
-    await refreshShared()
+  } catch (error) {
+    memberError.value = errorMessage(error, t('mailbox.accountAddFailed'))
+  } finally {
+    memberBusy.value = false
+  }
+}
+async function removeGroup(groupId: string) {
+  memberBusy.value = true
+  memberError.value = null
+  try {
+    await revokeMailboxGroupAccess(props.mailboxId, groupId)
+    await refreshGroups()
   } catch (error) {
     memberError.value = errorMessage(error, t('mailbox.accountAddFailed'))
   } finally {
@@ -230,6 +262,19 @@ async function remove() {
       </template>
       <div class="space-y-3">
         <USkeleton v-if="sharedStatus === 'pending' && !sharedAccess" class="h-16 w-full rounded-lg" />
+        <div v-for="grant in groupAccess?.groups ?? []" :key="grant.groupId" class="flex items-center justify-between gap-3 rounded-lg bg-elevated/60 px-4 py-3">
+          <NuxtLink :to="`/groups/${grant.groupId}`" class="flex min-w-0 items-center gap-2 hover:underline">
+            <UIcon name="i-lucide-network" class="size-4 shrink-0 text-dimmed" />
+            <span class="min-w-0">
+              <span class="block truncate text-sm font-semibold text-highlighted">{{ grant.groupName }}</span>
+              <span class="block truncate text-xs text-muted">{{ t('groups.memberCount', { count: grant.memberCount }) }}</span>
+            </span>
+          </NuxtLink>
+          <div class="flex shrink-0 items-center gap-2">
+            <UBadge color="neutral" variant="soft" :label="t('groups.group')" />
+            <UButton icon="i-lucide-trash-2" color="error" variant="ghost" :aria-label="t('mailbox.removeAddress', { address: grant.groupName })" :disabled="memberBusy" @click="removeGroup(grant.groupId)" />
+          </div>
+        </div>
         <div v-for="member in sharedAccess?.members ?? []" :key="member.userId" class="flex items-center justify-between gap-3 rounded-lg bg-elevated/60 px-4 py-3">
           <div class="min-w-0">
             <p class="truncate text-sm font-semibold text-highlighted">
@@ -241,22 +286,22 @@ async function remove() {
           </div>
           <UButton icon="i-lucide-trash-2" color="error" variant="ghost" :aria-label="t('mailbox.removeAddress', { address: member.userName })" :disabled="memberBusy" @click="removeMember(member.userId)" />
         </div>
-        <p v-if="sharedAccess && sharedAccess.members.length === 0" class="rounded-lg bg-elevated/60 px-4 py-3 text-sm text-muted">
+        <p v-if="sharedAccess && sharedAccess.members.length === 0 && !groupAccess?.groups.length" class="rounded-lg bg-elevated/60 px-4 py-3 text-sm text-muted">
           {{ t('mailbox.noMembers') }}
         </p>
         <p v-if="sharedError" class="text-sm text-error">
           {{ errorMessage(sharedError, t('mailbox.sharedLoadFailed')) }}
         </p>
         <form class="flex gap-2" @submit.prevent="addMember">
-          <USelect v-model="selectedUserId" :items="memberItems" :placeholder="noAccountsToAdd ? t('mailbox.noAccountsToAdd') : t('mailbox.chooseAccount')" :disabled="noAccountsToAdd" class="min-w-0 flex-1" />
-          <UButton type="submit" icon="i-lucide-user-plus" :disabled="!selectedUserId || memberBusy" :label="memberBusy ? t('account.mailboxes.adding') : t('mailbox.addUser')" />
+          <USelect v-model="selectedUserId" :items="memberItems" :placeholder="noAccountsToAdd ? t('mailbox.noAccountsToAdd') : t('groups.chooseAccountOrGroup')" :disabled="noAccountsToAdd" class="min-w-0 flex-1" />
+          <UButton type="submit" icon="i-lucide-user-plus" :disabled="!selectedUserId || memberBusy" :label="memberBusy ? t('account.mailboxes.adding') : t('groups.addMember')" />
         </form>
         <p v-if="memberError" class="text-sm text-error">
           {{ memberError }}
         </p>
         <div v-if="noAccountsToAdd" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed border-default px-4 py-3">
           <p class="text-sm text-muted">
-            {{ sharedAccess?.availableUsers.length ? t('mailbox.allAccountsAdded') : t('mailbox.noOtherAccounts') }}
+            {{ sharedAccess?.availableUsers.length || groupAccess?.groups.length ? t('mailbox.allAccountsAdded') : t('mailbox.noOtherAccounts') }}
           </p>
           <UButton to="/accounts?new=1" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" :label="t('mailbox.createAccount')" />
         </div>
