@@ -78,9 +78,7 @@ async function remove() {
       <UButton color="neutral" variant="ghost" icon="i-lucide-arrow-left" to="/groups" :label="t('groups.back')" />
     </template>
 
-    <p v-if="error" role="alert" class="text-sm text-error">
-      {{ error.message || t('groups.loadFailed') }}
-    </p>
+    <UAlert v-if="error" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error.message || t('groups.loadFailed')" role="alert" />
 
     <template v-if="data">
       <p v-if="data.group.parents.length" class="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted">

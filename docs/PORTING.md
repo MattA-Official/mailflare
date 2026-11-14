@@ -445,6 +445,10 @@ Tick in the PR that lands it. Add rows for anything discovered.
   description, then a centred column. `AdminSystemPage` and `SettingsMailSettingsPage` wrap it. The New
   mailbox and New API key buttons moved from the page body to the header (the dialogs open through a
   `createOpen` model), and Contacts and Bookings lost their second, larger page title.
+- (fork) Detail pages on the standard layout too: a mailbox's page is titled with its address and has a
+  back button to Mailboxes (the address line above the cards is gone; the Shared and Primary badges
+  stay), Settings → Account and a group's settings page use `AppPage`, and Compose centres its form.
+  Page-level load errors on these pages are a `UAlert`.
 
 ## Following upstream
 

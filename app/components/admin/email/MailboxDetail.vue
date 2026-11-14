@@ -20,6 +20,9 @@ const { confirm } = useAdminConfirm()
 const { data: mailbox, error: loadError, status: loadStatus } = useAsyncData(`mailbox-${props.mailboxId}`, () => fetchMailbox(props.mailboxId), { watch: [() => props.mailboxId] })
 const loading = computed(() => loadStatus.value === 'pending')
 const address = computed(() => mailbox.value ? getMailboxAddress(mailbox.value) : '')
+// The page shows the address as its title.
+const emit = defineEmits<{ loaded: [address: string] }>()
+watch(address, value => value && emit('loaded', value), { immediate: true })
 // Fork-only: a shared inbox held by its own hidden account has settings of its own.
 const heldByInbox = computed(() => mailbox.value?.type === 'shared' && mailbox.value.userId === `inbox_${mailbox.value.id}`)
 
@@ -222,16 +225,10 @@ async function remove() {
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-3xl space-y-6">
-    <div class="flex items-start justify-between gap-4">
-      <p v-if="address" class="min-w-0 truncate text-sm text-muted">
-        {{ address }}
-      </p>
-      <USkeleton v-else class="h-4 w-52" />
-      <div class="flex shrink-0 items-center gap-2">
-        <UBadge v-if="mailbox?.type === 'shared'" color="neutral" variant="soft" :label="t('mailboxes.shared')" />
-        <UBadge v-if="mailbox?.isPrimary" color="neutral" variant="soft" :label="t('mailbox.primary')" />
-      </div>
+  <div class="space-y-6">
+    <div v-if="mailbox?.type === 'shared' || mailbox?.isPrimary" class="flex items-center gap-2">
+      <UBadge v-if="mailbox?.type === 'shared'" color="neutral" variant="soft" :label="t('mailboxes.shared')" />
+      <UBadge v-if="mailbox?.isPrimary" color="neutral" variant="soft" :label="t('mailbox.primary')" />
     </div>
 
     <UAlert v-if="loadError" color="error" variant="subtle" :title="errorMessage(loadError, t('mailbox.loadFailed'))" />
