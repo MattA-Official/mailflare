@@ -9,7 +9,6 @@ CREATE TABLE `oidc_apps` (
 	`name` text NOT NULL,
 	`homepage_url` text,
 	`redirect_uris` text DEFAULT '[]' NOT NULL,
-	`post_logout_redirect_uris` text DEFAULT '[]' NOT NULL,
 	`roles` text DEFAULT '[]' NOT NULL,
 	`client_secret_hash` text,
 	`client_secret_prefix` text,

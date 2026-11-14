@@ -1370,8 +1370,6 @@ export const oidcApps = sqliteTable(
 		homepageUrl: text("homepage_url"),
 		/** JSON array of exact redirect URIs. */
 		redirectUris: text("redirect_uris").notNull().default("[]"),
-		/** JSON array of exact URIs the app may send people back to after signing out. */
-		postLogoutRedirectUris: text("post_logout_redirect_uris").notNull().default("[]"),
 		/** JSON array of the roles the app offers: { key, label, description? }. */
 		roles: text("roles").notNull().default("[]"),
 		/** SHA-256 hex of the client secret; null for a public client, which relies on PKCE alone. */
