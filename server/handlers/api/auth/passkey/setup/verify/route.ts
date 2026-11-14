@@ -139,6 +139,7 @@ export async function POST(request: Request) {
 		const response = await completeLogin(env, request, user.id, {
 			activity: "auth.passkey_verified",
 			body: { setup: grant.kind === "setup" ? "passkey" : "recovery" },
+			amr: ["hwk", "user"],
 		});
 		await recordAuthActivity(env, {
 			action: grant.kind === "setup" ? "auth.passkey_setup" : "auth.recovery_completed",

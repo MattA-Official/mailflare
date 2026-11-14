@@ -43,7 +43,7 @@ export async function POST(request: Request) {
 
 	try {
 		const { passkey } = await verifyPasskeyAuthentication(env, request, parsed.data.response, challenge.challenge, { requireUserHandle: true });
-		const response = await completeLogin(env, request, passkey.userId, { activity: "auth.passkey_verified", body: { method: "passkey" } });
+		const response = await completeLogin(env, request, passkey.userId, { activity: "auth.passkey_verified", body: { method: "passkey" }, amr: ["hwk", "user"] });
 		await recordAuthActivity(env, { action: "auth.login", userId: passkey.userId, request });
 		removeCeremonyCookie(response.headers, request, challenge.binding);
 		return response;
