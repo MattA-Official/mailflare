@@ -1,12 +1,13 @@
 <script setup lang="ts">
 // Actions on the selected rows: trash, move to a folder (or a new one), restore, delete forever.
-// Ported from legacy/src/app/(drive)/drive-bulk-actions.tsx.
+// Ported from legacy/src/app/(drive)/drive-bulk-actions.tsx. Fork: the move menu can also send items to a
+// shared drive, or between drives; the server decides who may take items out of the tree they are in.
 import { confirmDestructive } from '~/utils/confirm-dialog'
 import type { DriveItemDto } from '#lib/drive/types'
-import type { DriveFolderNode } from '~/types/drive/drive'
+import type { DriveFolderNode, SharedDriveRef } from '~/types/drive/drive'
 import { driveAttachmentAction, driveBulk, errorMessage, flattenDriveFolders } from '~/utils/drive/drive-utils'
 
-const props = defineProps<{ selected: DriveItemDto[], trashView: boolean }>()
+const props = defineProps<{ selected: DriveItemDto[], trashView: boolean, driveId?: string | null }>()
 const emit = defineEmits<{ done: [] }>()
 const { t } = useLanguage()
 const toast = useToast()
@@ -14,12 +15,21 @@ const folders = ref<DriveFolderNode[] | null>(null)
 const name = ref('')
 const busy = ref(false)
 const moveOpen = ref(false)
+// Fork-only: the tree the move menu shows, '' for My Drive or a shared drive's id, and the drives that can take items.
+const tree = ref('')
+const drives = ref<SharedDriveRef[]>([])
+const treeItems = computed(() => [
+  { label: t('drive.myDrive'), value: '', icon: 'i-lucide-hard-drive' },
+  ...drives.value.filter(drive => drive.role !== 'view').map(drive => ({ label: drive.name, value: drive.id, icon: 'i-lucide-hard-drive' })),
+])
+const treeName = computed(() => treeItems.value.find(item => item.value === tree.value)?.label ?? t('drive.myDrive'))
 
 const ids = computed(() => props.selected.map(item => item.id))
 const rows = computed(() => flattenDriveFolders(folders.value ?? [], new Set(ids.value)))
 const driveItems = computed(() => props.selected.filter(item => !item.source))
 const attachmentIds = computed(() => props.selected.filter(item => item.source).map(item => item.id))
-// Editors can trash what is shared with them; moving, restoring and deleting forever are for the owner.
+// Editors can trash what is shared with them; restoring and deleting forever are for the owner. Fork: editors can
+// move within a shared drive, so the move menu shows whenever everything can be edited.
 const ownsAll = computed(() => driveItems.value.every(item => item.role === 'owner'))
 const canTrash = computed(() => driveItems.value.every(item => item.role === 'owner' || item.role === 'edit'))
 
@@ -45,19 +55,33 @@ async function act(action: 'trash' | 'restore' | 'delete') {
   return total
 }
 
-watch(moveOpen, async (open) => {
-  if (!open) return
-  name.value = ''
+async function loadFolders() {
+  folders.value = null
   try {
-    folders.value = (await api<{ folders: DriveFolderNode[] }>('/api/drive/folders')).folders
+    const query = tree.value ? `?drive=${encodeURIComponent(tree.value)}` : ''
+    folders.value = (await api<{ folders: DriveFolderNode[] }>(`/api/drive/folders${query}`)).folders
   } catch {
     toast.add({ title: t('drive.loadFailed'), color: 'error' })
   }
+}
+
+watch(moveOpen, async (open) => {
+  if (!open) return
+  name.value = ''
+  tree.value = props.driveId ?? ''
+  void loadFolders()
+  try {
+    drives.value = (await api<{ drives: SharedDriveRef[] }>('/api/drives')).drives
+  } catch { /* only My Drive is offered */ }
+})
+watch(tree, () => {
+  if (moveOpen.value) void loadFolders()
 })
 
 function move(parentId: string | null) {
   moveOpen.value = false
-  return run(() => driveBulk({ action: 'move', ids: ids.value, parentId }), count => t('drive.bulkMoved', { count }))
+  const driveId = !parentId && tree.value ? tree.value : undefined
+  return run(() => driveBulk({ action: 'move', ids: ids.value, parentId, ...(driveId ? { driveId } : {}) }), count => t('drive.bulkMoved', { count }))
 }
 
 async function createAndMove() {
@@ -65,7 +89,7 @@ async function createAndMove() {
   if (!folderName) return
   busy.value = true
   try {
-    const data = await api<{ item?: { id: string } }>('/api/drive/items', { method: 'POST', body: { name: folderName } })
+    const data = await api<{ item?: { id: string } }>('/api/drive/items', { method: 'POST', body: { name: folderName, ...(tree.value ? { driveId: tree.value } : {}) } })
     if (!data?.item) throw new Error()
     busy.value = false
     await move(data.item.id)
@@ -84,10 +108,13 @@ async function deleteForever() {
   <div class="flex flex-wrap items-center justify-end gap-1 text-sm">
     <template v-if="!trashView && canTrash">
       <UButton color="neutral" variant="ghost" class="rounded-full" icon="i-lucide-trash-2" :disabled="busy" :label="t('drive.moveToTrash')" @click="run(() => act('trash'), count => t('drive.bulkTrashed', { count }))" />
-      <UPopover v-if="!attachmentIds.length && ownsAll" v-model:open="moveOpen" :content="{ align: 'end' }">
+      <UPopover v-if="!attachmentIds.length && (ownsAll || driveId)" v-model:open="moveOpen" :content="{ align: 'end' }">
         <UButton color="neutral" variant="ghost" class="rounded-full" icon="i-lucide-folder-input" :disabled="busy" :label="t('drive.moveToFolder')" />
         <template #content>
           <div class="w-72 p-1.5">
+            <div v-if="treeItems.length > 1" class="border-b border-default p-1.5 pb-2" @keydown.stop>
+              <USelect v-model="tree" :items="treeItems" size="sm" class="w-full" :aria-label="t('sharedDrives.moveTo')" />
+            </div>
             <form class="flex items-center gap-1 border-b border-default p-1.5 pb-2" @submit.prevent="createAndMove" @keydown.stop>
               <UIcon name="i-lucide-folder-plus" class="size-4 shrink-0 text-muted" />
               <UInput v-model="name" size="sm" class="min-w-0 flex-1" :maxlength="255" :placeholder="t('drive.newFolderPlaceholder')" :aria-label="t('drive.newFolderPlaceholder')" />
@@ -95,7 +122,7 @@ async function deleteForever() {
             </form>
             <div class="max-h-64 overflow-y-auto pt-1">
               <button type="button" class="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-elevated" @click="move(null)">
-                <UIcon name="i-lucide-hard-drive" class="size-4 shrink-0" />{{ t('drive.myDrive') }}
+                <UIcon name="i-lucide-hard-drive" class="size-4 shrink-0" />{{ treeName }}
               </button>
               <button
                 v-for="folder in rows"

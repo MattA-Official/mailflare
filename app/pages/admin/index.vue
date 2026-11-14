@@ -25,6 +25,7 @@ const sections: AdminSection[] = [
   { to: '/branding', titleKey: 'admin.nav.branding', descriptionKey: 'admin.section.branding', icon: 'i-lucide-palette', permission: 'primary' },
   { to: '/accounts', titleKey: 'admin.nav.accounts', descriptionKey: 'admin.section.accounts', icon: 'i-lucide-users' },
   { to: '/groups', titleKey: 'admin.nav.groups', descriptionKey: 'admin.section.groups', icon: 'i-lucide-network' },
+  { to: '/shared-drives', titleKey: 'admin.nav.sharedDrives', descriptionKey: 'admin.section.sharedDrives', icon: 'i-lucide-hard-drive', permission: 'users' },
   { to: '/api-keys', titleKey: 'admin.section.apiKeysTitle', descriptionKey: 'admin.section.apiKeys', icon: 'i-lucide-key-round', permission: 'primary' },
 ]
 

@@ -58,6 +58,37 @@ watch([() => props.attachment, () => props.messageId, open, driveEnabled], ([att
     .catch(() => undefined)
 }, { immediate: true })
 
+// Fork-only: shared drives the person can add files to, offered beside "Save to Drive".
+const toast = useToast()
+const sharedDrives = ref<{ id: string, name: string, role: string }[] | null>(null)
+watch([open, driveEnabled], ([isOpen, enabled]) => {
+  if (!isOpen || !enabled || sharedDrives.value) return
+  void authFetch('/api/drives')
+    .then(async response => (response.ok ? (await response.json()) as { drives?: { id: string, name: string, role: string }[] } : null))
+    .then((data) => { sharedDrives.value = (data?.drives ?? []).filter(drive => drive.role !== 'view') })
+    .catch(() => { sharedDrives.value = [] })
+}, { immediate: true })
+const sharedDriveItems = computed(() => [(sharedDrives.value ?? []).map(drive => ({
+  label: drive.name,
+  icon: 'i-lucide-hard-drive',
+  onSelect: () => void saveToSharedDrive(drive),
+}))])
+async function saveToSharedDrive(drive: { id: string, name: string }) {
+  const attachment = props.attachment
+  if (!attachment) return
+  try {
+    const response = await authFetch(`/api/messages/${props.messageId}/attachments/${attachment.id}/save-to-drive`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ driveId: drive.id }),
+    })
+    if (!response.ok) throw new Error('Save to Drive failed')
+    toast.add({ title: t('sharedDrives.savedTo', { name: drive.name }), color: 'success' })
+  } catch {
+    toast.add({ title: t('attachment.saveToDriveFailed'), color: 'error' })
+  }
+}
+
 async function saveToDrive() {
   const attachment = props.attachment
   if (!attachment || saveState.value === 'saving' || saveState.value === 'saved') return
@@ -149,6 +180,9 @@ watch([() => props.attachment, open, previewKind, previewUrl], ([attachment, isO
           :disabled="saveState === 'saving' || saveState === 'saved'"
           @click="saveToDrive"
         />
+        <UDropdownMenu v-if="driveEnabled && sharedDrives?.length" :items="sharedDriveItems" :content="{ align: 'end' }">
+          <UButton color="neutral" variant="outline" icon="i-lucide-chevron-down" :aria-label="t('sharedDrives.saveTo')" :title="t('sharedDrives.saveTo')" />
+        </UDropdownMenu>
         <UButton v-if="flagged && !acknowledged" disabled icon="i-lucide-arrow-down-to-line" :label="t('attachment.download')" />
         <UButton v-else :to="downloadUrl" external :download="attachment.filename" icon="i-lucide-arrow-down-to-line" :label="t('attachment.download')" />
       </div>

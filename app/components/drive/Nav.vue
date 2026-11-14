@@ -201,7 +201,8 @@ const activeClass = 'bg-primary/10 font-medium text-primary'
             :to="`/drive?drive=${encodeURIComponent(drive.id)}`"
             :aria-current="activeDrive === drive.id ? 'page' : undefined"
             class="flex h-8 items-center gap-2 rounded-md px-2.5 text-sm"
-            :class="activeDrive === drive.id ? activeClass : 'text-default hover:bg-elevated'"
+            :class="dropKey === drive.id ? dropHighlight : activeDrive === drive.id ? activeClass : 'text-default hover:bg-elevated'"
+            v-on="drive.role !== 'view' ? dropProps(drive.id, { kind: 'folder', id: null, driveId: drive.id }) : {}"
           >
             <UIcon name="i-lucide-hard-drive" class="size-3.5 shrink-0 text-muted" /><span class="truncate">{{ drive.name }}</span>
           </NuxtLink>

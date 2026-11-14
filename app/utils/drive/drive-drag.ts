@@ -15,7 +15,7 @@ type DraggedItem = Pick<DriveItemDto, 'id' | 'kind' | 'role'> & { attachment: bo
  * Where items are dropped: a folder (`null` is the root of My Drive), the trash, or the attachments
  * list, which only takes trashed attachments back.
  */
-export type DriveDropTarget = { kind: 'folder', id: string | null } | { kind: 'trash' } | { kind: 'attachments' }
+export type DriveDropTarget = { kind: 'folder', id: string | null, driveId?: string } | { kind: 'trash' } | { kind: 'attachments' }
 
 // `dataTransfer` cannot be read until the drop, so targets decide whether to accept from this instead.
 let dragged: DraggedItem[] = []
@@ -56,7 +56,8 @@ export function canDropDrive(target: DriveDropTarget, isInside?: (folderId: stri
   if (!dragged.length) return false
   if (target.kind === 'trash') return dragged.some(item => !item.trashed)
   if (target.kind === 'attachments') return dragged.every(item => item.attachment && item.trashed)
-  if (dragged.some(item => item.attachment || item.role !== 'owner')) return false
+  // Fork: in a shared drive (`driveId`), editors move too; the server refuses what they may not take out of a drive.
+  if (dragged.some(item => item.attachment || (target.driveId ? !canEditDrive(item.role) : item.role !== 'owner'))) return false
   if (target.id === null) return true
   const folders = new Set(dragged.filter(item => item.kind === 'folder').map(item => item.id))
   if (folders.has(target.id)) return false
@@ -81,7 +82,7 @@ export async function dropDrive(target: DriveDropTarget, t: Translator, notify: 
       if (driveIds.length) count += await driveBulk({ action: 'trash', ids: driveIds })
       if (count) notify.success(t('drive.bulkTrashed', { count }))
     } else {
-      const count = await driveBulk({ action: 'move', ids: items.map(item => item.id), parentId: target.id })
+      const count = await driveBulk({ action: 'move', ids: items.map(item => item.id), parentId: target.id, ...(target.id === null && target.driveId ? { driveId: target.driveId } : {}) })
       if (count) notify.success(t(items.every(item => item.trashed) ? 'drive.bulkRestored' : 'drive.bulkMoved', { count }))
     }
   } catch (error) {

@@ -4,8 +4,9 @@ import { driveItems } from "#db/schema";
 import { newId } from "#lib/ids";
 import { authorizeDrive } from "#lib/drive/auth";
 import { toDriveItemDtos } from "#lib/drive/access";
-import { getDriveStorageLimit, getDriveStorageUsed } from "#lib/drive/storage";
-import { DRIVE_MAX_FILE_BYTES, normalizeDriveName } from "#lib/drive/utils";
+import { getDriveStorageLimitFor, getDriveStorageUsed } from "#lib/drive/storage";
+import { driveRoleForMember, getSharedDriveRole } from "#lib/drive/shared-drives";
+import { canEditDrive, DRIVE_MAX_FILE_BYTES, normalizeDriveName } from "#lib/drive/utils";
 import { getAttachmentForUser } from "#lib/email/attachments";
 import type { SaveToDriveRouteParams } from "./types";
 
@@ -38,7 +39,7 @@ export async function GET(request: Request, { params }: SaveToDriveRouteParams) 
  * at the attachment's stored object, so one file backs both. The object is only removed once
  * neither the email attachment nor a Drive item uses it (see `deleteUnreferencedObjects`), so
  * deleting either side never breaks the other. Saving again returns the existing item, and a copy
- * the user trashed is restored.
+ * the user trashed is restored. Fork: `{ driveId }` saves to the top of a shared drive the user can edit.
  */
 export async function POST(request: Request, { params }: SaveToDriveRouteParams) {
 	const auth = await authorizeDrive(request, true);
@@ -49,28 +50,36 @@ export async function POST(request: Request, { params }: SaveToDriveRouteParams)
 	const result = await getAttachmentForUser(env, user, messageId, attachmentId);
 	if (!result) return NextResponse.json({ error: "Not found" }, { status: 404 });
 	const { attachment } = result;
+	const body = await request.json().catch(() => ({})) as { driveId?: unknown };
+	let ownerId = user.id;
+	if (typeof body.driveId === "string" && body.driveId) {
+		const role = await getSharedDriveRole(db, user, body.driveId);
+		if (!role || !canEditDrive(driveRoleForMember(role))) return NextResponse.json({ error: "Drive not found" }, { status: 404 });
+		ownerId = body.driveId;
+	}
+	const itemRole = ownerId === user.id ? "owner" as const : driveRoleForMember((await getSharedDriveRole(db, user, ownerId))!);
 
-	const existing = await findSavedItem(db, user.id, attachment.r2Key);
+	const existing = await findSavedItem(db, ownerId, attachment.r2Key);
 	if (existing) {
 		let row = existing;
 		if (existing.trashedAt) {
 			row = { ...existing, trashedAt: null, updatedAt: new Date() };
 			await db.update(driveItems).set({ trashedAt: null, updatedAt: row.updatedAt }).where(eq(driveItems.id, existing.id));
 		}
-		const [item] = await toDriveItemDtos(db, [row], user.id, () => "owner");
+		const [item] = await toDriveItemDtos(db, [row], user.id, () => itemRole);
 		return NextResponse.json({ item, alreadySaved: true });
 	}
 
 	if (attachment.size > DRIVE_MAX_FILE_BYTES) return NextResponse.json({ error: "File is too large" }, { status: 413 });
-	const limit = await getDriveStorageLimit(env);
-	if (limit !== null && (await getDriveStorageUsed(db, user.id)) + attachment.size > limit) {
+	const limit = await getDriveStorageLimitFor(env, db, ownerId);
+	if (limit !== null && (await getDriveStorageUsed(db, ownerId)) + attachment.size > limit) {
 		return NextResponse.json({ error: "Not enough Drive storage left for this file" }, { status: 413 });
 	}
 
 	const now = new Date();
 	const row: typeof driveItems.$inferSelect = {
 		id: newId("drv"),
-		ownerId: user.id,
+		ownerId,
 		parentId: null,
 		kind: "file",
 		name: normalizeDriveName(attachment.filename) ?? "attachment",
@@ -86,6 +95,6 @@ export async function POST(request: Request, { params }: SaveToDriveRouteParams)
 		updatedAt: now,
 	};
 	await db.insert(driveItems).values(row);
-	const [item] = await toDriveItemDtos(db, [row], user.id, () => "owner");
+	const [item] = await toDriveItemDtos(db, [row], user.id, () => itemRole);
 	return NextResponse.json({ item });
 }
