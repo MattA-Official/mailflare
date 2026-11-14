@@ -12,6 +12,8 @@ const AREAS = [
   { from: 'server/handlers/jmap', to: 'server/routes/jmap' },
   { from: 'server/handlers/mcp', to: 'server/routes/mcp' },
   { from: 'server/handlers/well-known', to: 'server/routes/.well-known' },
+  // Fork-only: the OpenID Connect provider (server/lib/oidc).
+  { from: 'server/handlers/oauth', to: 'server/routes/oauth' },
 ]
 
 function walk(dir, out = []) {

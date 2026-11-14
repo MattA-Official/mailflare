@@ -15,6 +15,7 @@ import {
   submitPasskeyMfa,
 } from '~/utils/auth/flows'
 import type { LoginResult } from '~/types/auth/flows'
+import { safeLoginNext } from '~/utils/auth/next'
 
 definePageMeta({
   layout: false,
@@ -27,7 +28,8 @@ definePageMeta({
       if (status?.hasAdminAccount === false) return navigateTo('/setup', { replace: true })
       if (to.query.add === '1') return
       const info = await fetchSessionInfo({ fresh: true })
-      if (info?.status === 200) return navigateTo('/inbox', { replace: true })
+      const next = safeLoginNext(to.query.next)
+      if (info?.status === 200) return next ? navigateTo(next, { replace: true, external: true }) : navigateTo('/inbox', { replace: true })
     },
   ],
 })
@@ -49,6 +51,8 @@ let unmounted = false
 
 async function finish(data: LoginResult) {
   clearCurrentUserCache()
+  const next = safeLoginNext(route.query.next)
+  if (next) return void window.location.replace(next)
   await navigateTo(data.redirect ?? '/inbox', { replace: true })
 }
 

@@ -27,6 +27,8 @@ const sections: { id?: string, labelKey?: TranslationKey, links: AdminLink[] }[]
     labelKey: 'admin.nav.administration',
     links: [
       { href: '/api-keys', labelKey: 'admin.nav.apiKeys', icon: 'i-lucide-key-round', permission: 'primary' },
+      // Fork-only: apps that sign in through Mailflare (OIDC provider).
+      { href: '/apps', labelKey: 'admin.nav.apps', icon: 'i-lucide-app-window', permission: 'primary' },
       { href: '/general', labelKey: 'admin.nav.general', icon: 'i-lucide-settings', permission: 'primary' },
       { href: '/agent', labelKey: 'admin.nav.agent', icon: 'i-lucide-bot', permission: 'primary' },
       { href: '/accounts', labelKey: 'admin.nav.accounts', icon: 'i-lucide-users' },

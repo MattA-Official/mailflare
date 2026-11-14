@@ -804,6 +804,12 @@ export const sessions = sqliteTable("sessions", {
 		.references(() => users.id, { onDelete: "cascade" }),
 	tokenHash: text("token_hash").notNull().unique(),
 	expiresAt: timestamp("expires_at").notNull(),
+	/**
+	 * Fork-only. How the session was signed in: a JSON array of RFC 8176 method values
+	 * ("pwd", "otp", "hwk", "swk"). Null on sessions from before the column, read as password-only.
+	 * Staff apps signing in through Mailflare (OIDC) accept only two-factor sessions.
+	 */
+	amr: text("amr"),
 	createdAt: timestamp("created_at")
 		.notNull()
 		.$defaultFn(() => new Date()),
@@ -1353,3 +1359,137 @@ export const schema = {
 	mcpKeyMailboxes,
 	importJobs,
 };
+
+// Fork-only: Mailflare as an OpenID Connect provider for staff apps (server/lib/oidc).
+
+/** An app that signs people in through Mailflare. Registered by the primary admin. */
+export const oidcApps = sqliteTable(
+	"oidc_apps",
+	{
+		id: text("id").primaryKey(),
+		clientId: text("client_id").notNull(),
+		name: text("name").notNull(),
+		homepageUrl: text("homepage_url"),
+		/** JSON array of exact redirect URIs. */
+		redirectUris: text("redirect_uris").notNull().default("[]"),
+		/** JSON array of the roles the app offers: { key, label, description? }. */
+		roles: text("roles").notNull().default("[]"),
+		/** SHA-256 hex of the client secret; null for a public client, which relies on PKCE alone. */
+		clientSecretHash: text("client_secret_hash"),
+		clientSecretPrefix: text("client_secret_prefix"),
+		disabled: bool("disabled").notNull().default(false),
+		createdByUserId: text("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+		createdAt: timestamp("created_at")
+			.notNull()
+			.$defaultFn(() => new Date()),
+		updatedAt: timestamp("updated_at")
+			.notNull()
+			.$defaultFn(() => new Date()),
+	},
+	(t) => [uniqueIndex("oidc_apps_client_id_idx").on(t.clientId)],
+);
+
+/** The roles one account holds in one app. No row, or an empty list, means no access. */
+export const oidcAppRoles = sqliteTable(
+	"oidc_app_roles",
+	{
+		id: text("id").primaryKey(),
+		appId: text("app_id")
+			.notNull()
+			.references(() => oidcApps.id, { onDelete: "cascade" }),
+		userId: text("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		/** JSON array of role keys from the app's `roles`. */
+		roles: text("roles").notNull().default("[]"),
+		grantedByUserId: text("granted_by_user_id").references(() => users.id, { onDelete: "set null" }),
+		createdAt: timestamp("created_at")
+			.notNull()
+			.$defaultFn(() => new Date()),
+		updatedAt: timestamp("updated_at")
+			.notNull()
+			.$defaultFn(() => new Date()),
+	},
+	(t) => [
+		uniqueIndex("oidc_app_roles_app_user_idx").on(t.appId, t.userId),
+		index("oidc_app_roles_user_idx").on(t.userId),
+	],
+);
+
+/** A single-use authorization code, bound to the session that approved it and a PKCE challenge. */
+export const oidcAuthorizationCodes = sqliteTable(
+	"oidc_authorization_codes",
+	{
+		id: text("id").primaryKey(),
+		codeHash: text("code_hash").notNull(),
+		appId: text("app_id")
+			.notNull()
+			.references(() => oidcApps.id, { onDelete: "cascade" }),
+		userId: text("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		sessionId: text("session_id")
+			.notNull()
+			.references(() => sessions.id, { onDelete: "cascade" }),
+		redirectUri: text("redirect_uri").notNull(),
+		/** S256 code challenge (base64url). */
+		codeChallenge: text("code_challenge").notNull(),
+		scope: text("scope").notNull(),
+		nonce: text("nonce"),
+		authTime: timestamp("auth_time").notNull(),
+		expiresAt: timestamp("expires_at").notNull(),
+		usedAt: timestamp("used_at"),
+		createdAt: timestamp("created_at")
+			.notNull()
+			.$defaultFn(() => new Date()),
+	},
+	(t) => [
+		uniqueIndex("oidc_authorization_codes_code_hash_idx").on(t.codeHash),
+		index("oidc_authorization_codes_expires_idx").on(t.expiresAt),
+	],
+);
+
+/**
+ * A rotating refresh token. Each use replaces it with a new one in the same family; presenting a used
+ * token again revokes the family. Tied to the Mailflare session, so signing out ends the app's access.
+ */
+export const oidcRefreshTokens = sqliteTable(
+	"oidc_refresh_tokens",
+	{
+		id: text("id").primaryKey(),
+		tokenHash: text("token_hash").notNull(),
+		familyId: text("family_id").notNull(),
+		appId: text("app_id")
+			.notNull()
+			.references(() => oidcApps.id, { onDelete: "cascade" }),
+		userId: text("user_id")
+			.notNull()
+			.references(() => users.id, { onDelete: "cascade" }),
+		sessionId: text("session_id")
+			.notNull()
+			.references(() => sessions.id, { onDelete: "cascade" }),
+		scope: text("scope").notNull(),
+		authTime: timestamp("auth_time").notNull(),
+		expiresAt: timestamp("expires_at").notNull(),
+		usedAt: timestamp("used_at"),
+		createdAt: timestamp("created_at")
+			.notNull()
+			.$defaultFn(() => new Date()),
+	},
+	(t) => [
+		uniqueIndex("oidc_refresh_tokens_token_hash_idx").on(t.tokenHash),
+		index("oidc_refresh_tokens_family_idx").on(t.familyId),
+		index("oidc_refresh_tokens_expires_idx").on(t.expiresAt),
+	],
+);
+
+/** ES256 keys that sign ID and access tokens. Created on first use; the newest unretired key signs. */
+export const oidcSigningKeys = sqliteTable("oidc_signing_keys", {
+	kid: text("kid").primaryKey(),
+	privateJwk: text("private_jwk").notNull(),
+	publicJwk: text("public_jwk").notNull(),
+	createdAt: timestamp("created_at")
+		.notNull()
+		.$defaultFn(() => new Date()),
+	retiredAt: timestamp("retired_at"),
+});

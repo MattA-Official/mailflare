@@ -30,6 +30,7 @@ import { processImportJob, sweepImportJobs } from "#lib/import/jobs";
 import { processWebhookRetry, type WebhookRetryMessage } from "#lib/email/webhooks";
 import { resolveIncomingMail, forwardMessage } from "#lib/email/incoming";
 import { getUserFromSession } from "#lib/auth/session";
+import { purgeExpiredOidcGrants } from "#lib/oidc/service";
 import { getSessionTokenFromRequest } from "#lib/realtime/utils";
 import { inboundAttachmentLimitReasonFromRaw } from "#lib/email/inbound-attachments";
 import { hasValidSessionMutationOrigin } from "#lib/auth/origin";
@@ -185,6 +186,7 @@ export default {
 		// Drive trash is emptied once a day, with the 02:00 UTC cron; the 5-minute cron is for queue-like upkeep.
 		if (controller.cron === "0 2 * * *") ctx.waitUntil(runDriveTrashRetention(env, new Date(controller.scheduledTime)));
 		if (controller.cron === "0 2 * * *") ctx.waitUntil(runJmapChangeRetention(env, new Date(controller.scheduledTime)));
+		if (controller.cron === "0 2 * * *") ctx.waitUntil(purgeExpiredOidcGrants(env).catch((error) => console.error("OIDC grant purge failed", error)));
 		if (controller.cron === "0 2 * * *") ctx.waitUntil(sweepOrphanedRawMail(env, new Date(controller.scheduledTime)).catch((error) => console.error("Raw mail sweep failed", error)));
 	},
 } satisfies ExportedHandler<CloudflareEnv>;

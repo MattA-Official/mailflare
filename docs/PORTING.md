@@ -336,10 +336,22 @@ Tick in the PR that lands it. Add rows for anything discovered.
   through `marked` + DOMPurify with raw HTML and images dropped.
 - (10) `ContactsContactAvatar` is a plain `<img>` with an initials fallback rather than upstream's
   progressive avatar, matching the shell's decision for `UAvatar`.
+- (fork) Mailflare is an OpenID Connect provider for staff apps: migration `0087_oidc_provider`
+  (tables `oidc_*` and `sessions.amr`), `server/lib/oidc`, `server/handlers/oauth`,
+  `/.well-known/openid-configuration`, the Apps admin pages and an Apps tab on accounts. Upstream has
+  none of this, so it never conflicts with a port. `completeLogin` takes the sign-in method (`amr`)
+  and `/login` accepts `?next=/oauth/authorize?…`. See [oidc.md](oidc.md).
+- (fork) Flytower branding: `primary: 'tungsten'`, `neutral: 'steel'` and IBM Plex in `app.config.ts` and
+  `main.css`; the Flytower mark as `favicon.ico`, `favicon.svg` and `icon-*.png`; the default name is
+  "Flytower Mail" (`DEFAULT_APP_NAME`, `DEFAULT_BRANDING`, the manifest) and migration
+  `0088_flytower_app_name` renames installs still called "Mailflare". "Powered by Mailflare" stays.
 - (upstream f4a17bd) Upstream's splash screen is not carried across (the Nuxt app has no first-paint
   splash), nor its `changelog/` entries or version bump. The Contacts page is also linked from the
   `NavApps` sidebar, not only the new apps menu. `tests/unit/message-actions-overflow.test.mjs`
   expects the 17px group divider upstream's a2a75fd introduced; upstream left its own test on 1px.
+- (upstream 2b58ed7) Upstream's `0087_message_invite_response` shares its number with the fork's
+  `0087_oidc_provider`. The runner records migrations by full file name, so both apply; keep
+  upstream's file names as they are rather than renumbering.
 
 ## Following upstream
 

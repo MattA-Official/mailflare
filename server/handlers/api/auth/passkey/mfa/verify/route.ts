@@ -57,7 +57,7 @@ export async function POST(request: Request) {
 		if (!(await consumeLoginChallenge(env, parsed.data.challengeToken))) {
 			return authError("passkey_expired", 401);
 		}
-		const response = await completeLogin(env, request, user.id, { activity: "auth.passkey_verified", body: { method: "passkey" } });
+		const response = await completeLogin(env, request, user.id, { activity: "auth.passkey_verified", body: { method: "passkey" }, amr: ["pwd", "hwk", "user", "mfa"] });
 		await recordAuthActivity(env, { action: "auth.mfa_verified", userId: user.id, request });
 		removeCeremonyCookie(response.headers, request, challenge.binding);
 		return response;

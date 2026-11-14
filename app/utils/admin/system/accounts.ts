@@ -130,6 +130,8 @@ export const accountSettingsNavItems = [
   { segment: 'password', labelKey: 'accountSettings.password' },
   { segment: 'permissions', labelKey: 'accountSettings.permissions' },
   { segment: 'mailboxes', labelKey: 'accountSettings.mailboxes' },
+  // Fork-only: roles in apps that sign in through Mailflare. Primary admin only.
+  { segment: 'apps', labelKey: 'accountSettings.apps', primary: true },
 ] as const
 
 export function getAccountSettingsHref(accountId: string, segment: string): string {
