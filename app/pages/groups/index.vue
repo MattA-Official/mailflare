@@ -57,7 +57,7 @@ async function create() {
       <li v-for="group in data.groups" :key="group.id">
         <NuxtLink :to="`/groups/${group.id}`" class="flex items-center gap-4 px-5 py-4 hover:bg-elevated/50">
           <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <UIcon name="i-lucide-users-round" class="size-5" />
+            <UIcon name="i-lucide-network" class="size-5" />
           </span>
           <span class="min-w-0 flex-1 space-y-0.5">
             <strong class="block truncate text-sm font-semibold text-highlighted">{{ group.name }}</strong>

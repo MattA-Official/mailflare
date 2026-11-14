@@ -99,7 +99,7 @@ const accountItems = computed(() => (sharedAccess.value?.availableUsers ?? [])
   .map(account => ({ label: `${account.name} (${account.email})`, value: `user:${account.id}`, icon: 'i-lucide-user' })))
 const groupItems = computed(() => (groupAccess.value?.availableGroups ?? [])
   .filter(group => !groupAccess.value?.groups.some(grant => grant.groupId === group.id))
-  .map(group => ({ label: `${group.name} (${t('groups.memberCount', { count: group.memberCount })})`, value: `group:${group.id}`, icon: 'i-lucide-users-round' })))
+  .map(group => ({ label: `${group.name} (${t('groups.memberCount', { count: group.memberCount })})`, value: `group:${group.id}`, icon: 'i-lucide-network' })))
 const memberItems = computed(() => [
   ...(groupItems.value.length ? [[{ type: 'label' as const, label: t('groups.title') }, ...groupItems.value]] : []),
   ...(accountItems.value.length ? [[{ type: 'label' as const, label: t('groups.people') }, ...accountItems.value]] : []),
@@ -264,7 +264,7 @@ async function remove() {
         <USkeleton v-if="sharedStatus === 'pending' && !sharedAccess" class="h-16 w-full rounded-lg" />
         <div v-for="grant in groupAccess?.groups ?? []" :key="grant.groupId" class="flex items-center justify-between gap-3 rounded-lg bg-elevated/60 px-4 py-3">
           <NuxtLink :to="`/groups/${grant.groupId}`" class="flex min-w-0 items-center gap-2 hover:underline">
-            <UIcon name="i-lucide-users-round" class="size-4 shrink-0 text-dimmed" />
+            <UIcon name="i-lucide-network" class="size-4 shrink-0 text-dimmed" />
             <span class="min-w-0">
               <span class="block truncate text-sm font-semibold text-highlighted">{{ grant.groupName }}</span>
               <span class="block truncate text-xs text-muted">{{ t('groups.memberCount', { count: grant.memberCount }) }}</span>
