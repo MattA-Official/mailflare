@@ -381,6 +381,21 @@ Tick in the PR that lands it. Add rows for anything discovered.
   A grant to a group, for shared inboxes and Drive, reaches the members of every group beneath it at the
   same level; nothing flows up. The resolver uses recursive CTEs over `group_subgroups`. Links that
   would loop are refused, and deleting a group or removing a link only ends what passed through it.
+- (fork) Standalone shared inboxes, phase 1 of the plan Matt approved on 14 Nov 2026. Each shared inbox is
+  held by a hidden account of its own (`users.kind = 'inbox'`, id `inbox_<mailbox id>`, email
+  `<mailbox id>@inbox.invalid`, passwordless) instead of the admin who created it
+  (`#lib/mailboxes/principals`). Upstream keys stored mail, folders, contacts and mail settings by user id,
+  so those now belong to the inbox with no query changes. People reach a shared inbox only through grants;
+  its creator gets `full_access`. Migration `0093_inbox_principals` adds `users.kind` and converts existing
+  shared inboxes in SQL: a holder per inbox carrying the admin's spam, trash and remote-content settings,
+  a `full_access` grant for the admin, the admin's blocked and remote-content-allowed contacts copied,
+  and inbound mail and folders re-keyed (drafts and sent mail stay with their author, as for any grantee).
+  Hidden accounts are refused by sessions, sign-in, API and MCP keys, and left out of account lists, seat
+  counts, group and inbox pickers, Drive shares, the who-has-access list and account deletion
+  (`#lib/accounts/kind`). Any kind other than `person` is treated as hidden. Deleting a shared inbox
+  (admins who manage shared inboxes) removes its routing, disables it and marks its holder deleted, so the
+  account purge clears its mail and R2 objects after the restore window. Invites and webhooks for a shared
+  inbox now go to the inbox's own account, not the admin's.
 - (upstream 2b58ed7) Upstream's `0087_message_invite_response` shares its number with the fork's
   `0087_oidc_provider`. The runner records migrations by full file name, so both apply; keep
   upstream's file names as they are rather than renumbering.

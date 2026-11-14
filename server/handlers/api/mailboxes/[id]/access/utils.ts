@@ -3,6 +3,7 @@ import type { getDb } from "#db";
 import { mailboxes, users } from "#db/schema";
 import type { SessionUser } from "#lib/auth/types";
 import { canManageSharedInbox } from "#lib/groups/permissions";
+import { isPersonCondition } from "#lib/accounts/kind";
 
 type Db = ReturnType<typeof getDb>;
 type Actor = Pick<SessionUser, "id" | "role" | "isPrimaryAdmin" | "canManageUsers" | "canManageMailboxes">;
@@ -26,5 +27,5 @@ export async function getSharedMailboxForAdmin(db: Db, mailboxId: string, admin:
  * accounts made at setup or by another admin.
  */
 export function shareableAccountsCondition(ownerUserId: string) {
-	return and(eq(users.disabled, false), isNull(users.deletedAt), ne(users.id, ownerUserId));
+	return and(eq(users.disabled, false), isNull(users.deletedAt), isPersonCondition(), ne(users.id, ownerUserId));
 }

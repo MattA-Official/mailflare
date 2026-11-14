@@ -5,6 +5,7 @@ import { mailboxes, users } from "#db/schema";
 import { requireUser } from "#lib/auth/cookies";
 import { getEnv } from "#lib/cloudflare";
 import { canManageSharedInbox } from "#lib/groups/permissions";
+import { inboxPrincipalId, retireSharedInbox } from "#lib/mailboxes/principals";
 import { getMailboxSettingsAccess } from "#lib/mailboxes/settings-access";
 import { ensureMailboxDomainRouting, removeMailboxDomainRouting } from "#lib/mailboxes/domain-addresses";
 import { isPrimaryMailbox, tracksAccountIdentity } from "#lib/profile/identity-utils";
@@ -122,8 +123,11 @@ export async function DELETE(request: Request, { params }: MailboxRouteParams) {
 	const [mailbox] = await db.select().from(mailboxes).where(eq(mailboxes.id, id)).limit(1);
 	if (!mailbox) return NextResponse.json({ error: "Mailbox not found" }, { status: 404 });
 
-	let allowed = mailbox.userId === user.id && user.canManageMailboxes;
-	if (!allowed && user.role === "admin") {
+	let allowed = mailbox.type === "shared"
+		// Fork-only: a shared inbox is held by its own hidden account, so the admins who manage shared inboxes delete it.
+		? canManageSharedInbox(user, mailbox)
+		: mailbox.userId === user.id && user.canManageMailboxes;
+	if (!allowed && user.role === "admin" && mailbox.type !== "shared") {
 		const [owner] = await db.select({ createdByUserId: users.createdByUserId }).from(users).where(eq(users.id, mailbox.userId)).limit(1);
 		allowed = mailbox.userId === user.id || owner?.createdByUserId === user.id;
 	}
@@ -141,6 +145,10 @@ export async function DELETE(request: Request, { params }: MailboxRouteParams) {
 		return NextResponse.json({ error: message }, { status: 502 });
 	}
 
+	if (mailbox.type === "shared" && mailbox.userId === inboxPrincipalId(mailbox.id)) {
+		await retireSharedInbox(db, mailbox);
+		return NextResponse.json({ ok: true });
+	}
 	await db.delete(mailboxes).where(eq(mailboxes.id, id));
 	return NextResponse.json({ ok: true });
 }

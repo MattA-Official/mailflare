@@ -1,5 +1,5 @@
 import { NextResponse } from "#lib/http/next-compat";
-import { eq, or } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { getEnv } from "#lib/cloudflare";
 import { getDb } from "#db";
 import { users } from "#db/schema";
@@ -8,12 +8,13 @@ import { isPrimaryAdmin } from "#lib/auth/admin";
 import { createUserAccountSchema } from "#lib/validators";
 import { accountListItemFromUser } from "#handlers/api/accounts/utils";
 import { createAccountResponse } from "#handlers/api/accounts/create";
+import { isPersonCondition } from "#lib/accounts/kind";
 
 export async function GET(request: Request) {
 	const env = getEnv();
 	const auth = await authenticateAdminApiKey(env, request, "accounts");
 	if (!auth) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-	const rows = await getDb(env).select().from(users).where(or(eq(users.id, auth.userId), eq(users.createdByUserId, auth.userId)));
+	const rows = await getDb(env).select().from(users).where(and(isPersonCondition(), or(eq(users.id, auth.userId), eq(users.createdByUserId, auth.userId))));
 	return NextResponse.json({ accounts: rows.map(accountListItemFromUser) });
 }
 

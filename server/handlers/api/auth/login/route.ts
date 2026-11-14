@@ -14,6 +14,7 @@ import { completeLogin } from "#lib/auth/login-response";
 import { countPasskeys } from "#lib/auth/webauthn/credentials";
 import { countUnusedRecoveryCodes } from "#lib/auth/recovery-codes";
 import { authError } from "#lib/http/auth-error";
+import { isPersonAccount } from "#lib/accounts/kind";
 
 export async function POST(request: Request) {
 	const env = getEnv();
@@ -37,7 +38,7 @@ export async function POST(request: Request) {
 	const [user] = await db.select().from(users).where(eq(users.email, parsed.data.email)).limit(1);
 	// A passwordless account has no usable password; it still takes the same
 	// generic error so the response cannot be used to enumerate accounts.
-	if (!user || !verifyPassword(parsed.data.password, user.passwordHash)) {
+	if (!user || !isPersonAccount(user) || !verifyPassword(parsed.data.password, user.passwordHash)) {
 		return authError("invalid_credentials", 401);
 	}
 	if (user.disabled || user.deletedAt) return authError("account_disabled", 403);
