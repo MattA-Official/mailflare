@@ -28,7 +28,7 @@ export type GroupMailbox = {
   hostname: string
   displayName: string | null
   permission: MailboxPermission
-  owned: boolean
+  managed: boolean
   /** Set when the inbox reaches this group through a group above it. */
   inheritedFrom: { id: string, name: string } | null
 }
@@ -60,7 +60,8 @@ export type MailboxGroupGrant = {
 export type MailboxGroupAccessResponse = {
   groups: MailboxGroupGrant[]
   availableGroups: { id: string, name: string, memberCount: number }[]
-  ownerGroupId: string | null
+  /** Fork-only: groups that manage the inbox (always with full access). */
+  managerGroupIds: string[]
 }
 
 export function fetchGroups() {
@@ -82,7 +83,7 @@ export type GroupResponse = {
 
 export type MyGroup = { id: string, name: string, description: string | null, role: GroupMember['role'], memberCount: number, mailboxCount: number }
 
-export type AccessRoute = { kind: 'owner' | 'direct' | 'group', permission: MailboxPermission, groupId?: string, groupName?: string, ownsInbox?: boolean, memberGroupId?: string, memberGroupName?: string }
+export type AccessRoute = { kind: 'owner' | 'direct' | 'group', permission: MailboxPermission, groupId?: string, groupName?: string, managesInbox?: boolean, memberGroupId?: string, memberGroupName?: string }
 export type AccessSummaryPerson = { userId: string, name: string, email: string, disabled: boolean, permission: MailboxPermission, routes: AccessRoute[] }
 
 export function fetchGroup(id: string) {
@@ -134,13 +135,13 @@ export async function revokeMailboxGroupAccess(mailboxId: string, groupId: strin
   await api(`/api/mailboxes/${mailboxId}/group-access?groupId=${encodeURIComponent(groupId)}`, { method: 'DELETE' })
 }
 
-/** Makes a group the owner of a shared inbox (server/handlers/api/mailboxes/[id]/owner-group). */
-export async function setMailboxOwnerGroup(mailboxId: string, groupId: string) {
-  await api(`/api/mailboxes/${mailboxId}/owner-group`, { method: 'PUT', body: { groupId } })
+/** Makes a group a manager of a shared inbox (server/handlers/api/mailboxes/[id]/managers). */
+export async function addMailboxManager(mailboxId: string, groupId: string) {
+  await api(`/api/mailboxes/${mailboxId}/managers`, { method: 'POST', body: { groupId } })
 }
 
-export async function clearMailboxOwnerGroup(mailboxId: string) {
-  await api(`/api/mailboxes/${mailboxId}/owner-group`, { method: 'DELETE' })
+export async function removeMailboxManager(mailboxId: string, groupId: string) {
+  await api(`/api/mailboxes/${mailboxId}/managers?groupId=${encodeURIComponent(groupId)}`, { method: 'DELETE' })
 }
 
 /** Fork-only (nested groups): put a group inside another, or take it out. */

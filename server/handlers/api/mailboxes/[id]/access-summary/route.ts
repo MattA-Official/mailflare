@@ -4,27 +4,26 @@ import { and, eq, inArray } from "drizzle-orm";
 import { NextResponse } from "#lib/http/next-compat";
 import { getDb } from "#db";
 import { groupMembers, groups, mailboxAccess, mailboxGroupAccess, users } from "#db/schema";
-import { requireTeamSharingAdmin } from "#handlers/api/accounts/utils";
 import { descendantsOf, loadGroupTree } from "#lib/groups/hierarchy";
-import { getMailboxOwnerGroupId } from "#lib/groups/ownership";
+import { listMailboxManagerGroupIds } from "#lib/groups/managers";
 import { highestPermission } from "#lib/mailboxes/access";
 import type { MailboxPermission } from "#lib/mailboxes/types";
-import { getSharedMailboxForAdmin } from "../access/utils";
+import { getSharedMailboxForManager, requireSharingUser } from "../access/utils";
 import type { MailboxAccessSummaryRouteParams } from "./types";
 import { isPersonCondition } from "#lib/accounts/kind";
 
-type Route = { kind: "owner" | "direct" | "group"; permission: MailboxPermission; groupId?: string; groupName?: string; ownsInbox?: boolean; memberGroupId?: string; memberGroupName?: string };
+type Route = { kind: "owner" | "direct" | "group"; permission: MailboxPermission; groupId?: string; groupName?: string; managesInbox?: boolean; memberGroupId?: string; memberGroupName?: string };
 
 export async function GET(request: Request, { params }: MailboxAccessSummaryRouteParams) {
-	const access = await requireTeamSharingAdmin(request);
+	const access = await requireSharingUser(request);
 	if (access.error) return access.error;
 	const { id } = await params;
 	const db = getDb(access.env);
-	const mailbox = await getSharedMailboxForAdmin(db, id, access.user!);
+	const mailbox = await getSharedMailboxForManager(db, id, access.user!);
 	if (!mailbox) return NextResponse.json({ error: "Shared inbox not found" }, { status: 404 });
 
 	const person = { userId: users.id, name: users.name, email: users.email, disabled: users.disabled };
-	const [owner, direct, groupGrants, ownerGroupId] = await Promise.all([
+	const [owner, direct, groupGrants, managerGroupIds] = await Promise.all([
 		// Fork-only: a shared inbox's hidden holder is not a person and is not listed.
 		db.select(person).from(users).where(and(eq(users.id, mailbox.userId), isPersonCondition())).limit(1),
 		db
@@ -37,7 +36,7 @@ export async function GET(request: Request, { params }: MailboxAccessSummaryRout
 			.from(mailboxGroupAccess)
 			.innerJoin(groups, eq(mailboxGroupAccess.groupId, groups.id))
 			.where(eq(mailboxGroupAccess.mailboxId, id)),
-		getMailboxOwnerGroupId(db, id),
+		listMailboxManagerGroupIds(db, id),
 	]);
 
 	const people = new Map<string, { userId: string; name: string; email: string; disabled: boolean; routes: Route[] }>();
@@ -68,7 +67,7 @@ export async function GET(request: Request, { params }: MailboxAccessSummaryRout
 				permission: grant.permission,
 				groupId: grant.groupId,
 				groupName: grant.groupName,
-				ownsInbox: grant.groupId === ownerGroupId,
+				managesInbox: managerGroupIds.includes(grant.groupId),
 				...(nested ? { memberGroupId: row.memberGroupId, memberGroupName: tree?.names.get(row.memberGroupId) ?? "" } : {}),
 			});
 		}

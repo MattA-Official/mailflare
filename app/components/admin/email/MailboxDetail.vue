@@ -10,7 +10,7 @@ import {
   getMailboxAddress, getMailboxesBase, grantSharedInboxAccess, revokeSharedInboxAccess, updateMailboxSettings,
 } from '~/utils/admin/email/mailboxes'
 import type { AccessRoute, AccessSummaryPerson } from '~/utils/admin/system/groups'
-import { clearMailboxOwnerGroup, fetchMailboxAccessSummary, fetchMailboxGroupAccess, grantMailboxGroupAccess, revokeMailboxGroupAccess, setMailboxOwnerGroup } from '~/utils/admin/system/groups'
+import { addMailboxManager, fetchMailboxAccessSummary, fetchMailboxGroupAccess, grantMailboxGroupAccess, removeMailboxManager, revokeMailboxGroupAccess } from '~/utils/admin/system/groups'
 
 const props = defineProps<{ mailboxId: string }>()
 const { t } = useLanguage()
@@ -155,29 +155,25 @@ function routeLabel(route: AccessRoute) {
   if (route.kind === 'direct') return t('groups.via.direct')
   // Fork-only (nested groups): a member of a sub-group reaches the inbox through the group above it.
   if (route.memberGroupName) return t('groups.via.subgroup', { name: route.memberGroupName, parent: route.groupName ?? '' })
-  if (route.ownsInbox) return t('groups.via.ownerGroup', { name: route.groupName ?? '' })
+  if (route.managesInbox) return t('groups.via.managerGroup', { name: route.groupName ?? '' })
   return t('groups.via.group', { name: route.groupName ?? '' })
 }
 
-// Fork-only: a group can own the inbox. Its members always have full access, and the inbox stays when the
-// admin who holds it is deleted (server/lib/groups/ownership.ts).
-const NO_OWNER_GROUP = 'none'
-const ownerGroupItems = computed(() => [
-  { label: t('groups.ownerNone'), value: NO_OWNER_GROUP },
-  ...(groupAccess.value?.availableGroups ?? []).map(group => ({ label: group.name, value: group.id, icon: 'i-lucide-network' })),
-])
-const ownerGroupBusy = ref(false)
-async function changeOwnerGroup(value: string) {
-  ownerGroupBusy.value = true
+// Fork-only: groups can manage the inbox. Their members always have full access and can manage who has it
+// (server/lib/groups/managers.ts).
+const managerGroupIds = computed(() => new Set(groupAccess.value?.managerGroupIds ?? []))
+const managerBusy = ref(false)
+async function toggleManager(groupId: string) {
+  managerBusy.value = true
   memberError.value = null
   try {
-    if (value === NO_OWNER_GROUP) await clearMailboxOwnerGroup(props.mailboxId)
-    else await setMailboxOwnerGroup(props.mailboxId, value)
+    if (managerGroupIds.value.has(groupId)) await removeMailboxManager(props.mailboxId, groupId)
+    else await addMailboxManager(props.mailboxId, groupId)
     await refreshGroups()
   } catch (error) {
-    memberError.value = errorMessage(error, t('groups.ownerFailed'))
+    memberError.value = errorMessage(error, t('groups.managerFailed'))
   } finally {
-    ownerGroupBusy.value = false
+    managerBusy.value = false
   }
 }
 
@@ -314,15 +310,9 @@ async function remove() {
         </p>
       </template>
       <div class="space-y-3">
-        <UFormField v-if="groupAccess?.availableGroups.length" :label="t('groups.ownerLabel')" :description="t('groups.ownerHint')" class="pb-2">
-          <USelect
-            :model-value="groupAccess.ownerGroupId ?? NO_OWNER_GROUP"
-            :items="ownerGroupItems"
-            :disabled="ownerGroupBusy"
-            class="w-full sm:w-72"
-            @update:model-value="(value: string) => changeOwnerGroup(value)"
-          />
-        </UFormField>
+        <p v-if="groupAccess?.groups.length" class="text-xs text-muted">
+          {{ t('groups.managerHint') }}
+        </p>
         <USkeleton v-if="sharedStatus === 'pending' && !sharedAccess" class="h-16 w-full rounded-lg" />
         <div v-for="grant in groupAccess?.groups ?? []" :key="grant.groupId" class="flex items-center justify-between gap-3 rounded-lg bg-elevated/60 px-4 py-3">
           <NuxtLink :to="`/groups/${grant.groupId}`" class="flex min-w-0 items-center gap-2 hover:underline">
@@ -333,9 +323,18 @@ async function remove() {
             </span>
           </NuxtLink>
           <div class="flex shrink-0 items-center gap-2">
-            <UBadge v-if="grant.groupId === groupAccess?.ownerGroupId" color="primary" variant="subtle" :label="t('groups.ownsInbox')" />
+            <UBadge v-if="managerGroupIds.has(grant.groupId)" color="primary" variant="subtle" :label="t('groups.managesInbox')" />
             <UBadge v-else color="neutral" variant="soft" :label="t('groups.group')" />
-            <UButton v-if="grant.groupId !== groupAccess?.ownerGroupId" icon="i-lucide-trash-2" color="error" variant="ghost" :aria-label="t('mailbox.removeAddress', { address: grant.groupName })" :disabled="memberBusy" @click="removeGroup(grant.groupId)" />
+            <UButton
+              :icon="managerGroupIds.has(grant.groupId) ? 'i-lucide-shield-off' : 'i-lucide-shield-check'"
+              color="neutral"
+              variant="ghost"
+              :aria-label="managerGroupIds.has(grant.groupId) ? t('groups.stopManaging', { name: grant.groupName }) : t('groups.makeManager', { name: grant.groupName })"
+              :title="managerGroupIds.has(grant.groupId) ? t('groups.stopManaging', { name: grant.groupName }) : t('groups.makeManager', { name: grant.groupName })"
+              :disabled="managerBusy || memberBusy"
+              @click="toggleManager(grant.groupId)"
+            />
+            <UButton v-if="!managerGroupIds.has(grant.groupId)" icon="i-lucide-trash-2" color="error" variant="ghost" :aria-label="t('mailbox.removeAddress', { address: grant.groupName })" :disabled="memberBusy" @click="removeGroup(grant.groupId)" />
           </div>
         </div>
         <div v-for="member in sharedAccess?.members ?? []" :key="member.userId" class="flex items-center justify-between gap-3 rounded-lg bg-elevated/60 px-4 py-3">

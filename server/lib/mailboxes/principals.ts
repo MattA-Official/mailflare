@@ -72,3 +72,20 @@ export async function retireSharedInbox(db: AppDatabase, mailbox: { id: string; 
 	if (mailbox.userId !== inboxPrincipalId(mailbox.id)) return;
 	await db.update(users).set({ deletedAt: new Date(), disabled: true }).where(and(eq(users.id, mailbox.userId), sql`"users"."kind" = 'inbox'`));
 }
+
+/**
+ * Brings back a shared inbox deleted with retireSharedInbox, while its holder still exists (the account purge
+ * removes it after the restore window). The caller restores its routing. Returns false when it is gone.
+ */
+export async function restoreSharedInbox(db: AppDatabase, mailboxId: string): Promise<boolean> {
+	const principalId = inboxPrincipalId(mailboxId);
+	const [mailbox] = await db
+		.select({ id: mailboxes.id })
+		.from(mailboxes)
+		.where(and(eq(mailboxes.id, mailboxId), eq(mailboxes.type, "shared"), eq(mailboxes.userId, principalId)))
+		.limit(1);
+	if (!mailbox) return false;
+	await db.update(users).set({ deletedAt: null, disabled: false }).where(and(eq(users.id, principalId), sql`"users"."kind" = 'inbox'`));
+	await db.update(mailboxes).set({ disabled: false }).where(eq(mailboxes.id, mailboxId));
+	return true;
+}

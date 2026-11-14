@@ -14,12 +14,13 @@ interface AdminSection {
   titleKey: TranslationKey
   descriptionKey: TranslationKey
   icon: string
-  permission?: 'primary' | 'domains' | 'users'
+  permission?: 'primary' | 'domains' | 'users' | 'sharedInboxes'
 }
 
 const sections: AdminSection[] = [
   { to: '/agent', titleKey: 'admin.nav.agent', descriptionKey: 'admin.section.agent', icon: 'i-lucide-bot', permission: 'primary' },
   { to: '/mailboxes', titleKey: 'admin.nav.mailboxes', descriptionKey: 'admin.section.mailboxes', icon: 'i-lucide-mail' },
+  { to: '/shared-inboxes', titleKey: 'admin.nav.sharedInboxes', descriptionKey: 'admin.section.sharedInboxes', icon: 'i-lucide-inbox', permission: 'sharedInboxes' },
   { to: '/domains', titleKey: 'admin.nav.domains', descriptionKey: 'admin.section.domains', icon: 'i-lucide-globe', permission: 'domains' },
   { to: '/branding', titleKey: 'admin.nav.branding', descriptionKey: 'admin.section.branding', icon: 'i-lucide-palette', permission: 'primary' },
   { to: '/accounts', titleKey: 'admin.nav.accounts', descriptionKey: 'admin.section.accounts', icon: 'i-lucide-users' },
@@ -33,6 +34,7 @@ const visible = computed(() => sections.filter((section) => {
   if (!current) return false
   if (section.permission === 'primary') return current.isPrimaryAdmin
   if (section.permission === 'domains') return current.isPrimaryAdmin || current.canManageDomains
+  if (section.permission === 'sharedInboxes') return current.isPrimaryAdmin || current.canManageMailboxes || current.canManageUsers
   return current.isPrimaryAdmin || current.canManageUsers
 }))
 </script>

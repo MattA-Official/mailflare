@@ -13,6 +13,7 @@ import { syncPersonalIdentity } from "#lib/profile/sync";
 import { updateMailboxSchema } from "#lib/validators";
 import type { MailboxRouteParams } from "./types";
 import { getMailboxUpdateValues, selectMailboxById } from "./utils";
+import { canManageSharedInboxAccess } from "./access/utils";
 
 export async function GET(request: Request, { params }: MailboxRouteParams) {
 	const { id } = await params;
@@ -37,7 +38,7 @@ export async function GET(request: Request, { params }: MailboxRouteParams) {
 			displayName: identity ? ownerName : mailbox.displayName,
 			hasAvatar: identity ? !!ownerAvatarKey : !!avatarKey,
 			permission: access.permission,
-			canManageSharing: canManageSharedInbox(user, mailbox),
+			canManageSharing: await canManageSharedInboxAccess(db, user, mailbox),
 			isPrimary: isPrimaryMailbox(mailbox, ownerEmail),
 		},
 	});
@@ -109,7 +110,7 @@ export async function PATCH(request: Request, { params }: MailboxRouteParams) {
 			displayName: identity ? ownerName : mailbox!.displayName,
 			hasAvatar: identity ? !!ownerAvatarKey : !!avatarKey,
 			permission: access.permission,
-			canManageSharing: canManageSharedInbox(user, mailbox!),
+			canManageSharing: await canManageSharedInboxAccess(db, user, mailbox!),
 			isPrimary: isPrimaryMailbox(mailbox!, ownerEmail),
 		},
 	});

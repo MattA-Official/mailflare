@@ -165,7 +165,7 @@ async function remove() {
                 <span class="block truncate text-sm font-medium text-highlighted">{{ mailbox.displayName || mailbox.localPart }}</span>
                 <span class="block truncate text-xs text-muted">{{ getGroupMailboxAddress(mailbox) }}</span>
               </span>
-              <UBadge v-if="mailbox.owned" color="primary" variant="subtle" :label="t('groups.ownsInbox')" />
+              <UBadge v-if="mailbox.managed" color="primary" variant="subtle" :label="t('groups.managesInbox')" />
               <UBadge v-if="mailbox.inheritedFrom" color="neutral" variant="soft" :label="t('groups.inheritedFrom', { name: mailbox.inheritedFrom.name })" />
               <UIcon name="i-lucide-chevron-right" class="size-4 shrink-0 text-muted" />
             </NuxtLink>

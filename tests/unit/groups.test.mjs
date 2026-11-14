@@ -29,7 +29,7 @@ await build({
 			export * as driveSharesRoute from "./server/handlers/api/drive/items/[id]/shares/route.ts";
 			export * as driveItemsRoute from "./server/handlers/api/drive/items/route.ts";
 			export { getDriveRole, getDriveItem } from "./server/lib/drive/access.ts";
-			export * as ownerGroupRoute from "./server/handlers/api/mailboxes/[id]/owner-group/route.ts";
+			export * as managersRoute from "./server/handlers/api/mailboxes/[id]/managers/route.ts";
 			export { deleteAccounts } from "./server/lib/accounts/deletion.ts";
 			export * as subgroupsRoute from "./server/handlers/api/groups/[id]/subgroups/route.ts";
 		`,
@@ -49,7 +49,7 @@ const {
 	SqliteDatabase, applyMigrations, getDb, createSession, getMailboxAccessLevel, listAccessibleMailboxes,
 	listSharedMailboxUserIds, getMailboxNotificationUserIds, groupsRoute, groupRoute, membersRoute, groupAccessRoute,
 	accessRoute, detail, mineRoute, summaryRoute, driveSharesRoute, driveItemsRoute, getDriveRole, getDriveItem,
-	ownerGroupRoute, deleteAccounts, subgroupsRoute,
+	managersRoute, deleteAccounts, subgroupsRoute,
 } = await import(pathToFileURL(join(directory, "entry.mjs")).href);
 const context = id => ({ params: Promise.resolve({ id }) });
 
@@ -195,7 +195,9 @@ test("admins trusted with mailboxes or accounts manage a shared inbox's access, 
 		assert.equal((await response.json()).mailbox.canManageSharing, true, actor);
 	}
 	assert.equal((await f.grant("plain-admin", "m-support", groupId)).status, 404);
-	assert.equal((await f.grant("anna", "m-support", groupId)).status, 403);
+	// Anna is not an admin, but the grant above gave her full access, which now lets her manage who has it.
+	assert.equal((await f.grant("anna", "m-support", groupId)).status, 200);
+	assert.equal((await f.grant("ben", "m-billing", groupId)).status, 404);
 
 	const listed = await (await groupAccessRoute.GET(f.request("mailbox-admin", "/api/mailboxes/m-support/group-access"), context("m-support"))).json();
 	assert.deepEqual(listed.groups.map(group => [group.groupName, group.permission, group.memberCount]), [["Support", "full_access", 2]]);
@@ -310,49 +312,47 @@ test("Drive items shared with a group reach its members, at the highest role", a
 	assert.equal(await getDriveRole(f.db, "ben", file), null);
 });
 
-test("a group that owns a shared inbox keeps full access, and the inbox outlives the admin holding it", async () => {
+test("groups that manage a shared inbox keep full access, and their members can manage who has it", async () => {
 	const f = await fixture();
 	const groupId = await supportGroup(f);
-	f.sql.exec(`INSERT INTO mailboxes (id, user_id, domain_id, local_part, display_name, type, use_all_domains, disabled, created_at) VALUES
-		('m-held', 'mailbox-admin', 'one', 'team', 'Team', 'shared', 0, 0, 1),
-		('m-other', 'mailbox-admin', 'one', 'other', 'Other', 'shared', 0, 0, 1);`);
-	const own = (actor, mailboxId, body) =>
-		ownerGroupRoute.PUT(f.request(actor, `/api/mailboxes/${mailboxId}/owner-group`, "PUT", body), context(mailboxId));
+	const other = (await (await f.createGroup("primary", "Billing")).json()).group.id;
+	const manage = (actor, mailboxId, body) =>
+		managersRoute.POST(f.request(actor, `/api/mailboxes/${mailboxId}/managers`, "POST", body), context(mailboxId));
 
-	assert.equal((await own("plain-admin", "m-held", { groupId })).status, 404);
-	assert.equal((await own("primary", "m-anna", { groupId })).status, 404);
-	assert.equal((await own("mailbox-admin", "m-held", { groupId })).status, 200);
-	assert.equal((await getMailboxAccessLevel(f.db, { id: "anna", role: "user" }, "m-held")).permission, "full_access");
+	assert.equal((await manage("plain-admin", "m-support", { groupId })).status, 404);
+	assert.equal((await manage("primary", "m-anna", { groupId })).status, 404);
+	assert.equal((await manage("mailbox-admin", "m-support", { groupId })).status, 200);
+	assert.equal((await manage("primary", "m-support", { groupId: other })).status, 200);
+	assert.equal((await getMailboxAccessLevel(f.db, { id: "anna", role: "user" }, "m-support")).permission, "full_access");
 
-	const state = await (await groupAccessRoute.GET(f.request("primary", "/api/mailboxes/m-held/group-access"), context("m-held"))).json();
-	assert.equal(state.ownerGroupId, groupId);
-	assert.deepEqual(state.groups.map(grant => [grant.groupId, grant.permission]), [[groupId, "full_access"]]);
-	// The owning group cannot be downgraded or removed while it owns the inbox.
-	assert.equal((await f.grant("primary", "m-held", groupId, "read_only")).status, 409);
-	const removeGrant = await groupAccessRoute.DELETE(f.request("primary", `/api/mailboxes/m-held/group-access?groupId=${groupId}`, "DELETE"), context("m-held"));
+	const state = await (await groupAccessRoute.GET(f.request("primary", "/api/mailboxes/m-support/group-access"), context("m-support"))).json();
+	assert.deepEqual([...state.managerGroupIds].sort(), [groupId, other].sort());
+	// A managing group cannot be downgraded or removed while it manages the inbox.
+	assert.equal((await f.grant("primary", "m-support", groupId, "read_only")).status, 409);
+	const removeGrant = await groupAccessRoute.DELETE(f.request("primary", `/api/mailboxes/m-support/group-access?groupId=${groupId}`, "DELETE"), context("m-support"));
 	assert.equal(removeGrant.status, 409);
 
-	const summary = await (await summaryRoute.GET(f.request("primary", "/api/mailboxes/m-held/access-summary"), context("m-held"))).json();
+	const summary = await (await summaryRoute.GET(f.request("primary", "/api/mailboxes/m-support/access-summary"), context("m-support"))).json();
 	const anna = summary.people.find(person => person.userId === "anna");
-	assert.deepEqual(anna.routes, [{ kind: "group", permission: "full_access", groupId, groupName: "Support", ownsInbox: true }]);
+	assert.deepEqual(anna.routes, [{ kind: "group", permission: "full_access", groupId, groupName: "Support", managesInbox: true }]);
 	const detailBody = await (await groupRoute.GET(f.request("primary", `/api/groups/${groupId}`), context(groupId))).json();
-	assert.deepEqual(detailBody.group.mailboxes.map(mailbox => [mailbox.id, mailbox.owned]), [["m-held", true]]);
+	assert.deepEqual(detailBody.group.mailboxes.map(mailbox => [mailbox.id, mailbox.managed]), [["m-support", true]]);
 
-	// Deleting the admin holding it moves the group's inbox to the primary admin; their other inbox stays put.
-	const result = await deleteAccounts(f.env, { id: "primary", role: "admin", isPrimaryAdmin: true, canManageUsers: true }, { ids: ["mailbox-admin"] });
-	assert.equal(result.ok, true);
-	const holders = Object.fromEntries(f.sql.prepare("SELECT id, user_id FROM mailboxes WHERE id IN ('m-held', 'm-other')").all().map(row => [row.id, row.user_id]));
-	assert.deepEqual(holders, { "m-held": "primary", "m-other": "mailbox-admin" });
-	const moved = f.sql.prepare("SELECT action, mailbox_id FROM audit_logs WHERE action = 'mailbox.owner_moved'").all();
-	assert.deepEqual(moved.map(row => row.mailbox_id), ["m-held"]);
+	// Anna is not an admin, but full access through a managing group lets her decide who else has it.
+	assert.equal((await accessRoute.POST(f.request("anna", "/api/mailboxes/m-support/access", "POST", { userId: "users-admin", permission: "read_only" }), context("m-support"))).status, 200);
+	assert.equal((await getMailboxAccessLevel(f.db, { id: "users-admin", role: "admin" }, "m-support")).permission, "read_only");
+	assert.equal((await (await detail.GET(f.request("anna", "/api/mailboxes/m-support"), context("m-support"))).json()).mailbox.canManageSharing, true);
+	// Read-only access does not.
+	f.sql.exec("INSERT INTO mailbox_access (id, mailbox_id, user_id, permission, created_at) VALUES ('ro', 'm-billing', 'anna', 'read_only', 1)");
+	assert.equal((await accessRoute.GET(f.request("anna", "/api/mailboxes/m-billing/access"), context("m-billing"))).status, 404);
 
-	// Ending ownership keeps the group's grant, which can then be removed as usual.
-	const cleared = await ownerGroupRoute.DELETE(f.request("primary", "/api/mailboxes/m-held/owner-group", "DELETE"), context("m-held"));
+	// Stopping a group managing keeps its grant, which can then be removed as usual.
+	const cleared = await managersRoute.DELETE(f.request("primary", `/api/mailboxes/m-support/managers?groupId=${groupId}`, "DELETE"), context("m-support"));
 	assert.equal(cleared.status, 200);
-	assert.equal((await getMailboxAccessLevel(f.db, { id: "anna", role: "user" }, "m-held")).permission, "full_access");
-	const removed = await groupAccessRoute.DELETE(f.request("primary", `/api/mailboxes/m-held/group-access?groupId=${groupId}`, "DELETE"), context("m-held"));
+	assert.equal((await getMailboxAccessLevel(f.db, { id: "ben", role: "user" }, "m-support")).permission, "full_access");
+	const removed = await groupAccessRoute.DELETE(f.request("primary", `/api/mailboxes/m-support/group-access?groupId=${groupId}`, "DELETE"), context("m-support"));
 	assert.equal(removed.status, 200);
-	assert.equal(await getMailboxAccessLevel(f.db, { id: "anna", role: "user" }, "m-held"), null);
+	assert.equal(await getMailboxAccessLevel(f.db, { id: "ben", role: "user" }, "m-support"), null);
 });
 
 test("sub-groups get what their parents are given, parents get nothing from sub-groups, and loops are refused", async () => {
@@ -385,7 +385,7 @@ test("sub-groups get what their parents are given, parents get nothing from sub-
 
 	const summary = await (await summaryRoute.GET(f.request("primary", "/api/mailboxes/m-support/access-summary"), context("m-support"))).json();
 	const ben = summary.people.find(person => person.userId === "ben");
-	assert.deepEqual(ben.routes, [{ kind: "group", permission: "send_as", groupId: support, groupName: "Support", ownsInbox: false, memberGroupId: nights, memberGroupName: "Nights" }]);
+	assert.deepEqual(ben.routes, [{ kind: "group", permission: "send_as", groupId: support, groupName: "Support", managesInbox: false, memberGroupId: nights, memberGroupName: "Nights" }]);
 
 	const detail = await (await groupRoute.GET(f.request("primary", `/api/groups/${nights}`), context(nights))).json();
 	assert.deepEqual(detail.group.parents.map(group => group.name), ["Sales", "Tier 1"]);

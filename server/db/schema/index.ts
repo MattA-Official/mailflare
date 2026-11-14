@@ -1570,12 +1570,14 @@ export const driveGroupShares = sqliteTable("drive_group_shares", {
 ]);
 
 // Fork-only: the group that owns a shared inbox. See migration 0091.
-export const mailboxOwnerGroups = sqliteTable("mailbox_owner_groups", {
-	mailboxId: text("mailbox_id").primaryKey().references(() => mailboxes.id, { onDelete: "cascade" }),
+// Fork-only: groups that manage a shared inbox (migration 0095, replacing 0091's single owning group). A
+// managing group always holds full_access in mailbox_group_access.
+export const mailboxManagers = sqliteTable("mailbox_managers", {
+	mailboxId: text("mailbox_id").notNull().references(() => mailboxes.id, { onDelete: "cascade" }),
 	groupId: text("group_id").notNull().references(() => groups.id, { onDelete: "cascade" }),
-	assignedByUserId: text("assigned_by_user_id").references(() => users.id, { onDelete: "set null" }),
+	createdByUserId: text("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
 	createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
-}, (t) => [index("mailbox_owner_groups_group_idx").on(t.groupId)]);
+}, (t) => [primaryKey({ columns: [t.mailboxId, t.groupId] }), index("mailbox_managers_group_idx").on(t.groupId)]);
 
 // Fork-only: a group inside another group (migration 0092). Access flows from parent to child, never back.
 export const groupSubgroups = sqliteTable("group_subgroups", {

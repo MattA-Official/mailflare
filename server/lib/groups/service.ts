@@ -1,7 +1,7 @@
 // Fork-only. Queries shared by the groups API.
-import { asc, count, eq, inArray } from "drizzle-orm";
+import { and, asc, count, eq, inArray } from "drizzle-orm";
 import type { AppDatabase } from "#db";
-import { domains, groupMembers, groups, mailboxGroupAccess, mailboxOwnerGroups, mailboxes, users } from "#db/schema";
+import { domains, groupMembers, groups, mailboxGroupAccess, mailboxManagers, mailboxes, users } from "#db/schema";
 import { ancestorsOf, canNest, descendantsOf, loadGroupTree } from "./hierarchy";
 
 export async function listGroups(db: AppDatabase) {
@@ -77,12 +77,12 @@ export async function getGroupDetail(db: AppDatabase, groupId: string) {
 				displayName: mailboxes.displayName,
 				permission: mailboxGroupAccess.permission,
 				grantGroupId: mailboxGroupAccess.groupId,
-				// Fork-only: whether this group owns the inbox (see #lib/groups/ownership).
-				ownerGroupId: mailboxOwnerGroups.groupId,
+				// Fork-only: whether this group manages the inbox (see #lib/groups/managers).
+				managerGroupId: mailboxManagers.groupId,
 			})
 			.from(mailboxGroupAccess)
 			.innerJoin(mailboxes, eq(mailboxGroupAccess.mailboxId, mailboxes.id))
-			.leftJoin(mailboxOwnerGroups, eq(mailboxOwnerGroups.mailboxId, mailboxes.id))
+			.leftJoin(mailboxManagers, and(eq(mailboxManagers.mailboxId, mailboxes.id), eq(mailboxManagers.groupId, groupId)))
 			.innerJoin(domains, eq(mailboxes.domainId, domains.id))
 			.where(inArray(mailboxGroupAccess.groupId, reachingIds))
 			.orderBy(asc(mailboxes.localPart)),
@@ -116,9 +116,9 @@ export async function getGroupDetail(db: AppDatabase, groupId: string) {
 			.map(link)
 			.sort(byName),
 		members,
-		mailboxes: [...byMailbox.values()].map(({ ownerGroupId, grantGroupId, ...mailbox }) => ({
+		mailboxes: [...byMailbox.values()].map(({ managerGroupId, grantGroupId, ...mailbox }) => ({
 			...mailbox,
-			owned: ownerGroupId === groupId,
+			managed: managerGroupId === groupId,
 			inheritedFrom: grantGroupId === groupId ? null : { id: grantGroupId, name: tree.names.get(grantGroupId) ?? "" },
 		})),
 	};
