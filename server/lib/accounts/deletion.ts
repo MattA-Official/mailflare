@@ -1,7 +1,7 @@
 import { and, eq, inArray, isNotNull, isNull, lte } from "drizzle-orm";
 import { getDb } from "#db";
-import { calendarEvents, driveItems, mailboxes, messageAttachments, messages, sessions, users } from "#db/schema";
-import { canManageUsers, isPrimaryAdmin } from "#lib/auth/admin";
+import { calendarEvents, domains, driveItems, mailboxes, messageAttachments, messages, sessions, users } from "#db/schema";
+import { canManageDomains, canManageUsers, isPrimaryAdmin } from "#lib/auth/admin";
 import type { SessionUser } from "#lib/auth/types";
 import { deleteDriveItems } from "#lib/drive/access";
 import { driveObjectKey } from "#lib/drive/utils";
@@ -45,7 +45,8 @@ export async function transferAccountData(env: CloudflareEnv, fromId: string, fr
 
 /**
  * Soft-deletes accounts: they are disabled, signed out and stamped with `deletedAt`. They can be restored until the
- * scheduled purge removes them after the retention window. Optionally hands their Drive and calendar data to another account.
+ * scheduled purge removes them after the retention window. Optionally hands their Drive and calendar data to another account,
+ * which must also take any domains they own (fork-only).
  */
 export async function deleteAccounts(env: CloudflareEnv, actor: SessionUser, input: DeleteAccountsInput): Promise<DeleteAccountsResult> {
 	if (!canManageUsers(actor)) return { ok: false, status: 403, error: "You do not have permission to manage users" };
@@ -64,6 +65,13 @@ export async function deleteAccounts(env: CloudflareEnv, actor: SessionUser, inp
 		if (target.deletedAt) return { ok: false, status: 409, error: `${target.email} is already deleted` };
 	}
 	const transferToId = input.transferToId || null;
+	// Fork-only: a domain owner's purge would cascade to every mailbox on their domains, other people's and
+	// shared inboxes included. Their domains must be handed to someone in the same step, or removed first.
+	const ownedDomains: { id: string; hostname: string }[] = [];
+	for (const group of chunks(ids)) ownedDomains.push(...(await db.select({ id: domains.id, hostname: domains.hostname }).from(domains).where(inArray(domains.userId, group))));
+	if (ownedDomains.length && !transferToId) {
+		return { ok: false, status: 409, error: `Choose an account to transfer data to. It also takes over ${ownedDomains.map((domain) => domain.hostname).sort().join(", ")}, which would otherwise be removed with every mailbox on ${ownedDomains.length === 1 ? "it" : "them"}.` };
+	}
 	if (transferToId) {
 		const [recipient] = await db.select().from(users).where(eq(users.id, transferToId)).limit(1);
 		if (!recipient || !(await isPersonAccountId(db, recipient.id)) || recipient.disabled || recipient.deletedAt || ids.includes(recipient.id)) {
@@ -72,7 +80,11 @@ export async function deleteAccounts(env: CloudflareEnv, actor: SessionUser, inp
 		if (!isPrimaryAdmin(actor) && recipient.role === "admin" && recipient.id !== actor.id) {
 			return { ok: false, status: 403, error: "Only the primary admin can transfer data to an admin account" };
 		}
+		if (ownedDomains.length && !canManageDomains(recipient)) {
+			return { ok: false, status: 400, error: "Domains can only be transferred to an admin who manages domains" };
+		}
 		for (const target of targets) await transferAccountData(env, target.id, target.name || target.email, recipient.id);
+		for (const group of chunks(ownedDomains.map((domain) => domain.id))) await db.update(domains).set({ userId: recipient.id }).where(inArray(domains.id, group));
 	}
 	// Fork-only: shared inboxes owned by a group stay with the group rather than with the deleted admin.
 	await moveGroupOwnedMailboxes(env, ids, actor.id);

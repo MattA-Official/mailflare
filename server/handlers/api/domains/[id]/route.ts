@@ -1,7 +1,7 @@
 import { NextResponse } from "#lib/http/next-compat";
-import { eq } from "drizzle-orm";
+import { and, eq } from "drizzle-orm";
 import { getDb } from "#db";
-import { domains } from "#db/schema";
+import { domains, mailboxes } from "#db/schema";
 import { getEnv } from "#lib/cloudflare";
 import { requireUser } from "#lib/auth/cookies";
 import { canManageDomains } from "#lib/auth/admin";
@@ -42,6 +42,16 @@ export async function DELETE(request: Request, { params }: Params) {
 	const user = await requireUser(env, request);
 	if (!canManageDomains(user)) return NextResponse.json({ error: "Forbidden" }, { status: 403 });
 	if (!hasValidSessionMutationOrigin(request)) return NextResponse.json({ error: "Invalid origin" }, { status: 403 });
+	// Fork-only: shared inboxes hold themselves, so removing their domain must not take them silently.
+	const sharedInboxes = await getDb(env)
+		.select({ localPart: mailboxes.localPart, hostname: domains.hostname })
+		.from(mailboxes)
+		.innerJoin(domains, eq(mailboxes.domainId, domains.id))
+		.where(and(eq(mailboxes.domainId, id), eq(domains.userId, user.id), eq(mailboxes.type, "shared"), eq(mailboxes.disabled, false)));
+	if (sharedInboxes.length) {
+		const addresses = sharedInboxes.map((inbox) => `${inbox.localPart}@${inbox.hostname}`).sort().join(", ");
+		return NextResponse.json({ error: `Delete the shared inboxes on this domain first: ${addresses}` }, { status: 409 });
+	}
 	try {
 		await removeDomainForUser(env, user.id, id);
 		return NextResponse.json({ ok: true });

@@ -398,6 +398,11 @@ Tick in the PR that lands it. Add rows for anything discovered.
   (admins who manage shared inboxes) removes its routing, disables it and marks its holder deleted, so the
   account purge clears its mail and R2 objects after the restore window. Invites and webhooks for a shared
   inbox now go to the inbox's own account, not the admin's.
+- (fork) Standalone shared inboxes, phase 2. Deleting an admin who owns domains is refused (409) unless the
+  same request transfers their data to an admin who manages domains, who then takes over those domains, so
+  the purge no longer cascades to every mailbox on them. `GET /api/accounts` gains `ownedDomains` per
+  account (additive) and the delete dialog requires such a recipient when any are listed. Deleting a domain
+  that hosts an enabled shared inbox is refused (409) with the inbox addresses.
 - (upstream 2b58ed7) Upstream's `0087_message_invite_response` shares its number with the fork's
   `0087_oidc_provider`. The runner records migrations by full file name, so both apply; keep
   upstream's file names as they are rather than renumbering.

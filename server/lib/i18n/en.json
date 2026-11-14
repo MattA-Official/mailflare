@@ -1120,6 +1120,7 @@
 	"accounts.transferLabel": "Transfer Drive, Docs and Calendar data (optional)",
 	"accounts.transferNone": "Do not transfer",
 	"accounts.transferHint": "Files, documents and calendar events move to the chosen account. Mail stays with the deleted account.",
+	"accounts.transferDomainsHint": "Required for an admin who owns domains: the chosen admin takes over {domains}, so the mailboxes on them are kept.",
 	"accounts.confirmDelete": "Confirm deletion",
 	"accounts.deleting": "Deleting...",
 	"accounts.deleteFailed": "Unable to delete accounts",

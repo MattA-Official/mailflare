@@ -14,15 +14,23 @@ const transferToId = ref(NONE)
 const deleting = ref(false)
 const message = ref<string | null>(null)
 
+// Fork-only: an admin who owns domains can only be deleted if an admin who manages domains takes them over.
+const ownedDomains = computed(() => props.accounts.flatMap(account => account.ownedDomains ?? []).sort())
+
 const recipients = computed(() => {
   const doomed = new Set(props.accounts.map(account => account.id))
   return [
-    { label: t('accounts.transferNone'), value: NONE },
+    ...(ownedDomains.value.length ? [] : [{ label: t('accounts.transferNone'), value: NONE }]),
     ...props.candidates
       .filter(account => !doomed.has(account.id) && !account.disabled && !account.deletedAt)
+      .filter(account => !ownedDomains.value.length || (account.role === 'admin' && (account.isPrimaryAdmin || account.canManageDomains)))
       .map(account => ({ label: `${account.name} (${account.email})`, value: account.id })),
   ]
 })
+
+watch(ownedDomains, (domains) => {
+  if (domains.length && transferToId.value === NONE) transferToId.value = recipients.value[0]?.value ?? NONE
+}, { immediate: true })
 
 watch(open, (value) => {
   if (!value) message.value = null
@@ -52,7 +60,7 @@ async function confirm() {
             {{ account.name }} <span class="text-muted">{{ account.email }}</span>
           </li>
         </ul>
-        <UFormField :label="t('accounts.transferLabel')" :help="t('accounts.transferHint')">
+        <UFormField :label="t('accounts.transferLabel')" :help="ownedDomains.length ? t('accounts.transferDomainsHint', { domains: ownedDomains.join(', ') }) : t('accounts.transferHint')">
           <USelect v-model="transferToId" :items="recipients" :disabled="deleting" class="w-full" />
         </UFormField>
         <p v-if="message" role="alert" class="text-sm text-error">

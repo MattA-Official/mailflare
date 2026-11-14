@@ -31,6 +31,8 @@ export interface Account {
   mailboxId?: string | null
   localPart?: string | null
   hostname?: string | null
+  /** Fork-only: hostnames of the domains this account owns. */
+  ownedDomains?: string[]
 }
 
 export interface AccountResponse {
