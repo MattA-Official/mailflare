@@ -8,6 +8,7 @@ definePageMeta({ layout: 'dashboard', nav: 'admin', auth: { role: 'admin', requi
 
 const { t } = useLanguage()
 const currentUser = useCurrentUser()
+const route = useRoute()
 useHead({ title: () => t('accounts.title') })
 
 const canManage = computed(() => !!currentUser.value && (currentUser.value.isPrimaryAdmin || currentUser.value.canManageUsers))
@@ -39,6 +40,8 @@ onMounted(async () => {
     await loadAccounts()
     domains.value = await fetchDomains()
     form.domainId = domains.value[0]?.id ?? ''
+    // /accounts?new=1 (linked from a mailbox's shared access card) opens the create dialog.
+    if (route.query.new && canManage.value) createOpen.value = true
   } catch (error) {
     message.value = error instanceof Error ? error.message : t('accounts.loadFailed')
   } finally {
