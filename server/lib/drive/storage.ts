@@ -1,6 +1,7 @@
 import { eq, sql } from "drizzle-orm";
 import { getDb } from "#db";
 import { appSettings, driveItems, sharedDrives } from "#db/schema";
+import { withoutDriveTables } from "./shared-drives";
 
 /** Per-user Drive cap in bytes, or null for unlimited. Set by the admin on the General page. */
 export async function getDriveStorageLimit(env: CloudflareEnv): Promise<number | null> {
@@ -18,7 +19,7 @@ export async function getDriveStorageUsed(db: ReturnType<typeof getDb>, ownerId:
  * anyone else has the instance-wide per-person cap.
  */
 export async function getDriveStorageLimitFor(env: CloudflareEnv, db: ReturnType<typeof getDb>, ownerId: string): Promise<number | null> {
-	const [drive] = await db.select({ limit: sharedDrives.storageLimitBytes }).from(sharedDrives).where(eq(sharedDrives.id, ownerId)).limit(1);
+	const [drive] = await withoutDriveTables([], () => db.select({ limit: sharedDrives.storageLimitBytes }).from(sharedDrives).where(eq(sharedDrives.id, ownerId)).limit(1));
 	if (drive) return drive.limit && drive.limit > 0 ? drive.limit : null;
 	return getDriveStorageLimit(env);
 }

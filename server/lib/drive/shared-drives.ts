@@ -11,6 +11,7 @@ import { canManageUsers } from "#lib/auth/admin";
 import { PASSWORDLESS_PASSWORD_HASH } from "#lib/auth/password";
 import { effectiveGroupIds } from "#lib/groups/hierarchy";
 import { newId } from "#lib/ids";
+import { isMissingTableError } from "#lib/database-errors";
 import type { DriveRole } from "./types";
 
 export type DriveMemberRole = "view" | "edit" | "manage";
@@ -50,18 +51,18 @@ export function normalizeSharedDriveName(value: unknown): string | null {
 
 /** A live (not deleted) shared drive, or null. Cheap enough to call for any Drive owner id. */
 export async function getSharedDrive(db: AppDatabase, id: string): Promise<{ id: string; name: string; storageLimitBytes: number | null } | null> {
-	const [row] = await db
+	const [row] = await withoutDriveTables([], () => db
 		.select({ id: sharedDrives.id, name: users.name, storageLimitBytes: sharedDrives.storageLimitBytes })
 		.from(sharedDrives)
 		.innerJoin(users, eq(users.id, sharedDrives.id))
 		.where(and(eq(sharedDrives.id, id), isNull(users.deletedAt)))
-		.limit(1);
+		.limit(1));
 	return row ?? null;
 }
 
 /** Whether the id is a shared drive's account, deleted or not. */
 export async function isSharedDriveId(db: AppDatabase, id: string): Promise<boolean> {
-	const [row] = await db.select({ id: sharedDrives.id }).from(sharedDrives).where(eq(sharedDrives.id, id)).limit(1);
+	const [row] = await withoutDriveTables([], () => db.select({ id: sharedDrives.id }).from(sharedDrives).where(eq(sharedDrives.id, id)).limit(1));
 	return !!row;
 }
 
@@ -89,12 +90,12 @@ export async function getSharedDriveRole(db: AppDatabase, actor: SharedDriveActo
 
 /** Every live drive the person can reach, with their role, by name. Admins who manage users see every drive. */
 export async function listSharedDrivesFor(db: AppDatabase, actor: SharedDriveActor): Promise<SharedDriveSummary[]> {
-	const all = await db
+	const all = await withoutDriveTables([], () => db
 		.select({ id: sharedDrives.id, name: users.name, storageLimitBytes: sharedDrives.storageLimitBytes })
 		.from(sharedDrives)
 		.innerJoin(users, eq(users.id, sharedDrives.id))
 		.where(isNull(users.deletedAt))
-		.orderBy(asc(sql`lower(${users.name})`));
+		.orderBy(asc(sql`lower(${users.name})`)));
 	if (canCreateSharedDrives(actor)) return all.map((drive) => ({ ...drive, role: "manage" as const }));
 	if (!all.length) return [];
 	const memberships = await db
@@ -107,6 +108,19 @@ export async function listSharedDrivesFor(db: AppDatabase, actor: SharedDriveAct
 		const role = bestDriveMemberRole(roles.get(drive.id) ?? []);
 		return role ? [{ ...drive, role }] : [];
 	});
+}
+
+/**
+ * Runs a read of the shared drive tables. Until migration 0094 is applied they do not exist, and Drive must keep
+ * working as if there were no shared drives, so a missing table gives `fallback`.
+ */
+export async function withoutDriveTables<T>(fallback: T, read: () => Promise<T>): Promise<T> {
+	try {
+		return await read();
+	} catch (error) {
+		if (isMissingTableError(error)) return fallback;
+		throw error;
+	}
 }
 
 export function sharedDriveEmail(id: string): string {

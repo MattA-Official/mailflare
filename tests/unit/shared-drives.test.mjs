@@ -1,6 +1,6 @@
 // Fork-only: shared drives held by their own hidden account (migration 0094_shared_drives).
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync } from "node:fs";
+import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterAll as after, test, onTestFinished } from "vitest";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -47,10 +47,21 @@ const {
 const context = id => ({ params: Promise.resolve({ id }) });
 const primary = { id: "primary", role: "admin", isPrimaryAdmin: true, canManageUsers: true, canManageMailboxes: false };
 
-async function fixture() {
+/** Every migration except 0094, as a database looks after deploy and before the update card is used. */
+function migrationsWithout0094() {
+	const dir = join(directory, `without-${Math.random().toString(36).slice(2)}`);
+	mkdirSync(join(dir, "meta"), { recursive: true });
+	for (const name of readdirSync(migrations)) {
+		if (name.endsWith(".sql") && !name.startsWith("0094")) copyFileSync(join(migrations, name), join(dir, name));
+	}
+	copyFileSync(join(migrations, "meta", "_journal.json"), join(dir, "meta", "_journal.json"));
+	return dir;
+}
+
+async function fixture({ withDrives = true } = {}) {
 	const database = new SqliteDatabase(":memory:");
 	onTestFinished(() => database.db.close());
-	await applyMigrations(database, migrations);
+	await applyMigrations(database, withDrives ? migrations : migrationsWithout0094());
 	const sql = database.db;
 	const addUser = sql.prepare(`INSERT INTO users
 		(id, email, password_hash, name, role, is_primary_admin, can_manage_users, can_manage_mailboxes, disabled, created_at)
@@ -204,4 +215,20 @@ test("a drive keeps a manager, uses its own storage cap, and goes only when dele
 	assert.equal(await getPublicDriveItem(f.db, "tok"), null);
 	assert.deepEqual((await (await drivesRoute.GET(f.request("primary", "/api/drives"))).json()).drives, []);
 	assert.notEqual(f.sql.prepare("SELECT deleted_at FROM users WHERE id = ?").get(drive.id).deleted_at, null);
+});
+
+test("before migration 0094 is applied, Drive works as if there were no shared drives", async () => {
+	const f = await fixture({ withDrives: false });
+	const folder = await itemsRoute.POST(f.request("anna", "/api/drive/items", "POST", { name: "Mine" }));
+	assert.equal(folder.status, 200);
+	const created = (await folder.json()).item;
+	f.sql.exec(`INSERT INTO drive_shares (id, item_id, user_id, role, created_at) VALUES ('s1', '${created.id}', 'ben', 'view', 1)`);
+	const listing = await itemsRoute.GET(f.request("anna", "/api/drive/items"));
+	assert.equal(listing.status, 200);
+	assert.deepEqual((await listing.json()).items.map(item => item.name), ["Mine"]);
+	assert.equal((await itemsRoute.GET(f.request("ben", `/api/drive/items?parent=${created.id}`))).status, 200);
+	assert.equal(await getDriveRole(f.db, "ben", await getDriveItem(f.db, created.id)), "view");
+	assert.equal((await uploadRoute.POST(f.request("anna", "/api/drive/upload", "POST", { name: "a.txt", size: 0 }))).status, 200);
+	assert.deepEqual((await (await drivesRoute.GET(f.request("primary", "/api/drives"))).json()).drives, []);
+	assert.equal((await drivesRoute.POST(f.request("primary", "/api/drives", "POST", { name: "Team" }))).status, 409);
 });
