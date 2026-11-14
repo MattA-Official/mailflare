@@ -18,7 +18,24 @@ export async function hashSessionToken(token: string): Promise<string> {
 		.join("");
 }
 
-export async function createSession(env: CloudflareEnv, userId: string): Promise<string> {
+/**
+ * RFC 8176 authentication method references recorded on a session. "mfa" marks a password
+ * followed by a second factor; a passkey ("hwk") needs user verification, so it counts on its own.
+ */
+export type SessionAmr = "pwd" | "otp" | "hwk" | "user" | "mfa";
+
+/** Whether a session's recorded sign-in used two factors. Null (older sessions) is password-only. */
+export function isTwoFactorAmr(amr: string | null | undefined): boolean {
+	if (!amr) return false;
+	try {
+		const values: unknown = JSON.parse(amr);
+		return Array.isArray(values) && (values.includes("mfa") || values.includes("hwk"));
+	} catch {
+		return false;
+	}
+}
+
+export async function createSession(env: CloudflareEnv, userId: string, amr: SessionAmr[] = ["pwd"]): Promise<string> {
 	const db = getDb(env);
 	const token = generateSessionToken();
 	const tokenHash = await hashSessionToken(token);
@@ -29,6 +46,7 @@ export async function createSession(env: CloudflareEnv, userId: string): Promise
 		userId,
 		tokenHash,
 		expiresAt,
+		amr: JSON.stringify(amr),
 	});
 	await db.update(users).set({ lastSignInAt: new Date() }).where(eq(users.id, userId));
 

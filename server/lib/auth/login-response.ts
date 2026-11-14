@@ -1,7 +1,7 @@
 import { NextResponse } from "#lib/http/next-compat";
 import { cookies } from "#lib/http/next-compat";
 import { ACCOUNTS_COOKIE, rememberLogin } from "#lib/auth/accounts";
-import { createSession, SESSION_COOKIE } from "#lib/auth/session";
+import { createSession, SESSION_COOKIE, type SessionAmr } from "#lib/auth/session";
 import { recordAuthActivity } from "#lib/auth/activity";
 import type { AuthActivityAction } from "#lib/auth/activity-types";
 
@@ -13,9 +13,9 @@ export async function completeLogin(
 	env: CloudflareEnv,
 	request: Request,
 	userId: string,
-	options: { activity?: AuthActivityAction; body?: Record<string, unknown> } = {},
+	options: { activity?: AuthActivityAction; body?: Record<string, unknown>; amr?: SessionAmr[] } = {},
 ): Promise<NextResponse> {
-	const token = await createSession(env, userId);
+	const token = await createSession(env, userId, options.amr);
 	await recordAuthActivity(env, { action: options.activity ?? "auth.login", userId, request });
 	const response = NextResponse.json({
 		ok: true,

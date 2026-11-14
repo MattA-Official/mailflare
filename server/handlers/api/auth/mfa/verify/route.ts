@@ -42,7 +42,7 @@ export async function POST(request: Request) {
 
 	// The factor is proven; the single challenge is burned so a replay cannot
 	// mint a second session.
-	const response = await completeLogin(env, request, user.id, { body: { method } });
+	const response = await completeLogin(env, request, user.id, { body: { method }, amr: method === "totp" ? ["pwd", "otp", "mfa"] : ["pwd", "mfa"] });
 	await recordAuthActivity(env, { action: "auth.mfa_verified", userId: user.id, request });
 	return response;
 }
