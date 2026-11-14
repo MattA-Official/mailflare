@@ -2,7 +2,10 @@
 // legacy/src/app/d/[token]/types.d.ts.
 import type { DriveCrumb, DriveItemDto, DriveRole } from '#lib/drive/types'
 
-export type DriveListing = { items: DriveItemDto[], path: DriveCrumb[], role: DriveRole, storageUsed: number, storageLimit: number | null }
+export type DriveListing = { items: DriveItemDto[], path: DriveCrumb[], role: DriveRole, storageUsed: number, storageLimit: number | null, drive?: SharedDriveRef }
+/** Fork-only: the shared drive a listing belongs to. */
+export type SharedDriveRole = 'view' | 'edit' | 'manage'
+export type SharedDriveRef = { id: string, name: string, role: SharedDriveRole }
 export type DriveStorageDetail = { used: number, limit: number | null }
 export type DriveFolderNode = { id: string, name: string, parentId: string | null }
 

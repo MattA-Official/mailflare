@@ -5,6 +5,7 @@ import { effectiveGroupIds } from "#lib/groups/hierarchy";
 import { DRIVE_MAX_DEPTH, driveObjectKey } from "./utils";
 import type { DriveItemDto, DriveRole, DriveRow } from "./types";
 import { deleteUnreferencedObjects } from "#lib/drive/shared-objects";
+import { driveRoleForMember, getSharedDrive, getSharedDriveRole, isSharedDriveId } from "#lib/drive/shared-drives";
 
 type Db = ReturnType<typeof getDb>;
 
@@ -34,6 +35,14 @@ export async function getDriveRole(db: Db, userId: string, item: DriveRow, allow
 	const chain = await getDriveChain(db, item);
 	if (!allowTrashed && chain.some((entry) => entry.trashedAt)) return null;
 	if (item.ownerId === userId) return "owner";
+	// Fork-only: items in a shared drive are reached through the drive's members. A deleted drive hides everything.
+	let driveRole: DriveRole | null = null;
+	if (await isSharedDriveId(db, item.ownerId)) {
+		const memberRole = await getSharedDriveRole(db, userId, item.ownerId);
+		if (!memberRole && !(await getSharedDrive(db, item.ownerId))) return null;
+		if (memberRole) driveRole = driveRoleForMember(memberRole);
+		if (driveRole === "owner") return "owner";
+	}
 	const chainIds = chain.map((entry) => entry.id);
 	const shares = [
 		...await db.select({ role: driveShares.role }).from(driveShares).where(and(eq(driveShares.userId, userId), inArray(driveShares.itemId, chainIds))),
@@ -43,8 +52,8 @@ export async function getDriveRole(db: Db, userId: string, item: DriveRow, allow
 			.from(driveGroupShares)
 			.where(and(inArray(driveGroupShares.groupId, effectiveGroupIds(userId)), inArray(driveGroupShares.itemId, chainIds))),
 	];
-	if (shares.some((share) => share.role === "edit")) return "edit";
-	return shares.length ? "view" : null;
+	if (driveRole === "edit" || shares.some((share) => share.role === "edit")) return "edit";
+	return driveRole ?? (shares.length ? "view" : null);
 }
 
 /** Fork-only. Whether the item itself is shared with the user, directly or through one of their groups. */
@@ -91,8 +100,10 @@ export async function getPublicDriveItem(db: Db, token: string, itemId?: string 
 	const [root] = await db.select().from(driveItems).where(eq(driveItems.linkToken, token)).limit(1);
 	if (!root || root.trashedAt) return null;
 	// A hidden Drive turns its shared links off too, so a blocked owner cannot use them either.
-	const [owner] = await db.select({ driveEnabled: users.driveEnabled }).from(users).where(eq(users.id, root.ownerId)).limit(1);
+	const [owner] = await db.select({ driveEnabled: users.driveEnabled, deletedAt: users.deletedAt }).from(users).where(eq(users.id, root.ownerId)).limit(1);
 	if (owner && !owner.driveEnabled) return null;
+	// Fork-only: a deleted shared drive's links stop working at once.
+	if (owner?.deletedAt && await isSharedDriveId(db, root.ownerId)) return null;
 	if (!itemId || itemId === root.id) return { root, item: root };
 	const item = await getDriveItem(db, itemId);
 	if (!item) return null;
@@ -114,22 +125,26 @@ export async function toDriveItemDtos(db: Db, rows: DriveRow[], userId: string, 
 		const groupShares = await db.select({ itemId: driveGroupShares.itemId }).from(driveGroupShares).where(inArray(driveGroupShares.itemId, slice));
 		for (const share of [...shares, ...groupShares]) sharedIds.add(share.itemId);
 	}
-	return rows.map((row) => ({
-		id: row.id,
-		kind: row.kind,
-		name: row.name,
-		size: row.size,
-		contentType: row.contentType,
-		parentId: row.parentId,
-		ownerId: row.ownerId,
-		ownerName: ownerNames.get(row.ownerId) ?? "",
-		ownerHasAvatar: ownerAvatars.get(row.ownerId) ?? false,
-		role: roleFor ? roleFor(row) : row.ownerId === userId ? "owner" : "view",
-		shared: sharedIds.has(row.id) || !!row.linkToken,
-		linkToken: row.ownerId === userId ? row.linkToken : null,
-		trashedAt: row.trashedAt?.toISOString() ?? null,
-		updatedAt: row.updatedAt.toISOString(),
-	}));
+	return rows.map((row) => {
+		const role: DriveRole = roleFor ? roleFor(row) : row.ownerId === userId ? "owner" : "view";
+		return {
+			id: row.id,
+			kind: row.kind,
+			name: row.name,
+			size: row.size,
+			contentType: row.contentType,
+			parentId: row.parentId,
+			ownerId: row.ownerId,
+			ownerName: ownerNames.get(row.ownerId) ?? "",
+			ownerHasAvatar: ownerAvatars.get(row.ownerId) ?? false,
+			role,
+			shared: sharedIds.has(row.id) || !!row.linkToken,
+			// Fork: whoever may manage the item (its owner, or a shared drive's managers) sees its link.
+			linkToken: role === "owner" ? row.linkToken : null,
+			trashedAt: row.trashedAt?.toISOString() ?? null,
+			updatedAt: row.updatedAt.toISOString(),
+		};
+	});
 }
 
 /** Every descendant of the given folders (breadth first), without the roots themselves. */

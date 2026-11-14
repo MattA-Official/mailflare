@@ -1579,6 +1579,31 @@ export const mailboxManagers = sqliteTable("mailbox_managers", {
 	createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
 }, (t) => [primaryKey({ columns: [t.mailboxId, t.groupId] }), index("mailbox_managers_group_idx").on(t.groupId)]);
 
+/** Fork-only (migration 0094): a shared drive. Its id is the hidden account (users.kind = 'drive') that owns its items. */
+export const sharedDrives = sqliteTable("shared_drives", {
+	id: text("id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+	/** Cap on the drive's files in bytes; null means unlimited. Only admins change it. */
+	storageLimitBytes: integer("storage_limit_bytes"),
+	createdByUserId: text("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+	createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+});
+
+/** Fork-only (migration 0094): a person or a group given a role on a whole shared drive. */
+export const driveMembers = sqliteTable("drive_members", {
+	id: text("id").primaryKey(),
+	driveId: text("drive_id").notNull().references(() => sharedDrives.id, { onDelete: "cascade" }),
+	userId: text("user_id").references(() => users.id, { onDelete: "cascade" }),
+	groupId: text("group_id").references(() => groups.id, { onDelete: "cascade" }),
+	role: text("role", { enum: ["view", "edit", "manage"] }).notNull().default("view"),
+	createdByUserId: text("created_by_user_id").references(() => users.id, { onDelete: "set null" }),
+	createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+}, (t) => [
+	uniqueIndex("drive_members_drive_user_idx").on(t.driveId, t.userId),
+	uniqueIndex("drive_members_drive_group_idx").on(t.driveId, t.groupId),
+	index("drive_members_user_idx").on(t.userId),
+	index("drive_members_group_idx").on(t.groupId),
+]);
+
 // Fork-only: a group inside another group (migration 0092). Access flows from parent to child, never back.
 export const groupSubgroups = sqliteTable("group_subgroups", {
 	parentGroupId: text("parent_group_id").notNull().references(() => groups.id, { onDelete: "cascade" }),

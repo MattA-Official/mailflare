@@ -4,7 +4,8 @@ import { driveItems, driveUploadParts } from "#db/schema";
 import { newId } from "#lib/ids";
 import { authorizeDrive } from "#lib/drive/auth";
 import { getDriveItem, getDriveRole, toDriveItemDtos } from "#lib/drive/access";
-import { getDriveStorageLimit, getDriveStorageUsed } from "#lib/drive/storage";
+import { getDriveStorageLimitFor, getDriveStorageUsed } from "#lib/drive/storage";
+import { driveRoleForMember, getSharedDriveRole } from "#lib/drive/shared-drives";
 import { canEditDrive, DRIVE_MAX_FILE_BYTES, DRIVE_PART_BYTES, DRIVE_UPLOAD_RESUME_MS, driveObjectKey, normalizeDriveName } from "#lib/drive/utils";
 
 /**
@@ -15,7 +16,7 @@ export async function POST(request: Request) {
 	const auth = await authorizeDrive(request, true);
 	if (auth.error) return auth.error;
 	const { env, db, user } = auth;
-	const body = await request.json().catch(() => ({})) as { name?: unknown; size?: unknown; contentType?: unknown; parentId?: unknown; fingerprint?: unknown };
+	const body = await request.json().catch(() => ({})) as { name?: unknown; size?: unknown; contentType?: unknown; parentId?: unknown; fingerprint?: unknown; driveId?: unknown };
 	const size = typeof body.size === "number" && Number.isInteger(body.size) && body.size >= 0 ? body.size : null;
 	const name = normalizeDriveName(body.name) ?? "Untitled";
 	if (size === null) return NextResponse.json({ error: "Invalid file size" }, { status: 400 });
@@ -29,6 +30,11 @@ export async function POST(request: Request) {
 		if (!parent || !canEditDrive(role)) return NextResponse.json({ error: "Folder not found" }, { status: 404 });
 		parentId = parent.id;
 		ownerId = parent.ownerId;
+	} else if (typeof body.driveId === "string" && body.driveId) {
+		// Fork: a file at the top level of a shared drive.
+		const role = await getSharedDriveRole(db, user, body.driveId);
+		if (!role || !canEditDrive(driveRoleForMember(role))) return NextResponse.json({ error: "Drive not found" }, { status: 404 });
+		ownerId = body.driveId;
 	}
 
 	const fingerprint = typeof body.fingerprint === "string" ? body.fingerprint.slice(0, 100) : "";
@@ -51,7 +57,8 @@ export async function POST(request: Request) {
 		}
 	}
 
-	const limit = await getDriveStorageLimit(env);
+	// Fork: a shared drive's files count against the drive's own cap.
+	const limit = await getDriveStorageLimitFor(env, db, ownerId);
 	if (limit !== null && (await getDriveStorageUsed(db, ownerId)) + size > limit) return NextResponse.json({ error: "Not enough Drive storage left for this file" }, { status: 413 });
 
 	const id = newId("drv");
@@ -59,7 +66,7 @@ export async function POST(request: Request) {
 	const contentType = typeof body.contentType === "string" && body.contentType ? body.contentType.slice(0, 255) : "application/octet-stream";
 	const now = new Date();
 	const row: typeof driveItems.$inferSelect = { id, ownerId, parentId, kind: "file", name, r2Key: key, size, contentType, uploadId: null, uploadPartSize: null, uploadFingerprint: null, linkToken: null, trashedAt: null, createdAt: now, updatedAt: now };
-	const role = ownerId === user.id ? "owner" : "edit";
+	const role = ownerId === user.id ? "owner" : await getDriveRole(db, user.id, row) ?? "edit";
 
 	// Multipart uploads need at least one part, so an empty file is simply stored.
 	if (size === 0) {

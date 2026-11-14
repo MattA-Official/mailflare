@@ -11,6 +11,8 @@ export const DRIVE_STORAGE_EVENT = 'mailflare:drive-storage'
 export const DRIVE_FOLDERS_EVENT = 'mailflare:drive-folders'
 /** Asks the open listing to reload, e.g. after the sidebar created a folder. */
 export const DRIVE_REFRESH_EVENT = 'mailflare:drive-refresh'
+/** Fork-only. Asks the sidebar to reload its list of shared drives, e.g. after one was renamed or deleted. */
+export const DRIVE_SHARED_DRIVES_EVENT = 'mailflare:drive-shared-drives'
 
 const extensionOf = (name: string) => name.slice(name.lastIndexOf('.') + 1).toLowerCase()
 const SPREADSHEET = /spreadsheet|ms-excel|csv/

@@ -39,7 +39,8 @@ export async function DELETE(request: Request, { params }: DriveItemParams) {
 	if (auth.error) return auth.error;
 	const { env, db, user } = auth;
 	const item = await getDriveItem(db, id);
-	if (!item || item.ownerId !== user.id) return NextResponse.json({ error: "Not found" }, { status: 404 });
+	// Fork: the owner, or a manager of the shared drive the item is in.
+	if (!item || (await getDriveRole(db, user.id, item, true)) !== "owner") return NextResponse.json({ error: "Not found" }, { status: 404 });
 	if (!item.trashedAt) return NextResponse.json({ error: "Move the item to trash first" }, { status: 409 });
 	await deleteDriveItems(env, [item]);
 	return NextResponse.json({ ok: true });
