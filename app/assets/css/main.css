@@ -1,2 +1,45 @@
 @import "tailwindcss";
 @import "@nuxt/ui";
+
+/* Fork-only: Flytower brand (tungsten amber on steel, IBM Plex). Tokens from the Flytower design kit;
+   @nuxt/fonts (bundled with Nuxt UI) self-hosts the fonts at build time. */
+@theme static {
+  --font-sans: "IBM Plex Sans", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, monospace;
+
+  --color-tungsten-50: #FFF8EB;
+  --color-tungsten-100: #FEEBC8;
+  --color-tungsten-200: #FCD592;
+  --color-tungsten-300: #F9BC5C;
+  --color-tungsten-400: #F2A93B;
+  --color-tungsten-500: #E08E1B;
+  --color-tungsten-600: #C07112;
+  --color-tungsten-700: #985511;
+  --color-tungsten-800: #7A4414;
+  --color-tungsten-900: #643914;
+  --color-tungsten-950: #3A1D06;
+
+  --color-steel-50: #F5F7FA;
+  --color-steel-100: #E9EDF3;
+  --color-steel-200: #D3DAE5;
+  --color-steel-300: #AEB9CB;
+  --color-steel-400: #8292AB;
+  --color-steel-500: #627390;
+  --color-steel-600: #4C5B76;
+  --color-steel-700: #3E4A61;
+  --color-steel-800: #2A3345;
+  --color-steel-900: #1B2231;
+  --color-steel-950: #10151F;
+}
+
+:root {
+  /* Amber 700 on light grounds (5.8:1 on white); 400 on dark. */
+  --ui-primary: var(--ui-color-primary-700);
+}
+
+.dark {
+  --ui-primary: var(--ui-color-primary-400);
+  --ui-bg: var(--ui-color-neutral-950);
+  --ui-bg-elevated: var(--ui-color-neutral-900);
+}
+

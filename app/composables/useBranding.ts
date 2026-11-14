@@ -2,7 +2,7 @@
 // public, so this also works on signed-out pages.
 import type { Branding } from '#lib/branding/types'
 
-export const DEFAULT_BRANDING: Branding = { appName: 'Mailflare', hasCustomIcon: false, canCustomizeBranding: true }
+export const DEFAULT_BRANDING: Branding = { appName: 'Flytower Mail', hasCustomIcon: false, canCustomizeBranding: true }
 
 const branding = ref<Branding>({ ...DEFAULT_BRANDING })
 const iconVersion = ref(0)

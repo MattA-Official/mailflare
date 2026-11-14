@@ -341,6 +341,10 @@ Tick in the PR that lands it. Add rows for anything discovered.
   `/.well-known/openid-configuration`, the Apps admin pages and an Apps tab on accounts. Upstream has
   none of this, so it never conflicts with a port. `completeLogin` takes the sign-in method (`amr`)
   and `/login` accepts `?next=/oauth/authorize?…`. See [oidc.md](oidc.md).
+- (fork) Flytower branding: `primary: 'tungsten'`, `neutral: 'steel'` and IBM Plex in `app.config.ts` and
+  `main.css`; the Flytower mark as `favicon.ico`, `favicon.svg` and `icon-*.png`; the default name is
+  "Flytower Mail" (`DEFAULT_APP_NAME`, `DEFAULT_BRANDING`, the manifest) and migration
+  `0088_flytower_app_name` renames installs still called "Mailflare". "Powered by Mailflare" stays.
 
 ## Following upstream
 
