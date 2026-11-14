@@ -410,6 +410,9 @@ port started from `cee65a5` (v0.5.4, the tree that was `legacy/`). Read upstream
   generate VAPID keys with `bun run vapid:generate` and set them as Worker secrets.
 - `public/locales/*.json` gained `notification.open` (added to English by workstream 1), copied from
   each catalogue's existing `drive.open` translation of the same word.
+- The mailbox page's shared access card shows a disabled picker and a "Create an account" link (to
+  `/accounts?new=1`, which opens the create dialog) when no account can be added. Upstream shows an
+  empty dropdown. Its four `mailbox.*` strings are English only; other catalogues fall back.
 - Email Routing on flytower.dev is not enabled yet; first-run setup enables it through `CF_TOKEN`.
 
 ## Cloudflare resources (account Flytower, `e1c19a0c407713eac8c279a4d1d9989b`)

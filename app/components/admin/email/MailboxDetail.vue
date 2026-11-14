@@ -90,6 +90,8 @@ const { data: sharedAccess, status: sharedStatus, error: sharedError, refresh: r
 const memberItems = computed(() => (sharedAccess.value?.availableUsers ?? [])
   .filter(account => !sharedAccess.value?.members.some(member => member.userId === account.id))
   .map(account => ({ label: `${account.name} (${account.email})`, value: account.id })))
+// Nobody left to add: either no other accounts exist yet, or every account already has access.
+const noAccountsToAdd = computed(() => !!sharedAccess.value && memberItems.value.length === 0)
 const memberBusy = ref(false)
 const memberError = ref<string | null>(null)
 async function addMember() {
@@ -246,12 +248,18 @@ async function remove() {
           {{ errorMessage(sharedError, t('mailbox.sharedLoadFailed')) }}
         </p>
         <form class="flex gap-2" @submit.prevent="addMember">
-          <USelect v-model="selectedUserId" :items="memberItems" :placeholder="t('mailbox.chooseAccount')" class="min-w-0 flex-1" />
+          <USelect v-model="selectedUserId" :items="memberItems" :placeholder="noAccountsToAdd ? t('mailbox.noAccountsToAdd') : t('mailbox.chooseAccount')" :disabled="noAccountsToAdd" class="min-w-0 flex-1" />
           <UButton type="submit" icon="i-lucide-user-plus" :disabled="!selectedUserId || memberBusy" :label="memberBusy ? t('account.mailboxes.adding') : t('mailbox.addUser')" />
         </form>
         <p v-if="memberError" class="text-sm text-error">
           {{ memberError }}
         </p>
+        <div v-if="noAccountsToAdd" class="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed border-default px-4 py-3">
+          <p class="text-sm text-muted">
+            {{ sharedAccess?.availableUsers.length ? t('mailbox.allAccountsAdded') : t('mailbox.noOtherAccounts') }}
+          </p>
+          <UButton to="/accounts?new=1" icon="i-lucide-plus" color="neutral" variant="outline" size="sm" :label="t('mailbox.createAccount')" />
+        </div>
       </div>
     </UCard>
 
