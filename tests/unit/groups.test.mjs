@@ -31,6 +31,7 @@ await build({
 			export { getDriveRole, getDriveItem } from "./server/lib/drive/access.ts";
 			export * as ownerGroupRoute from "./server/handlers/api/mailboxes/[id]/owner-group/route.ts";
 			export { deleteAccounts } from "./server/lib/accounts/deletion.ts";
+			export * as subgroupsRoute from "./server/handlers/api/groups/[id]/subgroups/route.ts";
 		`,
 		resolveDir: root,
 		sourcefile: "groups-test-entry.ts",
@@ -48,7 +49,7 @@ const {
 	SqliteDatabase, applyMigrations, getDb, createSession, getMailboxAccessLevel, listAccessibleMailboxes,
 	listSharedMailboxUserIds, getMailboxNotificationUserIds, groupsRoute, groupRoute, membersRoute, groupAccessRoute,
 	accessRoute, detail, mineRoute, summaryRoute, driveSharesRoute, driveItemsRoute, getDriveRole, getDriveItem,
-	ownerGroupRoute, deleteAccounts,
+	ownerGroupRoute, deleteAccounts, subgroupsRoute,
 } = await import(pathToFileURL(join(directory, "entry.mjs")).href);
 const context = id => ({ params: Promise.resolve({ id }) });
 
@@ -352,4 +353,66 @@ test("a group that owns a shared inbox keeps full access, and the inbox outlives
 	const removed = await groupAccessRoute.DELETE(f.request("primary", `/api/mailboxes/m-held/group-access?groupId=${groupId}`, "DELETE"), context("m-held"));
 	assert.equal(removed.status, 200);
 	assert.equal(await getMailboxAccessLevel(f.db, { id: "anna", role: "user" }, "m-held"), null);
+});
+
+test("sub-groups get what their parents are given, parents get nothing from sub-groups, and loops are refused", async () => {
+	const f = await fixture();
+	const create = async (name) => (await (await f.createGroup("primary", name)).json()).group.id;
+	const support = await create("Support");
+	const sales = await create("Sales");
+	const tier1 = await create("Tier 1");
+	const nights = await create("Nights");
+	const nest = (actor, parent, child) => subgroupsRoute.POST(f.request(actor, `/api/groups/${parent}/subgroups`, "POST", { groupId: child }), context(parent));
+	const unnest = (parent, child) => subgroupsRoute.DELETE(f.request("primary", `/api/groups/${parent}/subgroups?groupId=${child}`, "DELETE"), context(parent));
+	assert.equal((await nest("plain-admin", support, tier1)).status, 403);
+	assert.equal((await nest("primary", support, tier1)).status, 200);
+	assert.equal((await nest("primary", tier1, nights)).status, 200);
+	// A group can sit inside several groups.
+	assert.equal((await nest("primary", sales, nights)).status, 200);
+	assert.equal((await f.addMember("primary", support, "anna")).status, 200);
+	assert.equal((await f.addMember("primary", nights, "ben")).status, 200);
+
+	// Down two levels: Ben, in Nights, reaches what Support is given.
+	assert.equal((await f.grant("primary", "m-support", support, "send_as")).status, 200);
+	assert.equal((await getMailboxAccessLevel(f.db, { id: "ben", role: "user" }, "m-support")).permission, "send_as");
+	const bensInboxes = await listAccessibleMailboxes(f.db, { id: "ben", email: "ben@one.test", role: "user" });
+	assert.deepEqual(bensInboxes.map(row => [row.id, row.permission]), [["m-support", "send_as"]]);
+	assert.deepEqual((await listSharedMailboxUserIds(f.db, "m-support")).sort(), ["anna", "ben"]);
+	// Not up: Anna, in Support, gets nothing from a grant to Tier 1.
+	assert.equal((await f.grant("primary", "m-billing", tier1, "read_only")).status, 200);
+	assert.equal(await getMailboxAccessLevel(f.db, { id: "anna", role: "user" }, "m-billing"), null);
+	assert.equal((await getMailboxAccessLevel(f.db, { id: "ben", role: "user" }, "m-billing")).permission, "read_only");
+
+	const summary = await (await summaryRoute.GET(f.request("primary", "/api/mailboxes/m-support/access-summary"), context("m-support"))).json();
+	const ben = summary.people.find(person => person.userId === "ben");
+	assert.deepEqual(ben.routes, [{ kind: "group", permission: "send_as", groupId: support, groupName: "Support", ownsInbox: false, memberGroupId: nights, memberGroupName: "Nights" }]);
+
+	const detail = await (await groupRoute.GET(f.request("primary", `/api/groups/${nights}`), context(nights))).json();
+	assert.deepEqual(detail.group.parents.map(group => group.name), ["Sales", "Tier 1"]);
+	assert.deepEqual(detail.group.mailboxes.map(mailbox => [mailbox.id, mailbox.inheritedFrom?.name]), [["m-billing", "Tier 1"], ["m-support", "Support"]]);
+	const top = await (await groupRoute.GET(f.request("primary", `/api/groups/${support}`), context(support))).json();
+	assert.deepEqual(top.group.subgroups.map(group => group.name), ["Tier 1"]);
+	// Nights is already beneath Support, and Support can't go inside anything beneath it.
+	assert.deepEqual(top.group.subgroupOptions.map(group => group.name), ["Sales"]);
+
+	// Drive follows the same rule.
+	f.sql.exec(`INSERT INTO drive_items (id, owner_id, parent_id, kind, name, created_at, updated_at) VALUES ('rota', 'primary', NULL, 'folder', 'Rota', 1, 1)`);
+	f.sql.exec(`INSERT INTO drive_group_shares (id, item_id, group_id, role, created_at) VALUES ('dgs', 'rota', '${support}', 'edit', 1)`);
+	assert.equal(await getDriveRole(f.db, "ben", await getDriveItem(f.db, "rota")), "edit");
+
+	// No loops, at any depth.
+	assert.equal((await nest("primary", nights, support)).status, 400);
+	assert.equal((await nest("primary", tier1, tier1)).status, 400);
+
+	// Taking Nights out of Tier 1 ends what came through it; its other parent still counts.
+	assert.equal((await f.grant("primary", "m-support", sales, "read_only")).status, 200);
+	assert.equal((await unnest(tier1, nights)).status, 200);
+	assert.equal((await getMailboxAccessLevel(f.db, { id: "ben", role: "user" }, "m-support")).permission, "read_only");
+	assert.equal(await getMailboxAccessLevel(f.db, { id: "ben", role: "user" }, "m-billing"), null);
+
+	// Deleting a parent works the same way: its links go, the sub-groups stay.
+	assert.equal((await groupRoute.DELETE(f.request("primary", `/api/groups/${sales}`, "DELETE"), context(sales))).status, 200);
+	assert.equal(await getMailboxAccessLevel(f.db, { id: "ben", role: "user" }, "m-support"), null);
+	assert.ok(f.sql.prepare("SELECT id FROM groups WHERE id = ?").get(nights));
+	assert.equal(f.sql.prepare("SELECT COUNT(*) AS total FROM group_subgroups").get().total, 1);
 });

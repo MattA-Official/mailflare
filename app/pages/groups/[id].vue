@@ -1,6 +1,6 @@
 <script setup lang="ts">
 // Fork-only. One group: its name, its members and the shared inboxes it can reach.
-import { deleteGroup, fetchGroup, getGroupMailboxAddress, updateGroup } from '~/utils/admin/system/groups'
+import { addSubgroup, deleteGroup, fetchGroup, getGroupMailboxAddress, removeSubgroup, updateGroup } from '~/utils/admin/system/groups'
 
 definePageMeta({ layout: 'dashboard', nav: 'admin', auth: { role: 'admin', requireMailbox: true } })
 
@@ -36,6 +36,26 @@ async function save() {
   }
 }
 
+// Fork-only (nested groups): groups inside this one get everything shared with it.
+const subgroupId = ref<string | undefined>()
+const subgroupItems = computed(() => (data.value?.group.subgroupOptions ?? []).map(group => ({ label: group.name, value: group.id, icon: 'i-lucide-network' })))
+const subgroupBusy = ref(false)
+const subgroupError = ref<string | null>(null)
+async function changeSubgroup(action: 'add' | 'remove', groupId: string) {
+  subgroupBusy.value = true
+  subgroupError.value = null
+  try {
+    if (action === 'add') await addSubgroup(id.value, groupId)
+    else await removeSubgroup(id.value, groupId)
+    subgroupId.value = undefined
+    await refresh()
+  } catch (cause) {
+    subgroupError.value = cause instanceof Error && cause.message ? cause.message : t('groups.subgroupFailed')
+  } finally {
+    subgroupBusy.value = false
+  }
+}
+
 const deleteOpen = ref(false)
 const deleting = ref(false)
 async function remove() {
@@ -63,6 +83,13 @@ async function remove() {
     </p>
 
     <template v-if="data">
+      <p v-if="data.group.parents.length" class="flex flex-wrap items-center gap-x-1.5 gap-y-1 text-sm text-muted">
+        <span>{{ t('groups.inside') }}</span>
+        <template v-for="(parent, index) in data.group.parents" :key="parent.id">
+          <span v-if="index" aria-hidden="true">·</span>
+          <NuxtLink :to="`/groups/${parent.id}`" class="text-highlighted hover:underline">{{ parent.name }}</NuxtLink>
+        </template>
+      </p>
       <UCard v-if="canManage">
         <form class="space-y-4" @submit.prevent="save">
           <UFormField :label="t('groups.name')" required>
@@ -85,6 +112,39 @@ async function remove() {
 
       <GroupsMembersCard :data="data" account-links @changed="refresh()" />
 
+      <UCard v-if="canManage || data.group.subgroups.length" :ui="{ body: 'p-0 sm:p-0', footer: 'p-4 sm:px-5' }">
+        <template #header>
+          <h2 class="text-sm font-semibold text-highlighted">
+            {{ t('groups.subgroupsTitle') }}
+          </h2>
+          <p class="mt-1 text-xs text-muted">
+            {{ t('groups.subgroupsHint') }}
+          </p>
+        </template>
+        <p v-if="!data.group.subgroups.length" class="px-5 py-4 text-sm text-muted">
+          {{ t('groups.noSubgroups') }}
+        </p>
+        <ul v-else class="divide-y divide-default">
+          <li v-for="subgroup in data.group.subgroups" :key="subgroup.id" class="flex items-center gap-3 px-5 py-3">
+            <NuxtLink :to="`/groups/${subgroup.id}`" class="flex min-w-0 flex-1 items-center gap-3 hover:underline">
+              <UIcon name="i-lucide-network" class="size-4 shrink-0 text-dimmed" />
+              <span class="min-w-0 flex-1 truncate text-sm font-medium text-highlighted">{{ subgroup.name }}</span>
+            </NuxtLink>
+            <span class="shrink-0 text-sm text-muted">{{ t('groups.memberCount', { count: subgroup.memberCount }) }}</span>
+            <UButton v-if="canManage" icon="i-lucide-x" color="neutral" variant="ghost" size="sm" :aria-label="t('groups.removeSubgroup', { name: subgroup.name })" :disabled="subgroupBusy" @click="changeSubgroup('remove', subgroup.id)" />
+          </li>
+        </ul>
+        <template v-if="canManage" #footer>
+          <form class="flex gap-2" @submit.prevent="subgroupId && changeSubgroup('add', subgroupId)">
+            <USelect v-model="subgroupId" :items="subgroupItems" :placeholder="subgroupItems.length ? t('groups.chooseSubgroup') : t('groups.noSubgroupOptions')" :disabled="!subgroupItems.length" class="min-w-0 flex-1" />
+            <UButton type="submit" icon="i-lucide-plus" :disabled="!subgroupId || subgroupBusy" :label="t('groups.addSubgroup')" />
+          </form>
+          <p v-if="subgroupError" role="alert" class="mt-2 text-sm text-error">
+            {{ subgroupError }}
+          </p>
+        </template>
+      </UCard>
+
       <UCard :ui="{ body: 'p-0 sm:p-0' }">
         <template #header>
           <h2 class="text-sm font-semibold text-highlighted">
@@ -106,6 +166,7 @@ async function remove() {
                 <span class="block truncate text-xs text-muted">{{ getGroupMailboxAddress(mailbox) }}</span>
               </span>
               <UBadge v-if="mailbox.owned" color="primary" variant="subtle" :label="t('groups.ownsInbox')" />
+              <UBadge v-if="mailbox.inheritedFrom" color="neutral" variant="soft" :label="t('groups.inheritedFrom', { name: mailbox.inheritedFrom.name })" />
               <UIcon name="i-lucide-chevron-right" class="size-4 shrink-0 text-muted" />
             </NuxtLink>
           </li>

@@ -1,5 +1,6 @@
 // Fork-only. Reads, renames and deletes one group. Deleting a group removes its members' access to
-// the shared inboxes granted to it; their direct grants are untouched.
+// the shared inboxes granted to it; their direct grants are untouched. Its links to parent groups and
+// sub-groups go with it, so sub-groups lose only what reached them through this group.
 import { eq } from "drizzle-orm";
 import { NextResponse } from "#lib/http/next-compat";
 import { getDb } from "#db";

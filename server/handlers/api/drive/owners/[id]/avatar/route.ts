@@ -1,6 +1,7 @@
-import { and, eq } from "drizzle-orm";
+import { and, eq, inArray } from "drizzle-orm";
 import { getDb } from "#db";
-import { driveGroupShares, driveItems, driveShares, groupMembers, users } from "#db/schema";
+import { driveGroupShares, driveItems, driveShares, users } from "#db/schema";
+import { effectiveGroupIds } from "#lib/groups/hierarchy";
 import { getEnv } from "#lib/cloudflare";
 import { requireSessionUser } from "#lib/api/auth";
 import { getAvatarImageResponse } from "#lib/avatar-images";
@@ -22,9 +23,8 @@ export async function GET(request: Request, { params }: DriveItemParams) {
 		const [viaGroup] = shared ? [shared] : await db
 			.select({ id: driveGroupShares.id })
 			.from(driveGroupShares)
-			.innerJoin(groupMembers, eq(driveGroupShares.groupId, groupMembers.groupId))
 			.innerJoin(driveItems, eq(driveGroupShares.itemId, driveItems.id))
-			.where(and(eq(groupMembers.userId, user.id), eq(driveItems.ownerId, id)))
+			.where(and(inArray(driveGroupShares.groupId, effectiveGroupIds(user.id)), eq(driveItems.ownerId, id)))
 			.limit(1);
 		if (!viaGroup) return new Response("Not found", { status: 404 });
 	}

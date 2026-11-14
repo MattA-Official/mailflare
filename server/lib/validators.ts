@@ -308,6 +308,10 @@ export const groupSchema = z.object({
 	description: z.string().trim().max(500).nullish(),
 });
 
+export const subgroupSchema = z.object({
+	groupId: z.string().min(1),
+});
+
 export const groupMemberSchema = z.object({
 	userId: z.string().min(1),
 	role: z.enum(["member", "manager"]).optional(),
