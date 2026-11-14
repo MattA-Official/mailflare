@@ -1,5 +1,5 @@
 // Fork-only. Accounts are people, or hidden accounts that hold something shared (users.kind, migration 0093):
-// "inbox" holds a shared inbox (see #lib/mailboxes/principals). Anything other than "person" never signs in
+// "inbox" holds a shared inbox (see #lib/mailboxes/principals), "drive" a shared drive (#lib/drive/shared-drives). Anything other than "person" never signs in
 // and is left out wherever people are listed or picked.
 //
 // The column is read through `accountKinds`, not `users`, and single-account checks treat a database without
@@ -15,7 +15,7 @@ import type { AppDatabase } from "#db";
  */
 export const accountKinds = sqliteTable("users", {
 	id: text("id").primaryKey(),
-	kind: text("kind", { enum: ["person", "inbox"] }).notNull().default("person"),
+	kind: text("kind", { enum: ["person", "inbox", "drive"] }).notNull().default("person"),
 });
 
 /** Query condition, for a query over `users`, matching only people's accounts. */

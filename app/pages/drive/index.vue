@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Drive: My Drive, shared with me, email attachments and the trash, all one listing driven by the
-// query string (view, folder, q, types). Ported from legacy/src/app/(drive)/drive/page.tsx.
+// query string (view, folder, q, types, and the fork's `drive` for a shared drive). Ported from
+// legacy/src/app/(drive)/drive/page.tsx.
 import { confirmDestructive } from '~/utils/confirm-dialog'
 import type { DropdownMenuItem } from '@nuxt/ui'
 import { isDriveCategory, type DriveCategory } from '#lib/drive/category-names'
@@ -11,7 +12,7 @@ import { useDriveColumns } from '~/utils/drive/drive-columns'
 import { canDropDrive, driveDropHandlers, endDriveDrag, isDriveDraggable, startDriveDrag } from '~/utils/drive/drive-drag'
 import { uploadDriveFile } from '~/utils/drive/drive-upload'
 import {
-  clearDriveListings, DRIVE_FOLDERS_EVENT, DRIVE_NEW_FOLDER_EVENT, DRIVE_REFRESH_EVENT, DRIVE_STORAGE_EVENT, DRIVE_UPLOAD_EVENT,
+  clearDriveListings, DRIVE_FOLDERS_EVENT, DRIVE_NEW_FOLDER_EVENT, DRIVE_REFRESH_EVENT, DRIVE_SHARED_DRIVES_EVENT, DRIVE_STORAGE_EVENT, DRIVE_UPLOAD_EVENT,
   driveFileUrl, driveIconFor, emailUrl, errorMessage, readDriveListing, saveDriveListing, sortDriveItems, type DriveSortKey,
 } from '~/utils/drive/drive-utils'
 
@@ -25,10 +26,12 @@ const router = useRouter()
 const queryValue = (key: string) => typeof route.query[key] === 'string' ? route.query[key] as string : null
 const view = computed(() => queryValue('view') ?? 'my')
 const folder = computed(() => queryValue('folder'))
+// Fork-only: the shared drive being browsed, if any.
+const driveId = computed(() => queryValue('drive'))
 const query = computed(() => queryValue('q') ?? '')
 const typesParam = computed(() => queryValue('types') ?? '')
 const types = computed(() => typesParam.value.split(',').filter((entry): entry is DriveCategory => isDriveCategory(entry)))
-const requestKey = computed(() => `${view.value}|${folder.value ?? ''}|${query.value}|${typesParam.value}`)
+const requestKey = computed(() => `${view.value}|${folder.value ?? ''}|${query.value}|${typesParam.value}|${driveId.value ?? ''}`)
 
 const listing = shallowRef<{ key: string, data: DriveListing } | null>(null)
 const failedKey = ref<string | null>(null)
@@ -42,6 +45,7 @@ let dragDepth = 0
 const search = ref(query.value)
 const preview = ref<DriveItemDto | null>(null)
 const sharing = ref<DriveItemDto | null>(null)
+const managingDrive = ref<string | null>(null)
 const naming = ref<{ mode: 'create' | 'rename', item?: DriveItemDto, value: string } | null>(null)
 const selectedIds = ref(new Set<string>())
 const fileInput = useTemplateRef<HTMLInputElement>('fileInput')
@@ -54,14 +58,16 @@ const current = computed(() => listing.value?.key === requestKey.value ? listing
 const items = computed(() => current.value?.items ?? [])
 const path = computed(() => current.value?.path ?? [])
 const role = computed(() => current.value?.role ?? 'owner')
+const drive = computed(() => current.value?.drive ?? null)
 const loading = computed(() => !current.value)
 const failed = computed(() => failedKey.value === requestKey.value && !current.value)
-const canWrite = computed(() => view.value !== 'trash' && (folder.value ? canEditDrive(role.value) : view.value === 'my'))
+const canWrite = computed(() => view.value !== 'trash' && (folder.value || driveId.value ? canEditDrive(role.value) : view.value === 'my'))
 
 async function load() {
   const key = requestKey.value
   const params = new URLSearchParams({ view: view.value })
   if (folder.value) params.set('parent', folder.value)
+  if (driveId.value) params.set('drive', driveId.value)
   if (query.value) params.set('q', query.value)
   if (typesParam.value) params.set('types', typesParam.value)
   try {
@@ -97,12 +103,14 @@ watch(items, (list) => {
   if (next.size !== selectedIds.value.size) selectedIds.value = next
 })
 
-const title = computed(() => view.value === 'attachments' ? t('drive.attachments') : view.value === 'trash' ? t('drive.trash') : view.value === 'shared' ? t('drive.sharedWithMe') : query.value ? t('drive.search') : t('drive.myDrive'))
+const title = computed(() => driveId.value ? (view.value === 'trash' ? `${drive.value?.name ?? t('sharedDrives.title')} · ${t('sharedDrives.trash')}` : drive.value?.name ?? t('sharedDrives.title')) : view.value === 'attachments' ? t('drive.attachments') : view.value === 'trash' ? t('drive.trash') : view.value === 'shared' ? t('drive.sharedWithMe') : query.value ? t('drive.search') : t('drive.myDrive'))
 useHead({ title: () => title.value })
-const rootHref = computed(() => view.value === 'shared' ? '/drive?view=shared' : '/drive')
-const emptyText = computed(() => view.value === 'attachments' ? t('drive.emptyAttachments') : view.value === 'trash' ? t('drive.emptyTrash') : view.value === 'shared' ? t('drive.emptyShared') : query.value ? t('drive.emptySearch') : t('drive.empty'))
+const driveHref = computed(() => driveId.value ? `/drive?drive=${encodeURIComponent(driveId.value)}` : null)
+const rootHref = computed(() => driveHref.value ?? (view.value === 'shared' ? '/drive?view=shared' : '/drive'))
+const rootLabel = computed(() => drive.value ? drive.value.name : view.value === 'shared' || role.value !== 'owner' ? t('drive.sharedWithMe') : t('drive.myDrive'))
+const emptyText = computed(() => driveId.value && view.value === 'trash' ? t('sharedDrives.emptyTrash') : view.value === 'attachments' ? t('drive.emptyAttachments') : view.value === 'trash' ? t('drive.emptyTrash') : view.value === 'shared' ? t('drive.emptyShared') : query.value ? t('drive.emptySearch') : t('drive.empty'))
 const attachmentsView = computed(() => view.value === 'attachments' && !folder.value)
-const folderHref = (id: string) => `/drive?folder=${encodeURIComponent(id)}${view.value === 'shared' ? '&view=shared' : ''}`
+const folderHref = (id: string) => `/drive?folder=${encodeURIComponent(id)}${driveId.value ? `&drive=${encodeURIComponent(driveId.value)}` : view.value === 'shared' ? '&view=shared' : ''}`
 
 function patchUpload(id: string, patch: Partial<DriveUploadEntry>) {
   uploads.value = uploads.value.map(entry => entry.id === id ? { ...entry, ...patch } : entry)
@@ -122,7 +130,7 @@ async function upload(files: File[]) {
   for (const { id, file } of accepted) {
     patchUpload(id, { status: 'uploading' })
     try {
-      await uploadDriveFile(file, target, (percent, resumed) => patchUpload(id, { percent, resumed }))
+      await uploadDriveFile(file, target, (percent, resumed) => patchUpload(id, { percent, resumed }), driveId.value)
       done += 1
       patchUpload(id, { status: 'done', percent: 100 })
     } catch (error) {
@@ -168,9 +176,20 @@ async function submitName() {
   const state = naming.value
   if (!state || !state.value.trim()) return
   const ok = state.mode === 'create'
-    ? await mutate('/api/drive/items', 'POST', { name: state.value, parentId: folder.value })
+    ? await mutate('/api/drive/items', 'POST', { name: state.value, parentId: folder.value, ...(driveId.value && !folder.value ? { driveId: driveId.value } : {}) })
     : await mutate(`/api/drive/items/${state.item!.id}`, 'PATCH', { name: state.value })
   if (ok) naming.value = null
+}
+
+function onDriveChanged() {
+  window.dispatchEvent(new Event(DRIVE_SHARED_DRIVES_EVENT))
+  void refresh()
+}
+function onDriveDeleted() {
+  managingDrive.value = null
+  clearDriveListings()
+  window.dispatchEvent(new Event(DRIVE_SHARED_DRIVES_EVENT))
+  void router.push('/drive')
 }
 
 function open(item: DriveItemDto) {
@@ -210,7 +229,8 @@ function setTypes(next: DriveCategory[]) {
 
 function submitSearch() {
   const value = search.value.trim()
-  void router.push(value ? `/drive?q=${encodeURIComponent(value)}` : '/drive')
+  const base = driveHref.value ?? '/drive'
+  void router.push(value ? `${base}${driveId.value ? '&' : '?'}q=${encodeURIComponent(value)}` : base)
 }
 
 const sorted = computed(() => sortDriveItems(items.value, sortKey.value, ascending.value))
@@ -267,7 +287,8 @@ function rowMenu(item: DriveItemDto): DropdownMenuItem[][] {
   if (canEditDrive(item.role) && live) main.push({ label: t('drive.rename'), icon: 'i-lucide-pencil', onSelect: () => { naming.value = { mode: 'rename', item, value: item.name } } })
   if (item.source?.canDelete && live) main.push({ label: t('drive.moveToTrash'), icon: 'i-lucide-trash-2', onSelect: () => void mutate('/api/drive/attachments', 'POST', { action: 'trash', ids: [item.id] }, t('drive.trashed')) })
   if (canEditDrive(item.role) && !item.source && live) main.push({ label: t('drive.moveToTrash'), icon: 'i-lucide-trash-2', onSelect: () => void mutate(`/api/drive/items/${item.id}`, 'PATCH', { trashed: true }, t('drive.trashed')) })
-  if (item.trashedAt) {
+  // Restoring and deleting for good are for the owner (or a shared drive's managers); attachments decide for themselves.
+  if (item.trashedAt && (item.source || item.role === 'owner')) {
     main.push({
       label: t('drive.restore'),
       icon: 'i-lucide-rotate-ccw',
@@ -320,7 +341,7 @@ const sortColumns = computed(() => [
               <USkeleton v-if="loading && folder" class="h-7 w-48" />
               <h1 v-else-if="!path.length" class="font-normal">{{ title }}</h1>
               <template v-else>
-                <NuxtLink :to="rootHref" class="rounded-full px-2 py-1 hover:bg-elevated">{{ view === 'shared' || role !== 'owner' ? t('drive.sharedWithMe') : t('drive.myDrive') }}</NuxtLink>
+                <NuxtLink :to="rootHref" class="rounded-full px-2 py-1 hover:bg-elevated">{{ rootLabel }}</NuxtLink>
                 <span v-for="(crumb, index) in path" :key="crumb.id" class="flex items-center gap-1">
                   <UIcon name="i-lucide-chevron-right" class="size-[18px] text-muted" />
                   <h1 v-if="index === path.length - 1" class="px-2 py-1 font-normal">{{ crumb.name }}</h1>
@@ -335,6 +356,17 @@ const sortColumns = computed(() => [
           </div>
           <div class="flex items-center gap-2">
             <DriveBulkActions v-if="selectedItems.length" :selected="selectedItems" :trash-view="view === 'trash'" @done="selectedIds = new Set(); refresh()" />
+            <template v-if="driveId && drive && !folder">
+              <UButton
+                v-if="canEditDrive(role)"
+                :to="view === 'trash' ? driveHref! : `${driveHref}&view=trash`"
+                :icon="view === 'trash' ? 'i-lucide-arrow-left' : 'i-lucide-trash-2'"
+                color="neutral"
+                variant="ghost"
+                :label="view === 'trash' ? drive.name : t('sharedDrives.trash')"
+              />
+              <UButton icon="i-lucide-users-round" color="neutral" variant="outline" :label="t('sharedDrives.members')" @click="managingDrive = drive.id" />
+            </template>
             <DriveTypeFilter :model-value="types" @update:model-value="setTypes" />
           </div>
         </div>
@@ -363,7 +395,7 @@ const sortColumns = computed(() => [
           :aria-label="!failed && !loading && sorted.length ? t('drive.title') : undefined"
           class="min-h-0 flex-1 space-y-px overflow-y-auto overscroll-contain px-2 pt-px"
         >
-          <p v-if="failed" class="p-8 text-center text-sm text-muted">{{ t('drive.loadFailed') }}</p>
+          <p v-if="failed" class="p-8 text-center text-sm text-muted">{{ driveId && !folder ? t('sharedDrives.notFound') : t('drive.loadFailed') }}</p>
           <template v-else-if="loading">
             <div v-for="index in 8" :key="index" aria-hidden="true" :style="gridStyle" :class="gridClass" class="px-3 py-3.5">
               <USkeleton class="ml-1 size-4" />
@@ -443,6 +475,12 @@ const sortColumns = computed(() => [
 
       <DriveUploadPanel :uploads="uploads" @close="uploads = uploads.filter(entry => entry.status === 'queued' || entry.status === 'uploading')" />
       <DriveShareDialog :item="sharing" @close="sharing = null" @changed="refresh()" />
+      <DriveSharedDriveDialog
+        :drive-id="managingDrive"
+        @close="managingDrive = null"
+        @changed="onDriveChanged"
+        @deleted="onDriveDeleted"
+      />
     </template>
   </UDashboardPanel>
 </template>

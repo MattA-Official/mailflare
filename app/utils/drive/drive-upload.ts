@@ -36,11 +36,11 @@ function putPart(url: string, chunk: Blob, onBytes: (loaded: number) => void): P
  * arrived, so picking the same file again (same name, size and modified time) into the same folder
  * continues after the last stored part.
  */
-export async function uploadDriveFile(file: File, parentId: string | null, onProgress: (percent: number, resumed: boolean) => void): Promise<void> {
+export async function uploadDriveFile(file: File, parentId: string | null, onProgress: (percent: number, resumed: boolean) => void, driveId: string | null = null): Promise<void> {
   const start = await authFetch('/api/drive/upload', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type || 'application/octet-stream', parentId, fingerprint: String(file.lastModified) }),
+    body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type || 'application/octet-stream', parentId, fingerprint: String(file.lastModified), ...(driveId && !parentId ? { driveId } : {}) }),
   })
   if (!start.ok) throw await readError(start)
   const session = await start.json() as { id?: string, partSize?: number, parts?: number, uploaded?: number[], resumed?: boolean, complete?: boolean }

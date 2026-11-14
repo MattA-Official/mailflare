@@ -3,7 +3,7 @@ import { NextResponse } from "#lib/http/next-compat";
 import { driveGroupShares, driveShares, groupMembers, groups, users } from "#db/schema";
 import { newId } from "#lib/ids";
 import { authorizeDrive } from "#lib/drive/auth";
-import { getDriveItem } from "#lib/drive/access";
+import { getDriveItem, getDriveRole } from "#lib/drive/access";
 import type { DriveItemParams } from "../types";
 import { isPersonCondition } from "#lib/accounts/kind";
 
@@ -14,7 +14,8 @@ async function loadOwnedItem(request: Request, params: DriveItemParams["params"]
 	const auth = await authorizeDrive(request, mutation);
 	if (auth.error) return { error: auth.error } as const;
 	const item = await getDriveItem(auth.db, id);
-	if (!item || item.ownerId !== auth.user.id || item.trashedAt) return { error: NextResponse.json({ error: "Not found" }, { status: 404 }) } as const;
+	// Fork: the owner, or a manager of the shared drive the item is in.
+	if (!item || item.trashedAt || (await getDriveRole(auth.db, auth.user.id, item)) !== "owner") return { error: NextResponse.json({ error: "Not found" }, { status: 404 }) } as const;
 	return { ...auth, item } as const;
 }
 

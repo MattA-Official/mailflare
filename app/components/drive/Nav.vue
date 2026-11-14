@@ -3,9 +3,9 @@
 // dropped items. Ported from legacy/src/app/(drive)/drive-nav.tsx.
 import type { DropdownMenuItem } from '@nuxt/ui'
 import { formatDriveSize } from '#lib/drive/utils'
-import type { DriveFolderNode, DriveStorageDetail } from '~/types/drive/drive'
+import type { DriveFolderNode, DriveStorageDetail, SharedDriveRef } from '~/types/drive/drive'
 import { canDropDrive, driveDropHandlers, type DriveDropTarget } from '~/utils/drive/drive-drag'
-import { DRIVE_FOLDERS_EVENT, DRIVE_NEW_FOLDER_EVENT, DRIVE_REFRESH_EVENT, DRIVE_STORAGE_EVENT, DRIVE_UPLOAD_EVENT, errorMessage, flattenDriveFolders } from '~/utils/drive/drive-utils'
+import { DRIVE_FOLDERS_EVENT, DRIVE_NEW_FOLDER_EVENT, DRIVE_REFRESH_EVENT, DRIVE_SHARED_DRIVES_EVENT, DRIVE_STORAGE_EVENT, DRIVE_UPLOAD_EVENT, errorMessage, flattenDriveFolders } from '~/utils/drive/drive-utils'
 
 defineProps<{ collapsed?: boolean }>()
 const { t } = useLanguage()
@@ -14,7 +14,46 @@ const notify = { success: (title: string) => toast.add({ title, color: 'success'
 const route = useRoute()
 const view = computed(() => typeof route.query.view === 'string' ? route.query.view : 'my')
 const activeFolder = computed(() => typeof route.query.folder === 'string' ? route.query.folder : null)
+const activeDrive = computed(() => typeof route.query.drive === 'string' ? route.query.drive : null)
 const FOLDERS_OPEN_KEY = 'mailflare-drive-folders-open'
+const DRIVES_OPEN_KEY = 'mailflare-drive-shared-drives-open'
+
+// Fork-only: shared drives the person can reach, and whether they may create one (admins only).
+const sharedDrives = ref<SharedDriveRef[]>([])
+const canCreateDrives = ref(false)
+const drivesOpen = ref(true)
+const creatingDrive = ref(false)
+const driveName = ref('')
+async function loadSharedDrives() {
+  try {
+    const data = await api<{ drives: SharedDriveRef[], canCreate: boolean }>('/api/drives')
+    sharedDrives.value = data.drives
+    canCreateDrives.value = data.canCreate
+  } catch { /* the list stays as it was */ }
+}
+function toggleDrives() {
+  drivesOpen.value = !drivesOpen.value
+  try {
+    localStorage.setItem(DRIVES_OPEN_KEY, drivesOpen.value ? '1' : '0')
+  } catch { /* ignore */ }
+}
+async function createDrive() {
+  const name = driveName.value.trim()
+  if (!name || saving.value) return
+  saving.value = true
+  try {
+    const data = await api<{ drive: SharedDriveRef }>('/api/drives', { method: 'POST', body: { name } })
+    toast.add({ title: t('sharedDrives.created'), color: 'success' })
+    creatingDrive.value = false
+    driveName.value = ''
+    await loadSharedDrives()
+    void navigateTo(`/drive?drive=${encodeURIComponent(data.drive.id)}`)
+  } catch (error) {
+    toast.add({ title: errorMessage(error, t('sharedDrives.failed')), color: 'error' })
+  } finally {
+    saving.value = false
+  }
+}
 
 const storage = ref<DriveStorageDetail | null>(null)
 const foldersOpen = ref(false)
@@ -53,13 +92,17 @@ function onStorage(event: Event) {
 onMounted(() => {
   window.addEventListener(DRIVE_STORAGE_EVENT, onStorage)
   window.addEventListener(DRIVE_FOLDERS_EVENT, onFoldersEvent)
+  window.addEventListener(DRIVE_SHARED_DRIVES_EVENT, loadSharedDrives)
   try {
     foldersOpen.value = localStorage.getItem(FOLDERS_OPEN_KEY) === '1'
+    drivesOpen.value = localStorage.getItem(DRIVES_OPEN_KEY) !== '0'
   } catch { /* storage unavailable */ }
+  void loadSharedDrives()
 })
 onBeforeUnmount(() => {
   window.removeEventListener(DRIVE_STORAGE_EVENT, onStorage)
   window.removeEventListener(DRIVE_FOLDERS_EVENT, onFoldersEvent)
+  window.removeEventListener(DRIVE_SHARED_DRIVES_EVENT, loadSharedDrives)
 })
 function onFoldersEvent() {
   if (foldersOpen.value) void loadFolders()
@@ -128,16 +171,57 @@ const activeClass = 'bg-primary/10 font-medium text-primary'
         v-for="link in links"
         :key="link.key"
         :to="link.to"
-        :aria-current="route.path === '/drive' && view === link.key && !activeFolder ? 'page' : undefined"
+        :aria-current="route.path === '/drive' && view === link.key && !activeFolder && !activeDrive ? 'page' : undefined"
         :title="collapsed ? link.label : undefined"
         class="flex h-9 items-center gap-3 rounded-md text-sm"
-        :class="[collapsed ? 'justify-center' : 'px-2.5', dropKey === link.key ? dropHighlight : route.path === '/drive' && view === link.key && !activeFolder ? activeClass : 'text-default hover:bg-elevated']"
+        :class="[collapsed ? 'justify-center' : 'px-2.5', dropKey === link.key ? dropHighlight : route.path === '/drive' && view === link.key && !activeFolder && !activeDrive ? activeClass : 'text-default hover:bg-elevated']"
         v-on="link.target ? dropProps(link.key, link.target) : {}"
       >
         <UIcon :name="link.icon" class="size-4 shrink-0" />
         <span v-if="!collapsed" class="truncate">{{ link.label }}</span>
       </NuxtLink>
     </nav>
+    <div v-if="!collapsed && (sharedDrives.length || canCreateDrives)">
+      <div class="flex items-center gap-1">
+        <button
+          type="button"
+          :aria-expanded="drivesOpen"
+          :aria-label="t('sharedDrives.toggle')"
+          class="flex h-8 min-w-0 flex-1 items-center gap-2 rounded-md px-2.5 text-xs font-semibold uppercase tracking-wide text-muted hover:bg-elevated"
+          @click="toggleDrives"
+        >
+          <UIcon name="i-lucide-chevron-right" class="size-3.5 transition-transform" :class="{ 'rotate-90': drivesOpen }" />{{ t('sharedDrives.title') }}
+        </button>
+        <UButton v-if="canCreateDrives" icon="i-lucide-plus" color="neutral" variant="ghost" size="sm" :aria-label="t('sharedDrives.new')" :title="t('sharedDrives.new')" @click="driveName = ''; creatingDrive = true" />
+      </div>
+      <ul v-if="drivesOpen" class="mt-0.5 space-y-0.5">
+        <li v-if="!sharedDrives.length" class="px-2.5 py-1.5 text-xs text-muted">{{ t('sharedDrives.none') }}</li>
+        <li v-for="drive in sharedDrives" :key="drive.id">
+          <NuxtLink
+            :to="`/drive?drive=${encodeURIComponent(drive.id)}`"
+            :aria-current="activeDrive === drive.id ? 'page' : undefined"
+            class="flex h-8 items-center gap-2 rounded-md px-2.5 text-sm"
+            :class="activeDrive === drive.id ? activeClass : 'text-default hover:bg-elevated'"
+          >
+            <UIcon name="i-lucide-hard-drive" class="size-3.5 shrink-0 text-muted" /><span class="truncate">{{ drive.name }}</span>
+          </NuxtLink>
+        </li>
+      </ul>
+    </div>
+    <div v-else-if="collapsed && sharedDrives.length" class="space-y-0.5">
+      <NuxtLink
+        v-for="drive in sharedDrives"
+        :key="drive.id"
+        :to="`/drive?drive=${encodeURIComponent(drive.id)}`"
+        :title="drive.name"
+        :aria-label="drive.name"
+        :aria-current="activeDrive === drive.id ? 'page' : undefined"
+        class="flex h-9 items-center justify-center rounded-md"
+        :class="activeDrive === drive.id ? activeClass : 'text-default hover:bg-elevated'"
+      >
+        <UIcon name="i-lucide-hard-drive" class="size-4" />
+      </NuxtLink>
+    </div>
     <div v-if="!collapsed">
       <div class="flex items-center gap-1">
         <button
@@ -174,6 +258,17 @@ const activeClass = 'bg-primary/10 font-medium text-primary'
       </template>
       <p v-else class="text-xs text-muted">{{ t('drive.storageUsed', { size: formatDriveSize(storage.used) }) }}</p>
     </div>
+    <UModal v-model:open="creatingDrive" :title="t('sharedDrives.new')" :dismissible="!saving">
+      <template #body>
+        <form class="space-y-5" @submit.prevent="createDrive">
+          <UInput v-model="driveName" autofocus class="w-full" :maxlength="100" :placeholder="t('sharedDrives.name')" :aria-label="t('sharedDrives.name')" />
+          <div class="flex justify-end gap-2">
+            <UButton color="neutral" variant="ghost" :disabled="saving" :label="t('common.cancel')" @click="creatingDrive = false" />
+            <UButton type="submit" :disabled="saving || !driveName.trim()" :label="t('sharedDrives.create')" />
+          </div>
+        </form>
+      </template>
+    </UModal>
     <UModal v-model:open="creating" :title="t('drive.newFolder')" :dismissible="!saving">
       <template #body>
         <form class="space-y-5" @submit.prevent="createFolder">

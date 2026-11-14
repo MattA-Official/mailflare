@@ -418,6 +418,20 @@ Tick in the PR that lands it. Add rows for anything discovered.
   per message owner. Anyone who can configure the mailbox may change them; read-only access sees them.
   Renaming a shared inbox also renames its hidden account. Remote-content and other reading preferences
   stay per reader, and saving an attachment to Drive always puts it in the saver's own Drive.
+- (fork) Shared drives, phase 1 of the plan Matt approved on 14 Nov 2026. A shared drive is a Drive tree
+  held by a hidden account of its own (`users.kind = 'drive'`, id `drive_<nanoid>`, email
+  `<id>@drive.invalid`, passwordless), so it belongs to nobody and survives every person
+  (`#lib/drive/shared-drives`). Migration `0094_shared_drives` adds `shared_drives` (the drive's own
+  storage cap, null for unlimited, admins only) and `drive_members` (a person or a group at `view`, `edit`
+  or `manage`; nested groups count, downwards only). Every item in a drive is owned by its account, so
+  uploads, previews, links and R2 keys are unchanged; `getDriveRole` adds the drive's members, and Manage
+  is reported as role `"owner"` so clients keep their meaning. Owner-only checks (restore, delete for
+  good, share, link, move) now ask for role `"owner"` rather than `owner_id`, which is the same thing for
+  a person. Only admins who manage users create drives, and they manage every drive. A drive keeps at
+  least one Manage member. Deleting a drive soft-deletes its account; the account purge removes its files
+  after the restore window. `/api/drives`, `/api/drives/[id]` and `/api/drives/[id]/members` are new;
+  `/api/drive/items` and `/api/drive/upload` take an optional `driveId` and listings gain an optional
+  `drive` (additive). Items move only within the tree they are in for now.
 - (upstream 2b58ed7) Upstream's `0087_message_invite_response` shares its number with the fork's
   `0087_oidc_provider`. The runner records migrations by full file name, so both apply; keep
   upstream's file names as they are rather than renumbering.
