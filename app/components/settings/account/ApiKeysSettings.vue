@@ -11,7 +11,8 @@ const { mailboxes, selectedMailbox } = useSelectedMailbox()
 const keys = ref<ManagedApiKey[]>([])
 const loading = ref(true)
 const busy = ref(false)
-const createOpen = ref(false)
+// The page puts the New API key button in its header and opens the dialog through this model.
+const createOpen = defineModel<boolean>('createOpen', { default: false })
 const revokingId = ref<string | null>(null)
 const confirmRevoke = ref<ManagedApiKey | null>(null)
 const error = ref<string | null>(null)
@@ -44,6 +45,15 @@ onMounted(() => {
 onBeforeUnmount(() => {
   cancelled = true
   window.removeEventListener('mailflare:api-keys-changed', refresh)
+})
+
+// Opened from the page header: seed the mailbox choice as opening through dialogOpen does.
+watch(createOpen, (open) => {
+  if (!open) return
+  error.value = null
+  if (mailboxIds.value.length === 0) {
+    mailboxIds.value = [selectedMailbox.value?.id ?? mailboxes.value[0]?.id].filter((id): id is string => !!id)
+  }
 })
 
 const dialogOpen = computed({
@@ -128,12 +138,6 @@ const revokeOpen = computed({ get: () => confirmRevoke.value !== null, set: (v) 
 
 <template>
   <div class="space-y-6">
-    <div class="flex items-center justify-between gap-4">
-      <p class="text-sm text-muted">
-        {{ t('apiKeys.description') }}
-      </p>
-      <UButton icon="i-lucide-plus" :label="t('apiKeys.new')" class="shrink-0" @click="dialogOpen = true" />
-    </div>
     <p v-if="error && !createOpen" role="alert" class="text-sm text-error">
       {{ error }}
     </p>

@@ -3,10 +3,14 @@
 // area's component, which keeps its links under /settings/mailboxes.
 definePageMeta({ layout: 'dashboard', nav: 'settings' })
 const { t } = useLanguage()
+const creating = ref(false)
 </script>
 
 <template>
-  <SettingsMailSettingsPage id="settings-mailboxes" :title="t('mailboxes.title')">
-    <AdminEmailMailboxesList />
-  </SettingsMailSettingsPage>
+  <AppPage id="settings-mailboxes" :title="t('mailboxes.title')">
+    <template #actions>
+      <UButton icon="i-lucide-plus" :label="t('mailboxes.new')" @click="creating = true" />
+    </template>
+    <AdminEmailMailboxesList v-model:create-open="creating" />
+  </AppPage>
 </template>

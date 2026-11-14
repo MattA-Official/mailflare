@@ -13,7 +13,8 @@ const user = useCurrentUser()
 const { data: domains } = useAsyncData('mailbox-domains', () => api<{ domains: MailboxDomain[] }>('/api/domains'))
 const { data: mailboxes, status, refresh } = useAsyncData('admin-mailboxes', () => api<MailboxesResponse>('/api/mailboxes'))
 
-const createOpen = ref(false)
+// The page puts the New mailbox button in its header and opens the dialog through this model.
+const createOpen = defineModel<boolean>('createOpen', { default: false })
 const displayName = ref('')
 const localPart = ref('')
 const domainId = ref<string | undefined>()
@@ -85,10 +86,9 @@ const columns = 'grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 md:gri
 </script>
 
 <template>
-  <div class="mx-auto w-full max-w-3xl space-y-4">
-    <div class="flex justify-end">
+  <div class="space-y-4">
+    <div>
       <UModal v-model:open="createOpen" :title="t('mailboxes.createTitle')" :description="t('mailboxes.createDescription')">
-        <UButton icon="i-lucide-plus" :label="t('mailboxes.new')" />
         <template #body>
           <form class="space-y-4" @submit.prevent="canCreate && create()">
             <UFormField v-if="mailboxes?.canCreateShared" :label="t('mailboxes.type')">

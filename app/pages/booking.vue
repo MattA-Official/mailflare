@@ -160,6 +160,19 @@ function goToEvent(event: { id: string }) {
           <CalendarSectionNav />
         </template>
         <template #right>
+          <UButton
+            v-if="username"
+            :to="`/c/${username}`"
+            target="_blank"
+            icon="i-lucide-external-link"
+            color="neutral"
+            variant="ghost"
+            :aria-label="t('booking.openPage', { name: username })"
+          />
+          <!-- Icon only on phones, where the header also holds the Bookings/Calendar switch. -->
+          <UButton icon="i-lucide-plus" :aria-label="t('booking.newEvent')" :disabled="!currentUserId" @click="startCreate">
+            <span class="max-sm:hidden">{{ t('booking.newEvent') }}</span>
+          </UButton>
           <AgentAssistantToggle />
           <AppAppsMenu />
         </template>
@@ -169,28 +182,12 @@ function goToEvent(event: { id: string }) {
 
     <template #body>
       <section :aria-label="t('booking.events')" class="mx-auto w-full max-w-5xl space-y-3">
-        <div class="flex flex-wrap items-start justify-between gap-4 pb-3">
-          <div class="min-w-0">
-            <h1 class="text-xl font-semibold text-highlighted md:text-3xl">
-              {{ t('booking.title') }}
-            </h1>
-            <p class="mt-1 text-sm text-muted">
-              {{ t('booking.description') }}
-            </p>
-          </div>
-          <div class="flex shrink-0 items-center gap-2">
-            <UButton
-              v-if="username"
-              :to="`/c/${username}`"
-              target="_blank"
-              icon="i-lucide-external-link"
-              color="neutral"
-              variant="ghost"
-              :aria-label="t('booking.openPage', { name: username })"
-            />
-            <UButton icon="i-lucide-plus" :label="t('booking.newEvent')" :disabled="!currentUserId" class="rounded-full" @click="startCreate" />
-          </div>
-        </div>
+        <h1 class="sr-only">
+          {{ t('booking.title') }}
+        </h1>
+        <p class="pb-3 text-sm text-muted">
+          {{ t('booking.description') }}
+        </p>
 
         <div v-if="loading" role="status" :aria-label="t('booking.loading')" class="space-y-3">
           <span class="sr-only">{{ t('booking.loadingEllipsis') }}</span>

@@ -5,7 +5,6 @@ import type { DomainsResponse } from '~/types/admin/email/domains'
 definePageMeta({ layout: 'dashboard', nav: 'admin', auth: { role: 'admin', requireMailbox: true } })
 
 const { t } = useLanguage()
-useHead({ title: () => t('domains.title') })
 const toast = useToast()
 
 const { data, status, refresh } = useAsyncData('admin-domains', () => api<DomainsResponse>('/api/domains?includeDns=true'))
@@ -35,39 +34,28 @@ async function remove(id: string) {
 </script>
 
 <template>
-  <UDashboardPanel id="domains">
-    <template #header>
-      <AppNavbar :title="t('domains.title')">
-        <template #right>
-          <AdminEmailDomainCreateModal v-model:open="createOpen" @created="refresh()" />
-        </template>
-      </AppNavbar>
+  <AppPage id="domains" :title="t('domains.title')" :description="managesDns ? t('domains.descriptionManaged') : t('domains.descriptionManual')">
+    <template #actions>
+      <AdminEmailDomainCreateModal v-model:open="createOpen" @created="refresh()" />
     </template>
-    <template #body>
-      <div class="mx-auto w-full max-w-3xl space-y-6">
-        <p class="text-sm text-muted">
-          {{ managesDns ? t('domains.descriptionManaged') : t('domains.descriptionManual') }}
-        </p>
-        <div v-if="status === 'pending' && !data" class="space-y-2">
-          <USkeleton v-for="n in 3" :key="n" class="h-24 w-full rounded-lg" />
-        </div>
-        <UCard v-else-if="!data?.domains.length" :ui="{ body: 'text-sm text-muted' }">
-          {{ t('domains.none') }}
-        </UCard>
-        <ul v-else class="divide-y divide-default overflow-hidden rounded-lg border border-default bg-default">
-          <AdminEmailDomainItemCard
-            v-for="domain in data.domains"
-            :key="domain.id"
-            :item="domain"
-            :dns="data.dns?.[domain.id]"
-            :expanded="expandedId === domain.id"
-            :removing="removingId === domain.id"
-            @toggle="expandedId = expandedId === domain.id ? null : domain.id"
-            @changed="refresh()"
-            @remove="remove(domain.id)"
-          />
-        </ul>
-      </div>
-    </template>
-  </UDashboardPanel>
+    <div v-if="status === 'pending' && !data" class="space-y-2">
+      <USkeleton v-for="n in 3" :key="n" class="h-24 w-full rounded-lg" />
+    </div>
+    <UCard v-else-if="!data?.domains.length" :ui="{ body: 'text-sm text-muted' }">
+      {{ t('domains.none') }}
+    </UCard>
+    <ul v-else class="divide-y divide-default overflow-hidden rounded-lg border border-default bg-default">
+      <AdminEmailDomainItemCard
+        v-for="domain in data.domains"
+        :key="domain.id"
+        :item="domain"
+        :dns="data.dns?.[domain.id]"
+        :expanded="expandedId === domain.id"
+        :removing="removingId === domain.id"
+        @toggle="expandedId = expandedId === domain.id ? null : domain.id"
+        @changed="refresh()"
+        @remove="remove(domain.id)"
+      />
+    </ul>
+  </AppPage>
 </template>
