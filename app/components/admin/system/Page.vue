@@ -1,28 +1,16 @@
 <script setup lang="ts">
-// Frame for every administration page: a dashboard panel with the page title in the navbar,
-// actions on its right and upstream's single readable column for the content.
+// Frame for every administration page; the standard page (AppPage) under its upstream name.
 defineProps<{ id: string, title: string, description?: string, wide?: boolean }>()
 </script>
 
 <template>
-  <UDashboardPanel :id="id">
-    <template #header>
-      <AppNavbar :title="title">
-        <template #right>
-          <slot name="actions" />
-        </template>
-      </AppNavbar>
-      <UDashboardToolbar v-if="$slots.toolbar">
-        <slot name="toolbar" />
-      </UDashboardToolbar>
+  <AppPage :id="id" :title="title" :description="description" :wide="wide">
+    <template v-if="$slots.actions" #actions>
+      <slot name="actions" />
     </template>
-    <template #body>
-      <div class="mx-auto w-full space-y-6" :class="wide ? 'max-w-5xl' : 'max-w-3xl'">
-        <p v-if="description" class="text-sm text-muted">
-          {{ description }}
-        </p>
-        <slot />
-      </div>
+    <template v-if="$slots.toolbar" #toolbar>
+      <slot name="toolbar" />
     </template>
-  </UDashboardPanel>
+    <slot />
+  </AppPage>
 </template>

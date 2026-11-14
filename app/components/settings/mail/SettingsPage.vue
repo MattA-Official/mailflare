@@ -1,18 +1,16 @@
 <script setup lang="ts">
-// The panel every mail settings page renders inside the dashboard layout.
-const props = defineProps<{ id: string, title: string }>()
-useHead({ title: () => props.title })
+// The panel every mail settings page renders inside the dashboard layout: the standard page (AppPage)
+// with more room between its sections.
+defineProps<{ id: string, title: string, description?: string }>()
 </script>
 
 <template>
-  <UDashboardPanel :id="id">
-    <template #header>
-      <AppNavbar :title="title" />
+  <AppPage :id="id" :title="title" :description="description">
+    <template v-if="$slots.actions" #actions>
+      <slot name="actions" />
     </template>
-    <template #body>
-      <div class="mx-auto w-full max-w-3xl space-y-8">
-        <slot />
-      </div>
-    </template>
-  </UDashboardPanel>
+    <div class="space-y-8">
+      <slot />
+    </div>
+  </AppPage>
 </template>

@@ -420,6 +420,11 @@ Tick in the PR that lands it. Add rows for anything discovered.
   Admin pages centre their column like settings pages. The phone Compose button is hidden on `/compose`,
   and mail lists leave room under it. Sent's empty state uses the new English-only key
   `folder.empty.sent` ("No sent emails") instead of reusing the inbox's "No emails".
+- (fork) One page layout. List, admin and settings pages render through `AppPage`
+  (`app/components/app/Page.vue`): title and main "New …" button in the header, an optional one-line
+  description, then a centred column. `AdminSystemPage` and `SettingsMailSettingsPage` wrap it. The New
+  mailbox and New API key buttons moved from the page body to the header (the dialogs open through a
+  `createOpen` model), and Contacts and Bookings lost their second, larger page title.
 
 ## Following upstream
 

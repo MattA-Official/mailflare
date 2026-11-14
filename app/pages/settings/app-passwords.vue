@@ -3,23 +3,12 @@
 definePageMeta({ layout: 'dashboard', nav: 'settings' })
 
 const { t } = useLanguage()
-useHead({ title: () => t('settingsPage.appPasswords.title') })
 </script>
 
 <template>
-  <UDashboardPanel id="settings-app-passwords">
-    <template #header>
-      <AppNavbar :title="t('settingsPage.appPasswords.title')" />
-    </template>
-    <template #body>
-      <div class="mx-auto w-full max-w-3xl space-y-4">
-        <p class="text-sm text-muted">
-          {{ t('settingsPage.appPasswords.description') }}
-        </p>
-        <UCard>
-          <SettingsAccountEmailClientsSettings />
-        </UCard>
-      </div>
-    </template>
-  </UDashboardPanel>
+  <AppPage id="settings-app-passwords" :title="t('settingsPage.appPasswords.title')" :description="t('settingsPage.appPasswords.description')">
+    <UCard>
+      <SettingsAccountEmailClientsSettings />
+    </UCard>
+  </AppPage>
 </template>

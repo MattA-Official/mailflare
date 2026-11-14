@@ -2,16 +2,14 @@
 // Ported from legacy/src/app/(admin)/mailboxes/page.tsx; the body is shared with /settings/mailboxes.
 definePageMeta({ layout: 'dashboard', nav: 'admin', auth: { role: 'admin', requireMailbox: true } })
 const { t } = useLanguage()
-useHead({ title: () => t('mailboxes.title') })
+const creating = ref(false)
 </script>
 
 <template>
-  <UDashboardPanel id="mailboxes">
-    <template #header>
-      <AppNavbar :title="t('mailboxes.title')" />
+  <AppPage id="mailboxes" :title="t('mailboxes.title')">
+    <template #actions>
+      <UButton icon="i-lucide-plus" :label="t('mailboxes.new')" @click="creating = true" />
     </template>
-    <template #body>
-      <AdminEmailMailboxesList />
-    </template>
-  </UDashboardPanel>
+    <AdminEmailMailboxesList v-model:create-open="creating" />
+  </AppPage>
 </template>

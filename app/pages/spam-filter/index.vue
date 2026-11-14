@@ -7,7 +7,6 @@ import { ABUSECH_SIGNUP_URL, SPAMHAUS_SIGNUP_URL, formatBrandLines, loadSpamFilt
 
 definePageMeta({ layout: 'dashboard', nav: 'admin', auth: { role: 'admin', primary: true, requireMailbox: true } })
 const { t } = useLanguage()
-useHead({ title: () => t('spamFilter.title') })
 
 const settings = ref<SpamFilterSettingsResponse | null>(null)
 const loadError = ref('')
@@ -58,80 +57,70 @@ async function toggleDomainAge(checked: boolean) {
 </script>
 
 <template>
-  <UDashboardPanel id="spam-filter">
-    <template #header>
-      <AppNavbar :title="t('spamFilter.title')" />
-    </template>
-    <template #body>
-      <div class="mx-auto w-full max-w-3xl space-y-6">
-        <p class="text-sm text-muted">
-          {{ t('spamFilter.description') }}
+  <AppPage id="spam-filter" :title="t('spamFilter.title')" :description="t('spamFilter.description')">
+    <p v-if="loadError" role="alert" class="text-sm text-error">
+      {{ loadError }}
+    </p>
+    <UAlert v-if="settings && !settings.available" role="status" color="warning" variant="subtle" :description="t('spamFilter.needsUpdate')" />
+
+    <UCard>
+      <template #header>
+        <h2 class="font-semibold text-highlighted">
+          {{ t('spamFilter.blocklists') }}
+        </h2>
+        <p class="mt-1 text-sm text-muted">
+          {{ t('spamFilter.blocklistsHint') }}
         </p>
-        <p v-if="loadError" role="alert" class="text-sm text-error">
-          {{ loadError }}
-        </p>
-        <UAlert v-if="settings && !settings.available" role="status" color="warning" variant="subtle" :description="t('spamFilter.needsUpdate')" />
-
-        <UCard>
-          <template #header>
-            <h2 class="font-semibold text-highlighted">
-              {{ t('spamFilter.blocklists') }}
-            </h2>
-            <p class="mt-1 text-sm text-muted">
-              {{ t('spamFilter.blocklistsHint') }}
-            </p>
-          </template>
-          <div class="space-y-6">
-            <AdminEmailSpamKeyRow field="spamhausDqsKey" env-name="SPAMHAUS_DQS_KEY" :title="t('spamFilter.spamhaus')" :hint="t('spamFilter.spamhausHint')" :signup-url="SPAMHAUS_SIGNUP_URL" :source="settings?.spamhaus.source ?? null" :disabled="!editable" @saved="value => settings = value" />
-            <AdminEmailSpamKeyRow field="abuseChAuthKey" env-name="ABUSECH_AUTH_KEY" :title="t('spamFilter.abusech')" :hint="t('spamFilter.abusechHint')" :signup-url="ABUSECH_SIGNUP_URL" :source="settings?.abusech.source ?? null" :disabled="!editable" @saved="value => settings = value" />
-          </div>
-        </UCard>
-
-        <UCard>
-          <div class="flex items-center justify-between gap-4">
-            <div>
-              <p class="font-medium text-highlighted">
-                {{ t('spamFilter.domainAge') }}
-              </p>
-              <p class="mt-1 text-sm text-muted">
-                {{ t('spamFilter.domainAgeHint') }}
-              </p>
-              <p v-if="settings?.domainAgeForcedOff" class="mt-1 text-sm text-warning">
-                {{ t('spamFilter.domainAgeForcedOff') }}
-              </p>
-            </div>
-            <USwitch
-              :model-value="Boolean(settings?.domainAge && !settings.domainAgeForcedOff)"
-              :disabled="!editable || ageSaving || settings?.domainAgeForcedOff"
-              :aria-label="t('spamFilter.domainAge')"
-              @update:model-value="toggleDomainAge"
-            />
-          </div>
-          <p v-if="ageStatus" role="status" class="mt-3 text-sm text-error">
-            {{ ageStatus }}
-          </p>
-        </UCard>
-
-        <UCard>
-          <template #header>
-            <h2 class="font-semibold text-highlighted">
-              {{ t('spamFilter.brands') }}
-            </h2>
-            <p class="mt-1 text-sm text-muted">
-              {{ t('spamFilter.brandsHint') }}
-            </p>
-          </template>
-          <form class="space-y-4" @submit.prevent="saveBrands">
-            <UFormField :label="t('spamFilter.brandsLabel')" :help="t('spamFilter.brandsBuiltIn')" :error="parsedBrands.invalidLines.length ? t('spamFilter.brandsInvalid', { lines: parsedBrands.invalidLines.join(', ') }) : undefined">
-              <UTextarea v-model="brandText" :rows="6" :disabled="!editable || brandSaving" :placeholder="'PostFinance = postfinance.ch\nSwisscom = swisscom.ch, swisscom.com'" class="w-full font-mono text-sm" />
-            </UFormField>
-            <p v-if="brandStatus" role="status" class="text-sm text-toned">
-              {{ brandStatus }}
-            </p>
-            <UButton type="submit" :disabled="!editable || brandSaving || parsedBrands.invalidLines.length > 0" :label="brandSaving ? t('common.saving') : t('spamFilter.saveBrands')" />
-          </form>
-        </UCard>
+      </template>
+      <div class="space-y-6">
+        <AdminEmailSpamKeyRow field="spamhausDqsKey" env-name="SPAMHAUS_DQS_KEY" :title="t('spamFilter.spamhaus')" :hint="t('spamFilter.spamhausHint')" :signup-url="SPAMHAUS_SIGNUP_URL" :source="settings?.spamhaus.source ?? null" :disabled="!editable" @saved="value => settings = value" />
+        <AdminEmailSpamKeyRow field="abuseChAuthKey" env-name="ABUSECH_AUTH_KEY" :title="t('spamFilter.abusech')" :hint="t('spamFilter.abusechHint')" :signup-url="ABUSECH_SIGNUP_URL" :source="settings?.abusech.source ?? null" :disabled="!editable" @saved="value => settings = value" />
       </div>
-    </template>
-  </UDashboardPanel>
+    </UCard>
+
+    <UCard>
+      <div class="flex items-center justify-between gap-4">
+        <div>
+          <p class="font-medium text-highlighted">
+            {{ t('spamFilter.domainAge') }}
+          </p>
+          <p class="mt-1 text-sm text-muted">
+            {{ t('spamFilter.domainAgeHint') }}
+          </p>
+          <p v-if="settings?.domainAgeForcedOff" class="mt-1 text-sm text-warning">
+            {{ t('spamFilter.domainAgeForcedOff') }}
+          </p>
+        </div>
+        <USwitch
+          :model-value="Boolean(settings?.domainAge && !settings.domainAgeForcedOff)"
+          :disabled="!editable || ageSaving || settings?.domainAgeForcedOff"
+          :aria-label="t('spamFilter.domainAge')"
+          @update:model-value="toggleDomainAge"
+        />
+      </div>
+      <p v-if="ageStatus" role="status" class="mt-3 text-sm text-error">
+        {{ ageStatus }}
+      </p>
+    </UCard>
+
+    <UCard>
+      <template #header>
+        <h2 class="font-semibold text-highlighted">
+          {{ t('spamFilter.brands') }}
+        </h2>
+        <p class="mt-1 text-sm text-muted">
+          {{ t('spamFilter.brandsHint') }}
+        </p>
+      </template>
+      <form class="space-y-4" @submit.prevent="saveBrands">
+        <UFormField :label="t('spamFilter.brandsLabel')" :help="t('spamFilter.brandsBuiltIn')" :error="parsedBrands.invalidLines.length ? t('spamFilter.brandsInvalid', { lines: parsedBrands.invalidLines.join(', ') }) : undefined">
+          <UTextarea v-model="brandText" :rows="6" :disabled="!editable || brandSaving" :placeholder="'PostFinance = postfinance.ch\nSwisscom = swisscom.ch, swisscom.com'" class="w-full font-mono text-sm" />
+        </UFormField>
+        <p v-if="brandStatus" role="status" class="text-sm text-toned">
+          {{ brandStatus }}
+        </p>
+        <UButton type="submit" :disabled="!editable || brandSaving || parsedBrands.invalidLines.length > 0" :label="brandSaving ? t('common.saving') : t('spamFilter.saveBrands')" />
+      </form>
+    </UCard>
+  </AppPage>
 </template>

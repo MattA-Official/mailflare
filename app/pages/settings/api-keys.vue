@@ -3,18 +3,14 @@
 definePageMeta({ layout: 'dashboard', nav: 'settings' })
 
 const { t } = useLanguage()
-useHead({ title: () => t('apiKeys.title') })
+const creating = ref(false)
 </script>
 
 <template>
-  <UDashboardPanel id="settings-api-keys">
-    <template #header>
-      <AppNavbar :title="t('apiKeys.title')" />
+  <AppPage id="settings-api-keys" :title="t('apiKeys.title')" :description="t('apiKeys.description')">
+    <template #actions>
+      <UButton icon="i-lucide-plus" :label="t('apiKeys.new')" @click="creating = true" />
     </template>
-    <template #body>
-      <div class="mx-auto w-full max-w-3xl">
-        <SettingsAccountApiKeysSettings />
-      </div>
-    </template>
-  </UDashboardPanel>
+    <SettingsAccountApiKeysSettings v-model:create-open="creating" />
+  </AppPage>
 </template>
