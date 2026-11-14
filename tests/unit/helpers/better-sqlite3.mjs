@@ -47,7 +47,9 @@ class Statement {
 
 export default class Database {
 	constructor(filename = ":memory:") {
-		this.native = new DatabaseSync(filename);
+		// D1 keeps SQLite's double-quoted string fallback on: a quoted name that matches no column is read as a
+		// string literal instead of failing. node:sqlite turns it off, so switch it back on to behave like D1.
+		this.native = new DatabaseSync(filename, { enableDoubleQuotedStringLiterals: true });
 	}
 
 	prepare(sql) {
