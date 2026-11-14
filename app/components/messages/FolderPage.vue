@@ -272,7 +272,7 @@ function dragIdsFor(messageId: string) {
     :default-size="compact ? 24 : undefined"
     :min-size="compact ? 16 : undefined"
     :max-size="compact ? 60 : undefined"
-    :ui="{ body: 'p-0 sm:p-0 gap-0 overscroll-contain', root: compact ? 'max-lg:hidden' : undefined }"
+    :ui="{ body: 'p-0 sm:p-0 gap-0 overscroll-contain max-md:pb-20', root: compact ? 'max-lg:hidden' : undefined }"
   >
     <template #header>
       <AppNavbar v-if="!compact" :title="title" search />
@@ -354,7 +354,7 @@ function dragIdsFor(messageId: string) {
               :disabled="emptyingFolder || isLoading || total === 0"
               @click="emptyFolder"
             >
-              <span v-if="!compact" class="max-md:hidden">{{ emptyingFolder ? t('list.emptying') : emptyFolderLabel }}</span>
+              <span v-if="!compact" class="whitespace-nowrap max-md:hidden">{{ emptyingFolder ? t('list.emptying') : emptyFolderLabel }}</span>
             </UButton>
           </UTooltip>
         </div>

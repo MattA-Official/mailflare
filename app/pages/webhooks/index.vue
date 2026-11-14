@@ -100,14 +100,11 @@ async function runTest(id: string) {
 <template>
   <UDashboardPanel id="webhooks">
     <template #header>
-      <UDashboardNavbar :title="t('webhooks.title')">
-        <template #leading>
-          <UDashboardSidebarCollapse />
-        </template>
+      <AppNavbar :title="t('webhooks.title')">
         <template #right>
           <UButton icon="i-lucide-plus" :label="t('webhooks.add')" @click="openDialog" />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
     <template #body>
       <div class="mx-auto w-full max-w-3xl space-y-6">

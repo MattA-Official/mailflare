@@ -37,14 +37,11 @@ async function remove(id: string) {
 <template>
   <UDashboardPanel id="domains">
     <template #header>
-      <UDashboardNavbar :title="t('domains.title')">
-        <template #leading>
-          <UDashboardSidebarCollapse />
-        </template>
+      <AppNavbar :title="t('domains.title')">
         <template #right>
           <AdminEmailDomainCreateModal v-model:open="createOpen" @created="refresh()" />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
     </template>
     <template #body>
       <div class="mx-auto w-full max-w-3xl space-y-6">

@@ -5,7 +5,8 @@ const { open, draftId, initialTo, notice, openComposer, closeComposer } = useCom
 const { t } = useLanguage()
 const route = useRoute()
 const router = useRouter()
-const showButton = computed(() => (route.meta.nav ?? 'mail') === 'mail')
+// Not on /compose, which is already a composer.
+const showButton = computed(() => (route.meta.nav ?? 'mail') === 'mail' && !route.path.startsWith('/compose'))
 
 function onClose() {
   closeComposer()

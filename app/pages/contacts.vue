@@ -78,7 +78,7 @@ function sendEmail(contact: ContactListItem) {
       <AppNavbar :title="t('contacts.title')" />
     </template>
     <template #body>
-      <div class="mx-auto w-full max-w-3xl space-y-6">
+      <div class="mx-auto w-full max-w-3xl space-y-6 max-md:pb-20">
         <div class="flex items-center justify-between gap-4">
           <h1 class="text-2xl font-medium text-highlighted md:text-3xl">
             {{ t('contacts.title') }}

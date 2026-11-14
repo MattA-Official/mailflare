@@ -188,6 +188,7 @@
 	"shortcut.reportSpam": "Report Spam",
 	"shortcut.backToList": "Back to List",
 	"folder.empty.inbox": "No emails",
+	"folder.empty.sent": "No sent emails",
 	"folder.empty.scheduled": "No scheduled emails",
 	"folder.empty.starred": "No starred emails",
 	"folder.empty.snoozed": "No snoozed emails",

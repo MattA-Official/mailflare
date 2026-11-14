@@ -9,11 +9,7 @@ useHead({ title: () => t('compose.pageTitle') })
 <template>
   <UDashboardPanel id="compose">
     <template #header>
-      <UDashboardNavbar :title="t('compose.pageTitle')">
-        <template #leading>
-          <UDashboardSidebarCollapse />
-        </template>
-      </UDashboardNavbar>
+      <AppNavbar :title="t('compose.pageTitle')" />
     </template>
     <template #body>
       <p class="text-sm text-muted">{{ t('compose.pageDescription') }}</p>

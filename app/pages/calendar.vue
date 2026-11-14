@@ -315,6 +315,10 @@ function previewClass(event: CalendarEvent) {
           <CalendarUpcomingButton :events="events" @select="editEvent" />
           <CalendarSectionNav />
         </template>
+        <template #right>
+          <AgentAssistantToggle />
+          <AppAppsMenu />
+        </template>
       </UDashboardNavbar>
       <UDashboardToolbar>
         <template #left>

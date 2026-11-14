@@ -48,15 +48,11 @@ async function confirm() {
 <template>
   <UDashboardPanel id="agent-calendar-review">
     <template #header>
-      <UDashboardNavbar :title="t('agent.calendarReview.title')">
-        <template #leading>
-          <UDashboardSidebarCollapse />
-        </template>
-      </UDashboardNavbar>
+      <AppNavbar :title="t('agent.calendarReview.title')" />
     </template>
     <template #body>
-      <div class="max-w-2xl">
-        <p v-if="error" role="alert" class="text-error">{{ error }}</p>
+      <div class="mx-auto w-full max-w-3xl">
+        <UAlert v-if="error" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error" role="alert" />
         <p v-if="!error && !preview">{{ t('agent.calendarReview.loading') }}</p>
         <p v-if="done">{{ t('agent.calendarReview.done') }}</p>
         <template v-if="preview && !done">

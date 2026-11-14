@@ -303,16 +303,11 @@ const sortColumns = computed(() => [
 <template>
   <UDashboardPanel id="drive" :ui="{ body: 'p-0 sm:p-0 gap-0' }">
     <template #header>
-      <UDashboardNavbar :title="t('drive.title')">
-        <template #leading>
-          <UDashboardSidebarCollapse />
-        </template>
-        <template #right>
-          <form role="search" class="w-full max-w-md" @submit.prevent="submitSearch">
-            <UInput v-model="search" icon="i-lucide-search" class="w-full" :placeholder="t('drive.search')" :aria-label="t('drive.search')" />
-          </form>
-        </template>
-      </UDashboardNavbar>
+      <AppNavbar :title="t('drive.title')">
+        <form role="search" class="w-full max-w-2xl" @submit.prevent="submitSearch">
+          <UInput v-model="search" icon="i-lucide-search" class="w-full" :placeholder="t('drive.search')" :aria-label="t('drive.search')" />
+        </form>
+      </AppNavbar>
     </template>
 
     <template #body>

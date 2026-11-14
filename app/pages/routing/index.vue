@@ -16,11 +16,7 @@ const domainItems = computed(() => (domains.value ?? []).map(domain => ({ label:
 <template>
   <UDashboardPanel id="routing">
     <template #header>
-      <UDashboardNavbar :title="t('routingAdmin.title')">
-        <template #leading>
-          <UDashboardSidebarCollapse />
-        </template>
-      </UDashboardNavbar>
+      <AppNavbar :title="t('routingAdmin.title')" />
     </template>
     <template #body>
       <div class="mx-auto w-full max-w-3xl space-y-8">

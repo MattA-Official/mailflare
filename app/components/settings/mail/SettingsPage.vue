@@ -7,11 +7,7 @@ useHead({ title: () => props.title })
 <template>
   <UDashboardPanel :id="id">
     <template #header>
-      <UDashboardNavbar :title="title">
-        <template #leading>
-          <UDashboardSidebarCollapse />
-        </template>
-      </UDashboardNavbar>
+      <AppNavbar :title="title" />
     </template>
     <template #body>
       <div class="mx-auto w-full max-w-3xl space-y-8">
