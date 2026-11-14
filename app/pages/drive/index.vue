@@ -270,8 +270,8 @@ function onItemDragEnd() {
 }
 // Only the owner's own folders take drops, matching what the move endpoint allows.
 function rowDropHandlers(item: DriveItemDto) {
-  if (item.kind !== 'folder' || item.role !== 'owner' || item.trashedAt || item.source) return {}
-  const target = { kind: 'folder' as const, id: item.id }
+  if (item.kind !== 'folder' || !(item.role === 'owner' || (driveId.value && canEditDrive(item.role))) || item.trashedAt || item.source) return {}
+  const target = { kind: 'folder' as const, id: item.id, ...(driveId.value ? { driveId: driveId.value } : {}) }
   return driveDropHandlers(target, () => canDropDrive(target), t, notify, (over) => {
     dropFolder.value = over ? item.id : dropFolder.value === item.id ? null : dropFolder.value
   })
@@ -355,7 +355,7 @@ const sortColumns = computed(() => [
             </span>
           </div>
           <div class="flex items-center gap-2">
-            <DriveBulkActions v-if="selectedItems.length" :selected="selectedItems" :trash-view="view === 'trash'" @done="selectedIds = new Set(); refresh()" />
+            <DriveBulkActions v-if="selectedItems.length" :selected="selectedItems" :trash-view="view === 'trash'" :drive-id="driveId" @done="selectedIds = new Set(); refresh()" />
             <template v-if="driveId && drive && !folder">
               <UButton
                 v-if="canEditDrive(role)"

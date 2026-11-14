@@ -27,6 +27,9 @@ await build({
 			export * as itemRoute from "./server/handlers/api/drive/items/[id]/route.ts";
 			export * as uploadRoute from "./server/handlers/api/drive/upload/route.ts";
 			export * as bulkRoute from "./server/handlers/api/drive/items/bulk/route.ts";
+			export * as foldersRoute from "./server/handlers/api/drive/folders/route.ts";
+			export * as adminDrivesRoute from "./server/handlers/api/shared-drives/route.ts";
+			export * as restoreRoute from "./server/handlers/api/shared-drives/[id]/restore/route.ts";
 		`,
 		resolveDir: root,
 		sourcefile: "shared-drives-test-entry.ts",
@@ -42,7 +45,7 @@ await build({
 });
 const {
 	SqliteDatabase, applyMigrations, getDb, createSession, getDriveRole, getDriveItem, getPublicDriveItem, listAccountsForAdmin, deleteAccounts,
-	drivesRoute, driveRoute, membersRoute, itemsRoute, itemRoute, uploadRoute, bulkRoute,
+	drivesRoute, driveRoute, membersRoute, itemsRoute, itemRoute, uploadRoute, bulkRoute, foldersRoute, adminDrivesRoute, restoreRoute,
 } = await import(pathToFileURL(join(directory, "entry.mjs")).href);
 const context = id => ({ params: Promise.resolve({ id }) });
 const primary = { id: "primary", role: "admin", isPrimaryAdmin: true, canManageUsers: true, canManageMailboxes: false };
@@ -176,10 +179,10 @@ test("only managers restore and delete for good, and moves stay inside the drive
 	// A manager can.
 	assert.equal((await itemRoute.PATCH(f.request("ben", `/api/drive/items/${folder.id}`, "PATCH", { trashed: false }), context(folder.id))).status, 200);
 
-	// Moving My Drive items into a shared drive is not part of this phase.
+	// Moving a person's own folder into the drive hands it to the drive.
 	const crossing = await bulkRoute.POST(f.request("ben", "/api/drive/items/bulk", "POST", { action: "move", ids: [mine.id], parentId: folder.id }));
-	assert.equal(crossing.status, 400);
-	assert.equal((await getDriveItem(f.db, mine.id)).ownerId, "ben");
+	assert.equal(crossing.status, 200);
+	assert.equal((await getDriveItem(f.db, mine.id)).ownerId, drive.id);
 });
 
 test("a drive keeps a manager, uses its own storage cap, and goes only when deleted on purpose", async () => {
@@ -231,4 +234,54 @@ test("before migration 0094 is applied, Drive works as if there were no shared d
 	assert.equal((await uploadRoute.POST(f.request("anna", "/api/drive/upload", "POST", { name: "a.txt", size: 0 }))).status, 200);
 	assert.deepEqual((await (await drivesRoute.GET(f.request("primary", "/api/drives"))).json()).drives, []);
 	assert.equal((await drivesRoute.POST(f.request("primary", "/api/drives", "POST", { name: "Team" }))).status, 409);
+});
+
+test("items move between My Drive and shared drives: in with Edit, out only with Manage, and their files go with them", async () => {
+	const f = await fixture();
+	const drive = await f.createDrive();
+	const add = (userId, role) => membersRoute.POST(f.request("primary", `/api/drives/${drive.id}/members`, "POST", { userId, role }), context(drive.id));
+	await add("anna", "edit");
+	await add("ben", "manage");
+	const move = (actor, body) => bulkRoute.POST(f.request(actor, "/api/drive/items/bulk", "POST", { action: "move", ...body }));
+
+	// Anna's folder, with a file inside, goes to the top of the drive.
+	const folder = (await (await itemsRoute.POST(f.request("anna", "/api/drive/items", "POST", { name: "Brief" }))).json()).item;
+	f.sql.exec(`INSERT INTO drive_items (id, owner_id, parent_id, kind, name, size, created_at, updated_at) VALUES ('inside', 'anna', '${folder.id}', 'file', 'notes.txt', 5, 1, 1)`);
+	assert.equal((await move("anna", { ids: [folder.id], driveId: drive.id })).status, 200);
+	const owners = Object.fromEntries(f.sql.prepare(`SELECT id, owner_id, parent_id, r2_key FROM drive_items WHERE id IN ('${folder.id}', 'inside')`).all().map(row => [row.id, row]));
+	assert.equal(owners[folder.id].owner_id, drive.id);
+	assert.equal(owners[folder.id].parent_id, null);
+	assert.equal(owners.inside.owner_id, drive.id);
+	// The stored object keeps the key it was written under.
+	assert.equal(owners.inside.r2_key, "drive/anna/inside");
+	const folders = await (await foldersRoute.GET(f.request("anna", `/api/drive/folders?drive=${drive.id}`))).json();
+	assert.deepEqual(folders.folders.map(entry => entry.name), ["Brief"]);
+
+	// Within the drive an editor can reorganise; taking things out is for managers.
+	const other = (await (await itemsRoute.POST(f.request("anna", "/api/drive/items", "POST", { name: "Archive", driveId: drive.id }))).json()).item;
+	assert.equal((await move("anna", { ids: [folder.id], parentId: other.id })).status, 200);
+	assert.equal((await move("anna", { ids: [folder.id] })).status, 403);
+	assert.equal((await getDriveItem(f.db, folder.id)).ownerId, drive.id);
+	assert.equal((await move("ben", { ids: [folder.id] })).status, 200);
+	assert.equal((await getDriveItem(f.db, folder.id)).ownerId, "ben");
+	assert.equal((await getDriveItem(f.db, "inside")).ownerId, "ben");
+
+	// Nobody moves things into another person's files, and a full drive refuses more.
+	const cara = (await (await itemsRoute.POST(f.request("cara", "/api/drive/items", "POST", { name: "Cara's" }))).json()).item;
+	assert.equal((await move("ben", { ids: [folder.id], parentId: cara.id })).status, 404);
+	await driveRoute.PATCH(f.request("primary", `/api/drives/${drive.id}`, "PATCH", { storageLimitBytes: 1 }), context(drive.id));
+	assert.equal((await move("ben", { ids: [folder.id], driveId: drive.id })).status, 413);
+});
+
+test("admins see every drive, deleted ones too, and can restore one", async () => {
+	const f = await fixture();
+	const drive = await f.createDrive("Archive");
+	assert.equal((await adminDrivesRoute.GET(f.request("anna", "/api/shared-drives"))).status, 403);
+	await driveRoute.DELETE(f.request("primary", `/api/drives/${drive.id}`, "DELETE"), context(drive.id));
+	const listed = (await (await adminDrivesRoute.GET(f.request("primary", "/api/shared-drives"))).json()).drives;
+	assert.deepEqual(listed.map(entry => [entry.name, entry.deleted, entry.peopleCount, entry.managerCount]), [["Archive", true, 1, 1]]);
+	assert.ok(listed[0].purgeAt);
+	assert.equal((await restoreRoute.POST(f.request("anna", `/api/shared-drives/${drive.id}/restore`, "POST"), context(drive.id))).status, 403);
+	assert.equal((await restoreRoute.POST(f.request("primary", `/api/shared-drives/${drive.id}/restore`, "POST"), context(drive.id))).status, 200);
+	assert.deepEqual((await (await drivesRoute.GET(f.request("primary", "/api/drives"))).json()).drives.map(entry => entry.name), ["Archive"]);
 });

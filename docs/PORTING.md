@@ -431,7 +431,14 @@ Tick in the PR that lands it. Add rows for anything discovered.
   least one Manage member. Deleting a drive soft-deletes its account; the account purge removes its files
   after the restore window. `/api/drives`, `/api/drives/[id]` and `/api/drives/[id]/members` are new;
   `/api/drive/items` and `/api/drive/upload` take an optional `driveId` and listings gain an optional
-  `drive` (additive). Items move only within the tree they are in for now.
+  `drive` (additive). Until 0094 is applied the shared drive tables read as empty, so Drive works as before.
+- (fork) Shared drives, phase 2. Items move between My Drive and shared drives with the bulk `move`
+  action (new optional `driveId` for the top of a drive): editors move within a drive and into it, only the
+  owner (a drive's managers) moves items out of a tree, and moving hands the whole subtree to the
+  destination's account after checking its storage cap. File rows pin their `r2_key` before the owner
+  changes, so nothing is copied in R2. `/api/drive/folders?drive=` lists a drive's folders, save-to-drive
+  takes `{ driveId }`, and Admin → Shared drives (`/api/shared-drives`, `/api/shared-drives/[id]/restore`)
+  lists every drive, deleted ones too, with restore inside the purge window.
 - (upstream 2b58ed7) Upstream's `0087_message_invite_response` shares its number with the fork's
   `0087_oidc_provider`. The runner records migrations by full file name, so both apply; keep
   upstream's file names as they are rather than renumbering.
