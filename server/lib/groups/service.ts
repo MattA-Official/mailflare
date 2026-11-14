@@ -1,7 +1,7 @@
 // Fork-only. Queries shared by the groups API.
 import { asc, count, eq } from "drizzle-orm";
 import type { AppDatabase } from "#db";
-import { domains, groupMembers, groups, mailboxGroupAccess, mailboxes, users } from "#db/schema";
+import { domains, groupMembers, groups, mailboxGroupAccess, mailboxOwnerGroups, mailboxes, users } from "#db/schema";
 
 export async function listGroups(db: AppDatabase) {
 	const [rows, inboxCounts] = await Promise.all([
@@ -72,12 +72,19 @@ export async function getGroupDetail(db: AppDatabase, groupId: string) {
 				hostname: domains.hostname,
 				displayName: mailboxes.displayName,
 				permission: mailboxGroupAccess.permission,
+				// Fork-only: whether this group owns the inbox (see #lib/groups/ownership).
+				ownerGroupId: mailboxOwnerGroups.groupId,
 			})
 			.from(mailboxGroupAccess)
 			.innerJoin(mailboxes, eq(mailboxGroupAccess.mailboxId, mailboxes.id))
+			.leftJoin(mailboxOwnerGroups, eq(mailboxOwnerGroups.mailboxId, mailboxes.id))
 			.innerJoin(domains, eq(mailboxes.domainId, domains.id))
 			.where(eq(mailboxGroupAccess.groupId, groupId))
 			.orderBy(asc(mailboxes.localPart)),
 	]);
-	return { ...group, members, mailboxes: sharedMailboxes };
+	return {
+		...group,
+		members,
+		mailboxes: sharedMailboxes.map(({ ownerGroupId, ...mailbox }) => ({ ...mailbox, owned: ownerGroupId === groupId })),
+	};
 }

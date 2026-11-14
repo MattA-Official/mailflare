@@ -29,6 +29,8 @@ await build({
 			export * as driveSharesRoute from "./server/handlers/api/drive/items/[id]/shares/route.ts";
 			export * as driveItemsRoute from "./server/handlers/api/drive/items/route.ts";
 			export { getDriveRole, getDriveItem } from "./server/lib/drive/access.ts";
+			export * as ownerGroupRoute from "./server/handlers/api/mailboxes/[id]/owner-group/route.ts";
+			export { deleteAccounts } from "./server/lib/accounts/deletion.ts";
 		`,
 		resolveDir: root,
 		sourcefile: "groups-test-entry.ts",
@@ -46,6 +48,7 @@ const {
 	SqliteDatabase, applyMigrations, getDb, createSession, getMailboxAccessLevel, listAccessibleMailboxes,
 	listSharedMailboxUserIds, getMailboxNotificationUserIds, groupsRoute, groupRoute, membersRoute, groupAccessRoute,
 	accessRoute, detail, mineRoute, summaryRoute, driveSharesRoute, driveItemsRoute, getDriveRole, getDriveItem,
+	ownerGroupRoute, deleteAccounts,
 } = await import(pathToFileURL(join(directory, "entry.mjs")).href);
 const context = id => ({ params: Promise.resolve({ id }) });
 
@@ -304,4 +307,49 @@ test("Drive items shared with a group reach its members, at the highest role", a
 	await driveSharesRoute.DELETE(f.request("anna", `/api/drive/items/folder/shares?groupShareId=${groupShareId}`, "DELETE"), context("folder"));
 	f.sql.exec("DELETE FROM drive_shares");
 	assert.equal(await getDriveRole(f.db, "ben", file), null);
+});
+
+test("a group that owns a shared inbox keeps full access, and the inbox outlives the admin holding it", async () => {
+	const f = await fixture();
+	const groupId = await supportGroup(f);
+	f.sql.exec(`INSERT INTO mailboxes (id, user_id, domain_id, local_part, display_name, type, use_all_domains, disabled, created_at) VALUES
+		('m-held', 'mailbox-admin', 'one', 'team', 'Team', 'shared', 0, 0, 1),
+		('m-other', 'mailbox-admin', 'one', 'other', 'Other', 'shared', 0, 0, 1);`);
+	const own = (actor, mailboxId, body) =>
+		ownerGroupRoute.PUT(f.request(actor, `/api/mailboxes/${mailboxId}/owner-group`, "PUT", body), context(mailboxId));
+
+	assert.equal((await own("plain-admin", "m-held", { groupId })).status, 404);
+	assert.equal((await own("primary", "m-anna", { groupId })).status, 404);
+	assert.equal((await own("mailbox-admin", "m-held", { groupId })).status, 200);
+	assert.equal((await getMailboxAccessLevel(f.db, { id: "anna", role: "user" }, "m-held")).permission, "full_access");
+
+	const state = await (await groupAccessRoute.GET(f.request("primary", "/api/mailboxes/m-held/group-access"), context("m-held"))).json();
+	assert.equal(state.ownerGroupId, groupId);
+	assert.deepEqual(state.groups.map(grant => [grant.groupId, grant.permission]), [[groupId, "full_access"]]);
+	// The owning group cannot be downgraded or removed while it owns the inbox.
+	assert.equal((await f.grant("primary", "m-held", groupId, "read_only")).status, 409);
+	const removeGrant = await groupAccessRoute.DELETE(f.request("primary", `/api/mailboxes/m-held/group-access?groupId=${groupId}`, "DELETE"), context("m-held"));
+	assert.equal(removeGrant.status, 409);
+
+	const summary = await (await summaryRoute.GET(f.request("primary", "/api/mailboxes/m-held/access-summary"), context("m-held"))).json();
+	const anna = summary.people.find(person => person.userId === "anna");
+	assert.deepEqual(anna.routes, [{ kind: "group", permission: "full_access", groupId, groupName: "Support", ownsInbox: true }]);
+	const detailBody = await (await groupRoute.GET(f.request("primary", `/api/groups/${groupId}`), context(groupId))).json();
+	assert.deepEqual(detailBody.group.mailboxes.map(mailbox => [mailbox.id, mailbox.owned]), [["m-held", true]]);
+
+	// Deleting the admin holding it moves the group's inbox to the primary admin; their other inbox stays put.
+	const result = await deleteAccounts(f.env, { id: "primary", role: "admin", isPrimaryAdmin: true, canManageUsers: true }, { ids: ["mailbox-admin"] });
+	assert.equal(result.ok, true);
+	const holders = Object.fromEntries(f.sql.prepare("SELECT id, user_id FROM mailboxes WHERE id IN ('m-held', 'm-other')").all().map(row => [row.id, row.user_id]));
+	assert.deepEqual(holders, { "m-held": "primary", "m-other": "mailbox-admin" });
+	const moved = f.sql.prepare("SELECT action, mailbox_id FROM audit_logs WHERE action = 'mailbox.owner_moved'").all();
+	assert.deepEqual(moved.map(row => row.mailbox_id), ["m-held"]);
+
+	// Ending ownership keeps the group's grant, which can then be removed as usual.
+	const cleared = await ownerGroupRoute.DELETE(f.request("primary", "/api/mailboxes/m-held/owner-group", "DELETE"), context("m-held"));
+	assert.equal(cleared.status, 200);
+	assert.equal((await getMailboxAccessLevel(f.db, { id: "anna", role: "user" }, "m-held")).permission, "full_access");
+	const removed = await groupAccessRoute.DELETE(f.request("primary", `/api/mailboxes/m-held/group-access?groupId=${groupId}`, "DELETE"), context("m-held"));
+	assert.equal(removed.status, 200);
+	assert.equal(await getMailboxAccessLevel(f.db, { id: "anna", role: "user" }, "m-held"), null);
 });

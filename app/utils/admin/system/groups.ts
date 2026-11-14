@@ -28,6 +28,7 @@ export type GroupMailbox = {
   hostname: string
   displayName: string | null
   permission: MailboxPermission
+  owned: boolean
 }
 
 export type GroupDetail = {
@@ -51,6 +52,7 @@ export type MailboxGroupGrant = {
 export type MailboxGroupAccessResponse = {
   groups: MailboxGroupGrant[]
   availableGroups: { id: string, name: string, memberCount: number }[]
+  ownerGroupId: string | null
 }
 
 export function fetchGroups() {
@@ -72,7 +74,7 @@ export type GroupResponse = {
 
 export type MyGroup = { id: string, name: string, description: string | null, role: GroupMember['role'], memberCount: number, mailboxCount: number }
 
-export type AccessRoute = { kind: 'owner' | 'direct' | 'group', permission: MailboxPermission, groupId?: string, groupName?: string }
+export type AccessRoute = { kind: 'owner' | 'direct' | 'group', permission: MailboxPermission, groupId?: string, groupName?: string, ownsInbox?: boolean }
 export type AccessSummaryPerson = { userId: string, name: string, email: string, disabled: boolean, permission: MailboxPermission, routes: AccessRoute[] }
 
 export function fetchGroup(id: string) {
@@ -122,6 +124,15 @@ export async function grantMailboxGroupAccess(mailboxId: string, groupId: string
 
 export async function revokeMailboxGroupAccess(mailboxId: string, groupId: string) {
   await api(`/api/mailboxes/${mailboxId}/group-access?groupId=${encodeURIComponent(groupId)}`, { method: 'DELETE' })
+}
+
+/** Makes a group the owner of a shared inbox (server/handlers/api/mailboxes/[id]/owner-group). */
+export async function setMailboxOwnerGroup(mailboxId: string, groupId: string) {
+  await api(`/api/mailboxes/${mailboxId}/owner-group`, { method: 'PUT', body: { groupId } })
+}
+
+export async function clearMailboxOwnerGroup(mailboxId: string) {
+  await api(`/api/mailboxes/${mailboxId}/owner-group`, { method: 'DELETE' })
 }
 
 export function getGroupMailboxAddress(mailbox: Pick<GroupMailbox, 'localPart' | 'hostname'>) {

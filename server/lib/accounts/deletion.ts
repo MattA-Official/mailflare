@@ -11,6 +11,7 @@ import { avatarKeyFor } from "#handlers/api/profile/avatar/utils";
 import { getAccountPurgeCutoff } from "./deletion-utils";
 import type { DeleteAccountsInput, DeleteAccountsResult } from "./deletion-types";
 import { deleteUnreferencedObjects } from "#lib/drive/shared-objects";
+import { moveGroupOwnedMailboxes } from "#lib/groups/ownership";
 
 const CHUNK = 50;
 
@@ -70,6 +71,8 @@ export async function deleteAccounts(env: CloudflareEnv, actor: SessionUser, inp
 		}
 		for (const target of targets) await transferAccountData(env, target.id, target.name || target.email, recipient.id);
 	}
+	// Fork-only: shared inboxes owned by a group stay with the group rather than with the deleted admin.
+	await moveGroupOwnedMailboxes(env, ids, actor.id);
 	const now = new Date();
 	for (const group of chunks(ids)) {
 		await db.update(users).set({ deletedAt: now, disabled: true }).where(inArray(users.id, group));
@@ -91,6 +94,8 @@ export async function restoreAccount(env: CloudflareEnv, actor: SessionUser, id:
 
 async function purgeAccount(env: CloudflareEnv, account: typeof users.$inferSelect): Promise<void> {
 	const db = getDb(env);
+	// Fork-only: a group's inbox may have been given back to this account after it was deleted.
+	await moveGroupOwnedMailboxes(env, [account.id], null);
 	const owned = await db.select().from(mailboxes).where(eq(mailboxes.userId, account.id));
 	for (const mailbox of owned) {
 		try {

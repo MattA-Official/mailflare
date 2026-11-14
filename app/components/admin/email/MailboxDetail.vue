@@ -10,7 +10,7 @@ import {
   getMailboxAddress, getMailboxesBase, grantSharedInboxAccess, revokeSharedInboxAccess, updateMailboxSettings,
 } from '~/utils/admin/email/mailboxes'
 import type { AccessRoute, AccessSummaryPerson } from '~/utils/admin/system/groups'
-import { fetchMailboxAccessSummary, fetchMailboxGroupAccess, grantMailboxGroupAccess, revokeMailboxGroupAccess } from '~/utils/admin/system/groups'
+import { clearMailboxOwnerGroup, fetchMailboxAccessSummary, fetchMailboxGroupAccess, grantMailboxGroupAccess, revokeMailboxGroupAccess, setMailboxOwnerGroup } from '~/utils/admin/system/groups'
 
 const props = defineProps<{ mailboxId: string }>()
 const { t } = useLanguage()
@@ -153,7 +153,30 @@ const permissionLabels = computed<Record<AccessSummaryPerson['permission'], stri
 function routeLabel(route: AccessRoute) {
   if (route.kind === 'owner') return t('groups.via.owner')
   if (route.kind === 'direct') return t('groups.via.direct')
+  if (route.ownsInbox) return t('groups.via.ownerGroup', { name: route.groupName ?? '' })
   return t('groups.via.group', { name: route.groupName ?? '' })
+}
+
+// Fork-only: a group can own the inbox. Its members always have full access, and the inbox stays when the
+// admin who holds it is deleted (server/lib/groups/ownership.ts).
+const NO_OWNER_GROUP = 'none'
+const ownerGroupItems = computed(() => [
+  { label: t('groups.ownerNone'), value: NO_OWNER_GROUP },
+  ...(groupAccess.value?.availableGroups ?? []).map(group => ({ label: group.name, value: group.id, icon: 'i-lucide-network' })),
+])
+const ownerGroupBusy = ref(false)
+async function changeOwnerGroup(value: string) {
+  ownerGroupBusy.value = true
+  memberError.value = null
+  try {
+    if (value === NO_OWNER_GROUP) await clearMailboxOwnerGroup(props.mailboxId)
+    else await setMailboxOwnerGroup(props.mailboxId, value)
+    await refreshGroups()
+  } catch (error) {
+    memberError.value = errorMessage(error, t('groups.ownerFailed'))
+  } finally {
+    ownerGroupBusy.value = false
+  }
 }
 
 async function removeGroup(groupId: string) {
@@ -289,6 +312,15 @@ async function remove() {
         </p>
       </template>
       <div class="space-y-3">
+        <UFormField v-if="groupAccess?.availableGroups.length" :label="t('groups.ownerLabel')" :description="t('groups.ownerHint')" class="pb-2">
+          <USelect
+            :model-value="groupAccess.ownerGroupId ?? NO_OWNER_GROUP"
+            :items="ownerGroupItems"
+            :disabled="ownerGroupBusy"
+            class="w-full sm:w-72"
+            @update:model-value="(value: string) => changeOwnerGroup(value)"
+          />
+        </UFormField>
         <USkeleton v-if="sharedStatus === 'pending' && !sharedAccess" class="h-16 w-full rounded-lg" />
         <div v-for="grant in groupAccess?.groups ?? []" :key="grant.groupId" class="flex items-center justify-between gap-3 rounded-lg bg-elevated/60 px-4 py-3">
           <NuxtLink :to="`/groups/${grant.groupId}`" class="flex min-w-0 items-center gap-2 hover:underline">
@@ -299,8 +331,9 @@ async function remove() {
             </span>
           </NuxtLink>
           <div class="flex shrink-0 items-center gap-2">
-            <UBadge color="neutral" variant="soft" :label="t('groups.group')" />
-            <UButton icon="i-lucide-trash-2" color="error" variant="ghost" :aria-label="t('mailbox.removeAddress', { address: grant.groupName })" :disabled="memberBusy" @click="removeGroup(grant.groupId)" />
+            <UBadge v-if="grant.groupId === groupAccess?.ownerGroupId" color="primary" variant="subtle" :label="t('groups.ownsInbox')" />
+            <UBadge v-else color="neutral" variant="soft" :label="t('groups.group')" />
+            <UButton v-if="grant.groupId !== groupAccess?.ownerGroupId" icon="i-lucide-trash-2" color="error" variant="ghost" :aria-label="t('mailbox.removeAddress', { address: grant.groupName })" :disabled="memberBusy" @click="removeGroup(grant.groupId)" />
           </div>
         </div>
         <div v-for="member in sharedAccess?.members ?? []" :key="member.userId" class="flex items-center justify-between gap-3 rounded-lg bg-elevated/60 px-4 py-3">

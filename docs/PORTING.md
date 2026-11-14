@@ -369,6 +369,13 @@ Tick in the PR that lands it. Add rows for anything discovered.
   person's effective permission and the routes that give it. Migration `0090_drive_group_shares` adds
   `drive_group_shares`; `#lib/drive/access` folds group shares into roles, "Shared with me" and the
   shared flag. The share dialog's GET response gains `groupShares` and `availableGroups` (additive).
+- (fork) Groups, phase 3. A shared inbox can be owned by a group (migration `0091_mailbox_owner_groups`,
+  `#lib/groups/ownership`, `PUT/DELETE /api/mailboxes/[id]/owner-group`). The owning group always holds a
+  `full_access` row in `mailbox_group_access`, so the access resolver is unchanged; that row cannot be
+  downgraded or removed while the group owns the inbox. When accounts are deleted, and again before they
+  are purged, group-owned inboxes they hold move to the primary admin (audit `mailbox.owner_moved`)
+  instead of going with the account. An inbox on a domain owned by a deleted account still goes with
+  that domain.
 - (upstream 2b58ed7) Upstream's `0087_message_invite_response` shares its number with the fork's
   `0087_oidc_provider`. The runner records migrations by full file name, so both apply; keep
   upstream's file names as they are rather than renumbering.
