@@ -153,6 +153,8 @@ const permissionLabels = computed<Record<AccessSummaryPerson['permission'], stri
 function routeLabel(route: AccessRoute) {
   if (route.kind === 'owner') return t('groups.via.owner')
   if (route.kind === 'direct') return t('groups.via.direct')
+  // Fork-only (nested groups): a member of a sub-group reaches the inbox through the group above it.
+  if (route.memberGroupName) return t('groups.via.subgroup', { name: route.memberGroupName, parent: route.groupName ?? '' })
   if (route.ownsInbox) return t('groups.via.ownerGroup', { name: route.groupName ?? '' })
   return t('groups.via.group', { name: route.groupName ?? '' })
 }

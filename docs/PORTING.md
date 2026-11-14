@@ -376,6 +376,11 @@ Tick in the PR that lands it. Add rows for anything discovered.
   are purged, group-owned inboxes they hold move to the primary admin (audit `mailbox.owner_moved`)
   instead of going with the account. An inbox on a domain owned by a deleted account still goes with
   that domain.
+- (fork) Nested groups. Migration `0092_group_subgroups` links groups as parent and sub-group, many to
+  many (`#lib/groups/hierarchy`, `POST/DELETE /api/groups/[id]/subgroups`, admins who manage groups only).
+  A grant to a group, for shared inboxes and Drive, reaches the members of every group beneath it at the
+  same level; nothing flows up. The resolver uses recursive CTEs over `group_subgroups`. Links that
+  would loop are refused, and deleting a group or removing a link only ends what passed through it.
 - (upstream 2b58ed7) Upstream's `0087_message_invite_response` shares its number with the fork's
   `0087_oidc_provider`. The runner records migrations by full file name, so both apply; keep
   upstream's file names as they are rather than renumbering.

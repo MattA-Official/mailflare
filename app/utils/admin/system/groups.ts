@@ -29,12 +29,20 @@ export type GroupMailbox = {
   displayName: string | null
   permission: MailboxPermission
   owned: boolean
+  /** Set when the inbox reaches this group through a group above it. */
+  inheritedFrom: { id: string, name: string } | null
 }
+
+export type GroupLink = { id: string, name: string, memberCount: number }
 
 export type GroupDetail = {
   id: string
   name: string
   description: string | null
+  /** Fork-only (nested groups): the groups this one sits inside, the groups inside it, and the groups that could be. */
+  parents: GroupLink[]
+  subgroups: GroupLink[]
+  subgroupOptions: GroupLink[]
   createdAt: string
   members: GroupMember[]
   mailboxes: GroupMailbox[]
@@ -74,7 +82,7 @@ export type GroupResponse = {
 
 export type MyGroup = { id: string, name: string, description: string | null, role: GroupMember['role'], memberCount: number, mailboxCount: number }
 
-export type AccessRoute = { kind: 'owner' | 'direct' | 'group', permission: MailboxPermission, groupId?: string, groupName?: string, ownsInbox?: boolean }
+export type AccessRoute = { kind: 'owner' | 'direct' | 'group', permission: MailboxPermission, groupId?: string, groupName?: string, ownsInbox?: boolean, memberGroupId?: string, memberGroupName?: string }
 export type AccessSummaryPerson = { userId: string, name: string, email: string, disabled: boolean, permission: MailboxPermission, routes: AccessRoute[] }
 
 export function fetchGroup(id: string) {
@@ -133,6 +141,15 @@ export async function setMailboxOwnerGroup(mailboxId: string, groupId: string) {
 
 export async function clearMailboxOwnerGroup(mailboxId: string) {
   await api(`/api/mailboxes/${mailboxId}/owner-group`, { method: 'DELETE' })
+}
+
+/** Fork-only (nested groups): put a group inside another, or take it out. */
+export async function addSubgroup(id: string, groupId: string) {
+  await api(`/api/groups/${encodeURIComponent(id)}/subgroups`, { method: 'POST', body: { groupId } })
+}
+
+export async function removeSubgroup(id: string, groupId: string) {
+  await api(`/api/groups/${encodeURIComponent(id)}/subgroups?groupId=${encodeURIComponent(groupId)}`, { method: 'DELETE' })
 }
 
 export function getGroupMailboxAddress(mailbox: Pick<GroupMailbox, 'localPart' | 'hostname'>) {

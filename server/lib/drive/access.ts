@@ -1,6 +1,7 @@
 import { and, eq, inArray, ne, type SQL } from "drizzle-orm";
 import { getDb } from "#db";
-import { driveGroupShares, driveItems, driveShares, driveUploadParts, groupMembers, users } from "#db/schema";
+import { driveGroupShares, driveItems, driveShares, driveUploadParts, users } from "#db/schema";
+import { effectiveGroupIds } from "#lib/groups/hierarchy";
 import { DRIVE_MAX_DEPTH, driveObjectKey } from "./utils";
 import type { DriveItemDto, DriveRole, DriveRow } from "./types";
 import { deleteUnreferencedObjects } from "#lib/drive/shared-objects";
@@ -40,8 +41,7 @@ export async function getDriveRole(db: Db, userId: string, item: DriveRow, allow
 		...await db
 			.select({ role: driveGroupShares.role })
 			.from(driveGroupShares)
-			.innerJoin(groupMembers, eq(driveGroupShares.groupId, groupMembers.groupId))
-			.where(and(eq(groupMembers.userId, userId), inArray(driveGroupShares.itemId, chainIds))),
+			.where(and(inArray(driveGroupShares.groupId, effectiveGroupIds(userId)), inArray(driveGroupShares.itemId, chainIds))),
 	];
 	if (shares.some((share) => share.role === "edit")) return "edit";
 	return shares.length ? "view" : null;
@@ -54,8 +54,7 @@ export async function isDriveItemSharedWith(db: Db, itemId: string, userId: stri
 	const [viaGroup] = await db
 		.select({ id: driveGroupShares.id })
 		.from(driveGroupShares)
-		.innerJoin(groupMembers, eq(driveGroupShares.groupId, groupMembers.groupId))
-		.where(and(eq(driveGroupShares.itemId, itemId), eq(groupMembers.userId, userId)))
+		.where(and(eq(driveGroupShares.itemId, itemId), inArray(driveGroupShares.groupId, effectiveGroupIds(userId))))
 		.limit(1);
 	return !!viaGroup;
 }
@@ -71,9 +70,8 @@ export async function listDriveItemsSharedWith(db: Db, userId: string, condition
 		db
 			.select({ item: driveItems, role: driveGroupShares.role, sharedAt: driveGroupShares.createdAt })
 			.from(driveGroupShares)
-			.innerJoin(groupMembers, eq(driveGroupShares.groupId, groupMembers.groupId))
 			.innerJoin(driveItems, eq(driveGroupShares.itemId, driveItems.id))
-			.where(and(eq(groupMembers.userId, userId), ne(driveItems.ownerId, userId), condition)),
+			.where(and(inArray(driveGroupShares.groupId, effectiveGroupIds(userId)), ne(driveItems.ownerId, userId), condition)),
 	]);
 	const byId = new Map<string, (typeof direct)[number]>();
 	for (const row of [...direct, ...viaGroups]) {

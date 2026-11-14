@@ -49,6 +49,7 @@ useHead({ title: () => data.value?.group.name ?? t('groups.title') })
                   <span class="block truncate text-sm font-medium text-highlighted">{{ mailbox.displayName || mailbox.localPart }}</span>
                   <span class="block truncate text-xs text-muted">{{ getGroupMailboxAddress(mailbox) }}</span>
                 </span>
+                <UBadge v-if="mailbox.inheritedFrom" color="neutral" variant="soft" :label="t('groups.inheritedFrom', { name: mailbox.inheritedFrom.name })" />
               </li>
             </ul>
           </UCard>

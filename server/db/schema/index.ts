@@ -1,5 +1,5 @@
 import { sql } from "drizzle-orm";
-import type { AnySQLiteColumn } from "drizzle-orm/sqlite-core";
+import { primaryKey, type AnySQLiteColumn } from "drizzle-orm/sqlite-core";
 import { kit } from "./kits";
 
 // Upstream's schema, written against the column kit in kits.ts. This fork is D1 (SQLite) only; the kit is
@@ -1576,3 +1576,11 @@ export const mailboxOwnerGroups = sqliteTable("mailbox_owner_groups", {
 	assignedByUserId: text("assigned_by_user_id").references(() => users.id, { onDelete: "set null" }),
 	createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
 }, (t) => [index("mailbox_owner_groups_group_idx").on(t.groupId)]);
+
+// Fork-only: a group inside another group (migration 0092). Access flows from parent to child, never back.
+export const groupSubgroups = sqliteTable("group_subgroups", {
+	parentGroupId: text("parent_group_id").notNull().references(() => groups.id, { onDelete: "cascade" }),
+	childGroupId: text("child_group_id").notNull().references(() => groups.id, { onDelete: "cascade" }),
+	addedByUserId: text("added_by_user_id").references(() => users.id, { onDelete: "set null" }),
+	createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+}, (t) => [primaryKey({ columns: [t.parentGroupId, t.childGroupId] }), index("group_subgroups_child_idx").on(t.childGroupId)]);
