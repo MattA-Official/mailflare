@@ -403,6 +403,15 @@ Tick in the PR that lands it. Add rows for anything discovered.
   the purge no longer cascades to every mailbox on them. `GET /api/accounts` gains `ownedDomains` per
   account (additive) and the delete dialog requires such a recipient when any are listed. Deleting a domain
   that hosts an enabled shared inbox is refused (409) with the inbox addresses.
+- (fork) Standalone shared inboxes, phase 3. Groups manage a shared inbox instead of owning it: migration
+  `0095_mailbox_managers` replaces `mailbox_owner_groups` (rows copied), any number of groups per inbox
+  (`#lib/groups/managers`, `POST/DELETE /api/mailboxes/[id]/managers` replacing `owner-group`). A managing
+  group keeps a `full_access` grant that cannot be lowered or removed while it manages. `group-access` returns
+  `managerGroupIds`, the access summary `managesInbox`, the group page `managed`. Anyone with full access to a
+  shared inbox, not only admins, may now manage who has it (`getSharedMailboxForManager`). Admin → Shared
+  inboxes (`/shared-inboxes`, `GET /api/shared-inboxes`) lists every shared inbox for admins who manage them,
+  and `POST /api/shared-inboxes/[id]/restore` brings back a deleted one before its holder is purged.
+  `moveGroupOwnedMailboxes` is gone: inboxes no longer belong to a person.
 - (upstream 2b58ed7) Upstream's `0087_message_invite_response` shares its number with the fork's
   `0087_oidc_provider`. The runner records migrations by full file name, so both apply; keep
   upstream's file names as they are rather than renumbering.

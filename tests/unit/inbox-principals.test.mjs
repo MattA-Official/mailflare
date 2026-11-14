@@ -29,6 +29,8 @@ await build({
 			export * as detail from "./server/handlers/api/mailboxes/[id]/route.ts";
 			export * as domainRoute from "./server/handlers/api/domains/[id]/route.ts";
 			export * as accountsRoute from "./server/handlers/api/accounts/route.ts";
+			export * as sharedInboxesRoute from "./server/handlers/api/shared-inboxes/route.ts";
+			export * as restoreRoute from "./server/handlers/api/shared-inboxes/[id]/restore/route.ts";
 		`,
 		resolveDir: root,
 		sourcefile: "inbox-principals-test-entry.ts",
@@ -45,7 +47,7 @@ await build({
 const {
 	SqliteDatabase, applyMigrations, getDb, createSession, getMailboxAccessLevel, listAccessibleMailboxes, createInboxPrincipal,
 	grantCreatorFullAccess, inboxPrincipalId, listAccountsForAdmin, countUsedAccountSeats, selectAccountById, deleteAccounts,
-	membersRoute, groupsRoute, accessRoute, summaryRoute, detail, domainRoute, accountsRoute,
+	membersRoute, groupsRoute, accessRoute, summaryRoute, detail, domainRoute, accountsRoute, sharedInboxesRoute, restoreRoute,
 } = await import(pathToFileURL(join(directory, "entry.mjs")).href);
 const context = id => ({ params: Promise.resolve({ id }) });
 const primary = { id: "primary", role: "admin", isPrimaryAdmin: true, canManageUsers: true, canManageMailboxes: false };
@@ -236,4 +238,29 @@ test("a domain that hosts a shared inbox cannot be deleted", async () => {
 	assert.equal(response.status, 409);
 	assert.match((await response.json()).error, /support@one\.test/);
 	assert.equal(f.sql.prepare("SELECT COUNT(*) AS n FROM domains WHERE id = 'one'").get().n, 1);
+});
+
+test("admins who manage shared inboxes see every one, and can restore a deleted one", async () => {
+	const f = await fixture();
+	f.sql.exec("INSERT INTO mailbox_access (id, mailbox_id, user_id, permission, created_at) VALUES ('anna-ro', 'm-support', 'anna', 'read_only', 1)");
+	await assert.rejects(async () => {
+		const response = await sharedInboxesRoute.GET(f.request("anna", "/api/shared-inboxes"));
+		if (response.status === 403) throw new Error("Forbidden");
+	}, /Forbidden/);
+
+	const listed = await (await sharedInboxesRoute.GET(f.request("primary", "/api/shared-inboxes"))).json();
+	assert.deepEqual(listed.inboxes.map(inbox => [inbox.address, inbox.deleted, inbox.peopleCount]), [["support@one.test", false, 2]]);
+
+	assert.equal((await detail.DELETE(f.request("primary", "/api/mailboxes/m-support", "DELETE"), context("m-support"))).status, 200);
+	const afterDelete = await (await sharedInboxesRoute.GET(f.request("primary", "/api/shared-inboxes"))).json();
+	assert.equal(afterDelete.inboxes[0].deleted, true);
+	assert.ok(afterDelete.inboxes[0].purgeAt);
+	assert.equal(await getMailboxAccessLevel(f.db, { id: "primary", role: "admin" }, "m-support"), null);
+
+	const restored = await restoreRoute.POST(f.request("primary", "/api/shared-inboxes/m-support/restore", "POST"), context("m-support"));
+	assert.equal(restored.status, 200);
+	assert.equal((await getMailboxAccessLevel(f.db, { id: "primary", role: "admin" }, "m-support")).permission, "full_access");
+	assert.equal(f.sql.prepare("SELECT deleted_at FROM users WHERE id = ?").get(inboxPrincipalId("m-support")).deleted_at, null);
+	// A personal mailbox is never "restored" through this route.
+	assert.equal((await restoreRoute.POST(f.request("primary", "/api/shared-inboxes/m-owner/restore", "POST"), context("m-owner"))).status, 404);
 });

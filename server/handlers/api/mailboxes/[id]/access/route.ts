@@ -2,18 +2,17 @@ import { and, asc, eq } from "drizzle-orm";
 import { NextResponse } from "#lib/http/next-compat";
 import { getDb } from "#db";
 import { mailboxAccess, users } from "#db/schema";
-import { requireTeamSharingAdmin } from "#handlers/api/accounts/utils";
 import { newId } from "#lib/ids";
 import { mailboxAccessSchema } from "#lib/validators";
 import type { MailboxAccessRouteParams } from "./types";
-import { getSharedMailboxForAdmin, shareableAccountsCondition } from "./utils";
+import { getSharedMailboxForManager, requireSharingUser, shareableAccountsCondition } from "./utils";
 
 export async function GET(request: Request, { params }: MailboxAccessRouteParams) {
-	const access = await requireTeamSharingAdmin(request);
+	const access = await requireSharingUser(request);
 	if (access.error) return access.error;
 	const { id } = await params;
 	const db = getDb(access.env);
-	const mailbox = await getSharedMailboxForAdmin(db, id, access.user!);
+	const mailbox = await getSharedMailboxForManager(db, id, access.user!);
 	if (!mailbox) return NextResponse.json({ error: "Shared inbox not found" }, { status: 404 });
 
 	const [members, availableUsers] = await Promise.all([
@@ -40,13 +39,13 @@ export async function GET(request: Request, { params }: MailboxAccessRouteParams
 }
 
 export async function POST(request: Request, { params }: MailboxAccessRouteParams) {
-	const access = await requireTeamSharingAdmin(request);
+	const access = await requireSharingUser(request);
 	if (access.error) return access.error;
 	const parsed = mailboxAccessSchema.safeParse(await request.json());
 	if (!parsed.success) return NextResponse.json({ error: "Choose a valid account" }, { status: 400 });
 	const { id } = await params;
 	const db = getDb(access.env);
-	const mailbox = await getSharedMailboxForAdmin(db, id, access.user!);
+	const mailbox = await getSharedMailboxForManager(db, id, access.user!);
 	if (!mailbox) return NextResponse.json({ error: "Shared inbox not found" }, { status: 404 });
 	const [user] = await db
 		.select({ id: users.id })
@@ -72,13 +71,13 @@ export async function POST(request: Request, { params }: MailboxAccessRouteParam
 }
 
 export async function DELETE(request: Request, { params }: MailboxAccessRouteParams) {
-	const access = await requireTeamSharingAdmin(request);
+	const access = await requireSharingUser(request);
 	if (access.error) return access.error;
 	const { id } = await params;
 	const userId = new URL(request.url).searchParams.get("userId");
 	if (!userId) return NextResponse.json({ error: "Account is required" }, { status: 400 });
 	const db = getDb(access.env);
-	const mailbox = await getSharedMailboxForAdmin(db, id, access.user!);
+	const mailbox = await getSharedMailboxForManager(db, id, access.user!);
 	if (!mailbox) return NextResponse.json({ error: "Shared inbox not found" }, { status: 404 });
 	await db
 		.delete(mailboxAccess)

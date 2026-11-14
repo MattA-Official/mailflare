@@ -3,7 +3,7 @@
 // the pages enforce access themselves. The licences page is not ported.
 import type { TranslationKey } from '#lib/i18n/types'
 
-type Permission = 'primary' | 'domains' | 'users'
+type Permission = 'primary' | 'domains' | 'users' | 'sharedInboxes'
 type AdminLink = { href: string, labelKey: TranslationKey, icon: string, permission?: Permission }
 
 defineProps<{ collapsed?: boolean }>()
@@ -16,6 +16,8 @@ const sections: { id?: string, labelKey?: TranslationKey, links: AdminLink[] }[]
     labelKey: 'admin.nav.email',
     links: [
       { href: '/mailboxes', labelKey: 'admin.nav.mailboxes', icon: 'i-lucide-mail' },
+      // Fork-only: every shared inbox, for admins who manage them.
+      { href: '/shared-inboxes', labelKey: 'admin.nav.sharedInboxes', icon: 'i-lucide-inbox', permission: 'sharedInboxes' },
       { href: '/domains', labelKey: 'admin.nav.domains', icon: 'i-lucide-globe', permission: 'domains' },
       { href: '/routing', labelKey: 'admin.nav.routing', icon: 'i-lucide-route', permission: 'domains' },
       { href: '/webhooks', labelKey: 'admin.nav.webhooks', icon: 'i-lucide-webhook', permission: 'primary' },
@@ -54,6 +56,7 @@ function canSee(link: AdminLink): boolean {
   if (!current) return false
   if (link.permission === 'primary') return current.isPrimaryAdmin
   if (link.permission === 'domains') return current.isPrimaryAdmin || current.canManageDomains
+  if (link.permission === 'sharedInboxes') return current.isPrimaryAdmin || current.canManageMailboxes || current.canManageUsers
   return current.isPrimaryAdmin || current.canManageUsers
 }
 
