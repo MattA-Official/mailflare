@@ -175,13 +175,14 @@ const swipeEnd = computed(() => ({
             <span v-if="unread" class="sr-only">{{ t('list.unread') }} </span>
             {{ party }}
             <span v-if="threadCount > 1" class="ml-2 text-xs font-normal text-muted">{{ message.threadCount }}</span>
+            <MessagesNoteBadge :count="message.noteCount" class="ml-2" />
           </span>
           <span class="shrink-0 text-[11px]" :class="unread ? 'font-medium' : 'text-muted'">
             <MessagesOpenedIndicator :count="message.openCount" />
             {{ timestamp }}
           </span>
         </span>
-        <span class="mt-1 block truncate text-sm" :class="unread ? 'font-semibold text-highlighted' : 'text-toned'"><MessagesNoteBadge :count="message.noteCount" />{{ message.subject ?? t('list.noSubject') }}</span>
+        <span class="mt-1 block truncate text-sm" :class="unread ? 'font-semibold text-highlighted' : 'text-toned'">{{ message.subject ?? t('list.noSubject') }}</span>
         <span class="mt-0.5 block truncate text-xs leading-5 text-muted">{{ preview }}</span>
       </NuxtLink>
     </div>
@@ -215,13 +216,14 @@ const swipeEnd = computed(() => ({
           <span v-if="unread" class="sr-only">{{ t('list.unread') }} </span>
           {{ party }}
           <span v-if="threadCount > 1" class="ml-2 text-xs font-normal text-muted">{{ message.threadCount }}</span>
+          <MessagesNoteBadge :count="message.noteCount" class="ml-2" />
         </span>
         <span class="shrink-0 text-[11px]" :class="unread ? 'font-medium' : 'text-muted'">
           <MessagesOpenedIndicator :count="message.openCount" />
           {{ timestamp }}
         </span>
       </span>
-      <span class="mt-1 block truncate text-sm" :class="unread ? 'font-semibold text-highlighted' : 'text-toned'"><MessagesNoteBadge :count="message.noteCount" />{{ message.subject ?? t('list.noSubject') }}</span>
+      <span class="mt-1 block truncate text-sm" :class="unread ? 'font-semibold text-highlighted' : 'text-toned'">{{ message.subject ?? t('list.noSubject') }}</span>
       <span class="mt-0.5 block truncate text-xs leading-5 text-muted">{{ preview }}</span>
     </NuxtLink>
   </div>

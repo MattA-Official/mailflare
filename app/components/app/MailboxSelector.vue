@@ -1,13 +1,15 @@
 <script setup lang="ts">
-// The account menu in the sidebar footer: the selected mailbox, links to the apps, the other
-// mailboxes with unread counts, other accounts signed in on this browser, admin, add account and
-// sign out. Ported from legacy/src/components/mailbox-selector.tsx.
+// The account menu in the sidebar footer: the selected mailbox, the other mailboxes with unread
+// counts, other accounts signed in on this browser (each with its own sign-out), add account,
+// settings, admin and sign out. The apps live in AppAppsMenu. Ported from
+// legacy/src/components/mailbox-selector.tsx.
 import { useEventListener } from '@vueuse/core'
 import { getProfileAvatarUrl, PROFILE_AVATAR_CHANGED_EVENT } from '#lib/profile/avatar-client'
 import { MAILBOX_AVATAR_CHANGED_EVENT } from '#lib/mailboxes/avatar-client'
 import type { MailboxAvatarChangedDetail } from '#lib/mailboxes/avatar-client-types'
 import type { ProfileAvatarChangedDetail } from '#lib/profile/types'
-import { fetchBrowserAccounts, logoutClientSession, switchBrowserAccount, type BrowserAccount } from '~/utils/auth/accounts'
+import { fetchBrowserAccounts, logoutClientSession, signOutBrowserAccount, switchBrowserAccount, type BrowserAccount } from '~/utils/auth/accounts'
+import { alertDialog, confirmDialog } from '~/utils/confirm-dialog'
 
 defineProps<{ collapsed?: boolean }>()
 
@@ -62,6 +64,16 @@ async function logout() {
   const switched = await logoutClientSession()
   open.value = false
   window.location.assign(switched ? '/inbox' : '/login')
+}
+
+async function signOutAccount(account: BrowserAccount) {
+  if (!(await confirmDialog(t('account.signOutAccountConfirm', { name: account.name, email: account.email })))) return
+  const error = await signOutBrowserAccount(account.userId)
+  if (error) {
+    void alertDialog(error)
+    return
+  }
+  browserAccounts.value = browserAccounts.value.filter(item => item.userId !== account.userId)
 }
 
 async function switchAccount(userId: string) {
@@ -126,8 +138,8 @@ const linkClass = 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-med
     </UButton>
 
     <template #content>
-      <div class="rounded-lg bg-elevated/50 p-4">
-        <div class="flex items-center gap-3">
+      <div class="rounded-lg bg-elevated/50 p-2">
+        <NuxtLink to="/inbox" class="flex items-center gap-3 rounded-md p-2 hover:bg-primary/10" @click="open = false">
           <AppAccountAvatar
             :name="selectedName"
             :color-seed="selectedEmail || selectedName"
@@ -146,13 +158,7 @@ const linkClass = 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-med
             <p class="truncate text-sm text-muted">{{ selectedEmail }}</p>
           </div>
           <UIcon name="i-lucide-check" class="size-5 shrink-0 text-primary" />
-        </div>
-        <nav class="mt-3 flex flex-col">
-          <NuxtLink to="/inbox" :class="linkClass" @click="open = false"><UIcon name="i-lucide-inbox" class="size-4.5 text-muted" />{{ t('navigation.inbox') }}</NuxtLink>
-          <NuxtLink v-if="user?.calendarEnabled !== false" to="/calendar" :class="linkClass" @click="open = false"><UIcon name="i-lucide-calendar-days" class="size-4.5 text-muted" />{{ t('account.calendar') }}</NuxtLink>
-          <NuxtLink v-if="user?.driveEnabled !== false" to="/drive" :class="linkClass" @click="open = false"><UIcon name="i-lucide-hard-drive" class="size-4.5 text-muted" />{{ t('account.drive') }}</NuxtLink>
-          <NuxtLink to="/settings/account" :class="linkClass" @click="open = false"><UIcon name="i-lucide-settings" class="size-4.5 text-muted" />{{ t('account.settings') }}</NuxtLink>
-        </nav>
+        </NuxtLink>
         <div v-if="otherMailboxes.length > 0" class="mt-2 border-t border-default pt-2">
           <button type="button" :aria-expanded="inboxesOpen" class="flex w-full items-center justify-between rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted hover:bg-elevated" @click="inboxesOpen = !inboxesOpen">
             {{ t('account.inboxes', { count: otherMailboxes.length }) }}
@@ -179,23 +185,37 @@ const linkClass = 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-med
         </div>
       </div>
 
-      <div v-if="otherAccounts.length > 0" class="mt-2">
-        <p class="px-3 pt-2 pb-1 text-xs font-semibold uppercase tracking-wide text-muted">{{ t('account.otherAccounts') }}</p>
-        <button v-for="account in otherAccounts" :key="account.userId" type="button" class="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left hover:bg-elevated" @click="switchAccount(account.userId)">
-          <AppAccountAvatar :name="account.name" :color-seed="account.email" :has-avatar="account.hasAvatar" :avatar-url="`/api/auth/accounts/${account.userId}/avatar`" />
-          <span class="min-w-0 flex-1">
-            <span class="block truncate text-sm font-semibold text-highlighted">{{ account.name }}</span>
-            <span class="block truncate text-xs text-muted">{{ account.email }}</span>
-          </span>
-        </button>
+      <div class="mt-2 border-t border-default pt-2">
+        <p v-if="otherAccounts.length > 0" class="px-3 pt-1 pb-1 text-xs font-semibold uppercase tracking-wide text-muted">{{ t('account.otherAccounts') }}</p>
+        <div v-for="account in otherAccounts" :key="account.userId" class="group flex items-center rounded-md hover:bg-primary/10 focus-within:bg-primary/10">
+          <button type="button" class="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-left" @click="switchAccount(account.userId)">
+            <AppAccountAvatar :name="account.name" :color-seed="account.email" :has-avatar="account.hasAvatar" :avatar-url="`/api/auth/accounts/${account.userId}/avatar`" />
+            <span class="min-w-0 flex-1">
+              <span class="block truncate text-sm font-semibold text-highlighted">{{ account.name }}</span>
+              <span class="block truncate text-xs text-muted">{{ account.email }}</span>
+            </span>
+          </button>
+          <UTooltip :text="t('account.signOut')">
+            <UButton
+              icon="i-lucide-log-out"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              class="me-2 rounded-full opacity-0 transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+              :aria-label="t('account.signOut')"
+              @click="signOutAccount(account)"
+            />
+          </UTooltip>
+        </div>
+        <NuxtLink to="/login?add=1" :class="linkClass" @click="open = false"><UIcon name="i-lucide-user-plus" class="size-4.5 text-muted" />{{ t('account.addAnother') }}</NuxtLink>
       </div>
 
       <div class="mt-2 flex flex-col border-t border-default pt-2">
+        <NuxtLink to="/settings/account" :class="linkClass" @click="open = false"><UIcon name="i-lucide-settings" class="size-4.5 text-muted" />{{ t('account.settings') }}</NuxtLink>
         <NuxtLink v-if="user?.role === 'admin'" to="/admin" :class="[linkClass, adminActive && 'bg-primary/10']" @click="open = false">
           <UIcon name="i-lucide-shield-check" class="size-4.5 text-muted" />{{ t('account.admin') }}
           <UIcon v-if="adminActive" name="i-lucide-check" class="ms-auto size-4 text-primary" />
         </NuxtLink>
-        <NuxtLink to="/login?add=1" :class="linkClass" @click="open = false"><UIcon name="i-lucide-user-plus" class="size-4.5 text-muted" />{{ t('account.addAnother') }}</NuxtLink>
         <button type="button" :class="[linkClass, 'w-full text-left']" @click="logout"><UIcon name="i-lucide-log-out" class="size-4.5 text-muted" />{{ t('account.signOut') }}</button>
       </div>
     </template>

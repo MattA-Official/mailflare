@@ -18,5 +18,6 @@ useHead({
     <NuxtLayout>
       <NuxtPage />
     </NuxtLayout>
+    <AppConfirmDialogHost />
   </UApp>
 </template>

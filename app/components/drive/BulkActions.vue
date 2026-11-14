@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Actions on the selected rows: trash, move to a folder (or a new one), restore, delete forever.
 // Ported from legacy/src/app/(drive)/drive-bulk-actions.tsx.
+import { confirmDestructive } from '~/utils/confirm-dialog'
 import type { DriveItemDto } from '#lib/drive/types'
 import type { DriveFolderNode } from '~/types/drive/drive'
 import { driveAttachmentAction, driveBulk, errorMessage, flattenDriveFolders } from '~/utils/drive/drive-utils'
@@ -74,8 +75,8 @@ async function createAndMove() {
   }
 }
 
-function deleteForever() {
-  if (window.confirm(t('drive.confirmBulkDelete', { count: props.selected.length }))) void run(() => act('delete'), count => t('drive.bulkDeleted', { count }))
+async function deleteForever() {
+  if (await confirmDestructive(t('drive.confirmBulkDelete', { count: props.selected.length }))) void run(() => act('delete'), count => t('drive.bulkDeleted', { count }))
 }
 </script>
 

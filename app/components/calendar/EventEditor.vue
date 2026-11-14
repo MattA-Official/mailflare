@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Create/edit dialog for a calendar event, including the save and delete requests.
 // Ported from the editor half of legacy/src/app/(calendar)/calendar/page.tsx.
+import { confirmDestructive } from '~/utils/confirm-dialog'
 import { getUserTimeZone, parseUserDateTimeLocal } from '#lib/time/utils'
 import { normalizeCalendarColor } from '#lib/calendar/colors'
 import { REMINDER_MINUTE_OPTIONS } from '#lib/calendar/reminder-utils'
@@ -165,7 +166,7 @@ async function remove() {
   const event = editing.value
   if (!event) return
   const recurring = event.repeat !== 'none'
-  if (!window.confirm(recurring ? t('calendar.deleteFuture') : t('calendar.deleteEvent'))) return
+  if (!(await confirmDestructive(recurring ? t('calendar.deleteFuture') : t('calendar.deleteEvent')))) return
   pending.value = 'delete'
   try {
     await api(`/api/calendar/events/${event.id}`, { method: 'DELETE', body: recurring ? { effectiveFrom: new Date().toISOString() } : undefined })

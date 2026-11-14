@@ -25,7 +25,7 @@ watch(open, (value, previous) => {
 </script>
 
 <template>
-  <div v-if="notes && !notes.loading.value" class="w-full pb-3">
+  <div v-if="notes && !notes.loading.value && visible" class="w-full pb-3">
     <div :inert="!visible" class="notes-row" :style="{ gridTemplateRows: visible ? '1fr' : '0fr' }">
       <div class="min-h-0 overflow-hidden">
         <div :class="innerClass">
@@ -33,14 +33,14 @@ watch(open, (value, previous) => {
             ref="section"
             tabindex="-1"
             :aria-label="t('note.title')"
-            class="overflow-hidden rounded-lg border border-amber-200 bg-amber-50 outline-none dark:border-amber-800/60 dark:bg-amber-950/40"
+            class="overflow-hidden rounded-xl border border-amber-200 bg-amber-50 outline-none dark:border-amber-800/60 dark:bg-amber-950/40"
           >
             <button
               ref="header"
               type="button"
               :aria-expanded="open"
               :aria-label="open ? t('note.collapse') : t('note.count', { count: notes.notes.value.length })"
-              class="flex w-full items-center gap-2 px-3 py-1.5 text-left text-xs text-amber-900/80 transition-colors hover:bg-amber-100/70 active:bg-amber-100 dark:text-amber-100/80 dark:hover:bg-amber-900/40"
+              class="flex w-full items-center gap-2 px-3 py-2 text-left text-xs text-amber-900/80 transition-colors hover:bg-amber-100/70 active:bg-amber-100 dark:text-amber-100/80 dark:hover:bg-amber-900/40"
               @click="notes.open.value = !open"
             >
               <UIcon name="i-lucide-notebook-pen" class="size-3.5 shrink-0" aria-hidden="true" />

@@ -345,11 +345,18 @@ Tick in the PR that lands it. Add rows for anything discovered.
   `main.css`; the Flytower mark as `favicon.ico`, `favicon.svg` and `icon-*.png`; the default name is
   "Flytower Mail" (`DEFAULT_APP_NAME`, `DEFAULT_BRANDING`, the manifest) and migration
   `0088_flytower_app_name` renames installs still called "Mailflare". "Powered by Mailflare" stays.
+- (upstream f4a17bd) Upstream's splash screen is not carried across (the Nuxt app has no first-paint
+  splash), nor its `changelog/` entries or version bump. The Contacts page is also linked from the
+  `NavApps` sidebar, not only the new apps menu. `tests/unit/message-actions-overflow.test.mjs`
+  expects the 17px group divider upstream's a2a75fd introduced; upstream left its own test on 1px.
+- (upstream 2b58ed7) Upstream's `0087_message_invite_response` shares its number with the fork's
+  `0087_oidc_provider`. The runner records migrations by full file name, so both apply; keep
+  upstream's file names as they are rather than renumbering.
 
 ## Following upstream
 
-Last ported upstream commit: `3de2363` update PR template (2026-11-13)
-<!-- upstream-ported: 3de2363787655b6044559e958ff866c29cdc0b57 -->
+Last ported upstream commit: `f4a17bd` fix: sync package-lock.json for npm 10 (#301) (2026-11-14)
+<!-- upstream-ported: f4a17bd98d8ad9dbcf95be911ac21cea1e471d91 -->
 
 The marker above is the last commit of hieunc229/mailflare's `main` whose changes are in `nuxt`. The
 port started from `cee65a5` (v0.5.4, the tree that was `legacy/`). Read upstream's current source from the `upstream` branch or with

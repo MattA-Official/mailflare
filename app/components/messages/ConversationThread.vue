@@ -57,7 +57,7 @@ watch(expandedAll, (value) => {
     :aria-label="position === 'before' ? t('thread.earlier') : t('thread.later')"
     :class="position === (latestMessagesFirst ? 'before' : 'after') ? 'pb-6' : ''"
   >
-    <ol class="border-default" :class="[!collapsed && 'divide-y divide-default/50', latestMessagesFirst ? 'border-t' : 'border-b']">
+    <ol class="border-default/50" :class="[!collapsed && 'divide-y divide-default/50', latestMessagesFirst ? 'border-y' : 'border-t']">
       <li>
         <MessagesConversationMessageCard :message="firstMessage" v-bind="cardProps" />
       </li>

@@ -48,18 +48,21 @@ const hourCount = CALENDAR_END_HOUR - CALENDAR_START_HOUR
 const busy = computed(() => pendingId.value !== null)
 const activeEventId = computed(() => draggedEvent.value?.id ?? resizingEvent.value?.id ?? null)
 const VIEWS = ['month', 'week', 'day'] as const
-const viewItems = computed(() => VIEWS.map(option => ({ label: t(`calendar.${option}`), value: option })))
-const mobileMenu = computed(() => [
+// The menu beside New event: Today (narrow screens only), connecting a calendar app, and the view.
+const optionsMenu = computed(() => [
   [
-    { label: t('calendar.today'), onSelect: () => { visibleDate.value = new Date() } },
+    { label: t('calendar.today'), class: 'md:hidden', onSelect: () => { visibleDate.value = new Date() } },
     { label: t('calendar.subscribe'), onSelect: () => { subscribeOpen.value = true } },
   ],
-  VIEWS.map(option => ({
-    label: t(`calendar.${option}`),
-    type: 'checkbox' as const,
-    checked: view.value === option,
-    onSelect: () => chooseView(option),
-  })),
+  [
+    { type: 'label' as const, label: t('calendar.view') },
+    ...VIEWS.map(option => ({
+      label: t(`calendar.${option}`),
+      type: 'checkbox' as const,
+      checked: view.value === option,
+      onSelect: () => chooseView(option),
+    })),
+  ],
 ])
 
 // Only a choice made in the view switcher is remembered; jumping into a day from the month grid is not.
@@ -67,7 +70,6 @@ function chooseView(next: CalendarView) {
   view.value = next
   try { localStorage.setItem(VIEW_STORAGE_KEY, next) } catch { /* Not remembered. */ }
 }
-const chosenView = computed({ get: () => view.value, set: chooseView })
 
 const previewEvent = computed(() => {
   const source = draggedEvent.value ?? resizingEvent.value
@@ -325,13 +327,12 @@ function previewClass(event: CalendarEvent) {
           <UButton icon="i-lucide-chevron-left" color="neutral" variant="ghost" :aria-label="t(`calendar.previousView.${view}`)" @click="step(-1)" />
           <UButton icon="i-lucide-chevron-right" color="neutral" variant="ghost" :aria-label="t(`calendar.nextView.${view}`)" @click="step(1)" />
           <UButton :label="t('calendar.today')" color="neutral" variant="outline" class="max-md:hidden" @click="visibleDate = new Date()" />
-          <UButton :label="t('calendar.subscribe')" color="neutral" variant="outline" class="max-md:hidden" @click="subscribeOpen = true" />
-          <USelect v-model="chosenView" :items="viewItems" :aria-label="t('calendar.view')" class="w-28 max-md:hidden" />
-          <UDropdownMenu :items="mobileMenu" :content="{ align: 'end' }">
-            <UButton icon="i-lucide-more-vertical" color="neutral" variant="ghost" class="md:hidden" :aria-label="t('calendar.options')" />
-          </UDropdownMenu>
-          <UButton icon="i-lucide-plus" :label="t('calendar.newEvent')" :disabled="busy" class="max-md:hidden" @click="openNewEvent()" />
-          <UButton icon="i-lucide-plus" :aria-label="t('calendar.newEvent')" :disabled="busy" class="md:hidden" @click="openNewEvent()" />
+          <UFieldGroup class="ms-1">
+            <UButton icon="i-lucide-plus" :label="t('calendar.newEvent')" :disabled="busy" @click="openNewEvent()" />
+            <UDropdownMenu :items="optionsMenu" :content="{ align: 'end' }">
+              <UButton icon="i-lucide-chevron-down" :aria-label="t('calendar.options')" class="border-s border-inverted/30" />
+            </UDropdownMenu>
+          </UFieldGroup>
         </template>
       </UDashboardToolbar>
       <UProgress v-if="loading" size="2xs" class="absolute inset-x-0 top-0" />
