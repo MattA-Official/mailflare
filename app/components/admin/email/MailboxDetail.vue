@@ -20,6 +20,8 @@ const { confirm } = useAdminConfirm()
 const { data: mailbox, error: loadError, status: loadStatus } = useAsyncData(`mailbox-${props.mailboxId}`, () => fetchMailbox(props.mailboxId), { watch: [() => props.mailboxId] })
 const loading = computed(() => loadStatus.value === 'pending')
 const address = computed(() => mailbox.value ? getMailboxAddress(mailbox.value) : '')
+// Fork-only: a shared inbox held by its own hidden account has settings of its own.
+const heldByInbox = computed(() => mailbox.value?.type === 'shared' && mailbox.value.userId === `inbox_${mailbox.value.id}`)
 
 const displayName = ref('')
 const useAllDomains = ref(true)
@@ -255,6 +257,8 @@ async function remove() {
         <UButton type="submit" icon="i-lucide-save" :disabled="loading || saving" :label="saving ? t('common.saving') : t('settings.mailbox.saveChanges')" />
       </form>
     </UCard>
+
+    <AdminEmailSharedInboxSettings v-if="heldByInbox" :mailbox-id="mailboxId" />
 
     <UCard>
       <template #header>
