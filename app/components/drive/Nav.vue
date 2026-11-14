@@ -155,6 +155,8 @@ const activeClass = 'bg-primary/10 font-medium text-primary'
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col gap-3">
+    <!-- Back to mail, as in the settings and admin sidebars. -->
+    <NavItem to="/inbox" :label="t('navigation.inbox')" icon="i-lucide-arrow-left" :collapsed="collapsed" active-path="/__never" />
     <UDropdownMenu :items="newItems" :content="{ align: 'start' }">
       <UButton
         icon="i-lucide-plus"

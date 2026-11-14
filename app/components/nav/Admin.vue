@@ -69,6 +69,8 @@ const visibleSections = computed(() => sections
 
 <template>
   <div class="flex flex-col gap-2">
+    <!-- Back to mail, as in the settings sidebar. -->
+    <NavItem to="/inbox" :label="t('navigation.inbox')" icon="i-lucide-arrow-left" :collapsed="collapsed" active-path="/__never" />
     <NavSection
       v-for="section in visibleSections"
       :key="section.id ?? section.links[0]!.href"

@@ -48,7 +48,11 @@ async function confirm() {
 <template>
   <UDashboardPanel id="agent-calendar-review">
     <template #header>
-      <AppNavbar :title="t('agent.calendarReview.title')" />
+      <AppNavbar :title="t('agent.calendarReview.title')">
+        <template #right>
+          <UButton color="neutral" variant="ghost" icon="i-lucide-arrow-left" to="/calendar" :label="t('account.calendar')" />
+        </template>
+      </AppNavbar>
     </template>
     <template #body>
       <div class="mx-auto w-full max-w-3xl">
