@@ -12,8 +12,10 @@ useHead({ title: () => t('compose.pageTitle') })
       <AppNavbar :title="t('compose.pageTitle')" />
     </template>
     <template #body>
-      <p class="text-sm text-muted">{{ t('compose.pageDescription') }}</p>
-      <ComposeForm mode="page" />
+      <div class="mx-auto flex w-full max-w-4xl flex-1 flex-col gap-4">
+        <p class="text-sm text-muted">{{ t('compose.pageDescription') }}</p>
+        <ComposeForm mode="page" />
+      </div>
     </template>
   </UDashboardPanel>
 </template>

@@ -3,10 +3,14 @@
 definePageMeta({ layout: 'dashboard', nav: 'settings' })
 const { t } = useLanguage()
 const route = useRoute()
+const address = ref('')
 </script>
 
 <template>
-  <SettingsMailSettingsPage id="settings-mailbox" :title="t('mailbox.title')">
-    <AdminEmailMailboxDetail :mailbox-id="String(route.params.id)" />
-  </SettingsMailSettingsPage>
+  <AppPage id="settings-mailbox" :title="address || t('mailbox.title')">
+    <template #actions>
+      <UButton color="neutral" variant="ghost" icon="i-lucide-arrow-left" to="/settings/mailboxes" :label="t('mailboxes.title')" />
+    </template>
+    <AdminEmailMailboxDetail :mailbox-id="String(route.params.id)" @loaded="address = $event" />
+  </AppPage>
 </template>

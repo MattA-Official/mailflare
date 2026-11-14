@@ -168,6 +168,7 @@ function goToEvent(event: { id: string }) {
             color="neutral"
             variant="ghost"
             :aria-label="t('booking.openPage', { name: username })"
+            class="max-sm:hidden"
           />
           <!-- Icon only on phones, where the header also holds the Bookings/Calendar switch. -->
           <UButton icon="i-lucide-plus" :aria-label="t('booking.newEvent')" :disabled="!currentUserId" @click="startCreate">
