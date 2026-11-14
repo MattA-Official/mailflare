@@ -13,7 +13,8 @@ const id = computed(() => String(route.params.id))
 const { data: account } = useManagedAccount(id)
 useHead({ title: () => account.value?.name ?? t('accountSettings.title') })
 
-const items = computed<NavigationMenuItem[]>(() => accountSettingsNavItems.map(item => ({
+const currentUser = useCurrentUser()
+const items = computed<NavigationMenuItem[]>(() => accountSettingsNavItems.filter(item => !('primary' in item) || currentUser.value?.isPrimaryAdmin).map(item => ({
   label: t(item.labelKey),
   to: getAccountSettingsHref(id.value, item.segment),
   exact: true,
