@@ -4,9 +4,10 @@
 // all of that belong to the inbox without touching those queries. People reach the inbox only through
 // grants. The principal has no password, passkey, session or API key and is refused everywhere a person
 // signs in or is listed. Migration 0093 converted the shared inboxes that existed before this.
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 import type { AppDatabase } from "#db";
 import { mailboxAccess, mailboxes, users } from "#db/schema";
+import { accountKinds } from "#lib/accounts/kind";
 import { PASSWORDLESS_PASSWORD_HASH } from "#lib/auth/password";
 import { newId } from "#lib/ids";
 
@@ -38,12 +39,12 @@ export async function createInboxPrincipal(
 		passwordHash: PASSWORDLESS_PASSWORD_HASH,
 		name: input.name.trim() || input.mailboxId,
 		role: "user",
-		kind: "inbox",
 		...(settings.spamProtectionEnabled !== undefined ? { spamProtectionEnabled: settings.spamProtectionEnabled } : {}),
 		...(settings.trashRetentionDays !== undefined ? { trashRetentionDays: settings.trashRetentionDays } : {}),
 		...(settings.remoteContentMode !== undefined ? { remoteContentMode: settings.remoteContentMode } : {}),
 		...(settings.showFullRecipientAddresses !== undefined ? { showFullRecipientAddresses: settings.showFullRecipientAddresses } : {}),
 	});
+	await db.update(accountKinds).set({ kind: "inbox" }).where(eq(accountKinds.id, id));
 	return id;
 }
 
@@ -69,5 +70,5 @@ export async function retireSharedInbox(db: AppDatabase, mailbox: { id: string; 
 	await db.update(mailboxes).set({ disabled: true }).where(eq(mailboxes.id, mailbox.id));
 	// Only ever the inbox's own principal: never the account of a person.
 	if (mailbox.userId !== inboxPrincipalId(mailbox.id)) return;
-	await db.update(users).set({ deletedAt: new Date(), disabled: true }).where(and(eq(users.id, mailbox.userId), eq(users.kind, "inbox")));
+	await db.update(users).set({ deletedAt: new Date(), disabled: true }).where(and(eq(users.id, mailbox.userId), sql`"users"."kind" = 'inbox'`));
 }

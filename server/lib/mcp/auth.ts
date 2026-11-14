@@ -6,7 +6,7 @@ import { findApiKeyForSecret } from "#lib/api/find-api-key";
 import { getMailboxAccessLevel } from "#lib/mailboxes/access";
 import { ADMIN_API_KEY_SCOPES } from "#lib/api/scopes";
 import type { McpPrincipal } from "./types";
-import { isPersonAccount } from "#lib/accounts/kind";
+import { isPersonAccountId } from "#lib/accounts/kind";
 
 const MCP_SCOPES = new Set(["mcp:read", "mcp:draft", "mcp:organize", "mcp:request-send", "mcp:calendar-read", "mcp:calendar-write"]);
 const ADMIN_SCOPES = new Set<string>(ADMIN_API_KEY_SCOPES);
@@ -24,7 +24,7 @@ export async function authenticateMcpRequest(env: CloudflareEnv, request: Reques
 		const isAdminKey = allScopes.length > 0 && allScopes.every((scope) => ADMIN_SCOPES.has(scope));
 		if (!isMailKey && !isAdminKey) return null;
 		const [user] = await db.select().from(users).where(eq(users.id, candidate.userId)).limit(1);
-		if (!user || user.disabled || !isPersonAccount(user)) return null;
+		if (!user || user.disabled || !(await isPersonAccountId(db, user.id))) return null;
 		if (isAdminKey && user.role !== "admin") return null;
 		const allowed = isMailKey ? await db.select({ mailboxId: mcpKeyMailboxes.mailboxId }).from(mcpKeyMailboxes).where(eq(mcpKeyMailboxes.keyId, candidate.id)) : [];
 		const mailboxIds: string[] = [];

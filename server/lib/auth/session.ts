@@ -3,7 +3,7 @@ import { revokeAllDeviceKeys } from "#lib/auth/device-keys";
 import { newId } from "#lib/ids";
 import { getDb } from "#db";
 import { sessions, users } from "#db/schema";
-import { isPersonAccount } from "#lib/accounts/kind";
+import { isPersonAccountId } from "#lib/accounts/kind";
 
 export const SESSION_COOKIE = "ep_session";
 const SESSION_DAYS = 30;
@@ -64,7 +64,7 @@ export async function getUserFromSession(
 	const db = getDb({ DB: env.DB_PRIMARY ?? env.DB });
 	const [user] = await db.select().from(users).where(eq(users.id, session.userId)).limit(1);
 	// Fork-only: the hidden account holding a shared inbox never has a session.
-	return user && isPersonAccount(user) ? user : null;
+	return user && (await isPersonAccountId(db, user.id)) ? user : null;
 }
 
 export async function getSessionFromToken(

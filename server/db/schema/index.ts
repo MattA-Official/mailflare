@@ -23,8 +23,6 @@ export const users = sqliteTable("users", {
 	timeZone: text("time_zone"),
 	avatarKey: text("avatar_key"),
 	role: text("role", { enum: ["admin", "user"] }).notNull().default("user"),
-	// Fork-only: "inbox" marks the hidden account that holds a shared inbox (migration 0093). It never signs in.
-	kind: text("kind", { enum: ["person", "inbox"] }).notNull().default("person"),
 	// Exactly one account is the primary admin: the one created during setup.
 	// They own administrator management and can hand the role to another account.
 	isPrimaryAdmin: bool("is_primary_admin").notNull().default(false),
@@ -73,7 +71,6 @@ export const users = sqliteTable("users", {
 }, (t) => [
 	uniqueIndex("users_booking_username_idx").on(t.bookingUsername),
 	index("users_created_by_idx").on(t.createdByUserId),
-	index("users_kind_idx").on(t.kind),
 ]);
 
 export const domains = sqliteTable(

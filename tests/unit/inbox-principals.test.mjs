@@ -194,3 +194,10 @@ test("deleting a shared inbox retires it with its hidden account, and deleting a
 	// The admin's own account is never touched.
 	assert.equal(f.sql.prepare("SELECT deleted_at FROM users WHERE id = 'primary'").get().deleted_at, null);
 });
+
+test("before the upgrade is applied, people can still sign in and reach the app", async () => {
+	const f = await fixture({ upgrade: false });
+	const response = await detail.GET(f.request("primary", "/api/mailboxes/m-owner"), context("m-owner"));
+	assert.equal(response.status, 200);
+	assert.equal((await selectAccountById(f.db, "anna")).id, "anna");
+});

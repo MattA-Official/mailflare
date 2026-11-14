@@ -12,7 +12,7 @@ import { getAccountPurgeCutoff } from "./deletion-utils";
 import type { DeleteAccountsInput, DeleteAccountsResult } from "./deletion-types";
 import { deleteUnreferencedObjects } from "#lib/drive/shared-objects";
 import { moveGroupOwnedMailboxes } from "#lib/groups/ownership";
-import { isPersonAccount } from "#lib/accounts/kind";
+import { isPersonAccountId } from "#lib/accounts/kind";
 
 const CHUNK = 50;
 
@@ -55,7 +55,8 @@ export async function deleteAccounts(env: CloudflareEnv, actor: SessionUser, inp
 	const targets: (typeof users.$inferSelect)[] = [];
 	for (const group of chunks(ids)) targets.push(...(await db.select().from(users).where(inArray(users.id, group))));
 	// Fork-only: a shared inbox's hidden account is deleted with its inbox, not here.
-	if (targets.length !== ids.length || !targets.every(isPersonAccount)) return { ok: false, status: 404, error: "Account not found" };
+	const people = await Promise.all(targets.map((target) => isPersonAccountId(db, target.id)));
+	if (targets.length !== ids.length || people.includes(false)) return { ok: false, status: 404, error: "Account not found" };
 	for (const target of targets) {
 		if (target.id === actor.id) return { ok: false, status: 400, error: "You cannot delete your own account" };
 		if (target.isPrimaryAdmin) return { ok: false, status: 403, error: "The primary admin cannot be deleted" };
@@ -65,7 +66,7 @@ export async function deleteAccounts(env: CloudflareEnv, actor: SessionUser, inp
 	const transferToId = input.transferToId || null;
 	if (transferToId) {
 		const [recipient] = await db.select().from(users).where(eq(users.id, transferToId)).limit(1);
-		if (!recipient || !isPersonAccount(recipient) || recipient.disabled || recipient.deletedAt || ids.includes(recipient.id)) {
+		if (!recipient || !(await isPersonAccountId(db, recipient.id)) || recipient.disabled || recipient.deletedAt || ids.includes(recipient.id)) {
 			return { ok: false, status: 400, error: "Choose an active account to transfer data to" };
 		}
 		if (!isPrimaryAdmin(actor) && recipient.role === "admin" && recipient.id !== actor.id) {

@@ -392,7 +392,9 @@ Tick in the PR that lands it. Add rows for anything discovered.
   and inbound mail and folders re-keyed (drafts and sent mail stay with their author, as for any grantee).
   Hidden accounts are refused by sessions, sign-in, API and MCP keys, and left out of account lists, seat
   counts, group and inbox pickers, Drive shares, the who-has-access list and account deletion
-  (`#lib/accounts/kind`). Any kind other than `person` is treated as hidden. Deleting a shared inbox
+  (`#lib/accounts/kind`). Any kind other than `person` is treated as hidden. `users.kind` is deliberately
+  not in the Drizzle `users` table: `#lib/accounts/kind` maps it on its own and treats a database without the
+  column as all people, so sign-in and the update card keep working until 0093 is applied. Deleting a shared inbox
   (admins who manage shared inboxes) removes its routing, disables it and marks its holder deleted, so the
   account purge clears its mail and R2 objects after the restore window. Invites and webhooks for a shared
   inbox now go to the inbox's own account, not the admin's.

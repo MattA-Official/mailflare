@@ -5,7 +5,7 @@ import { parseScopes } from "#lib/api-keys";
 import { findApiKeyForSecret } from "#lib/api/find-api-key";
 import type { ApiAuthResult } from "#lib/api/key-auth-types";
 import { ADMIN_API_KEY_SCOPES } from "#lib/api/scopes";
-import { isPersonAccount } from "#lib/accounts/kind";
+import { isPersonAccountId } from "#lib/accounts/kind";
 
 const LAST_USED_WRITE_INTERVAL_MS = 60_000;
 const ADMIN_SCOPES = new Set<string>(ADMIN_API_KEY_SCOPES);
@@ -22,7 +22,7 @@ export async function authenticateApiKeyValue(env: CloudflareEnv, key: string): 
 	const candidate = await findApiKeyForSecret(db, trimmed);
 	if (!candidate) return null;
 	const [user] = await db.select().from(users).where(eq(users.id, candidate.userId)).limit(1);
-	if (!user || user.disabled || !isPersonAccount(user)) return null;
+	if (!user || user.disabled || !(await isPersonAccountId(db, user.id))) return null;
 
 	const stale = new Date(Date.now() - LAST_USED_WRITE_INTERVAL_MS);
 	await db
