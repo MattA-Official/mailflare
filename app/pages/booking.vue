@@ -159,6 +159,10 @@ function goToEvent(event: { id: string }) {
           <CalendarUpcomingButton @select="goToEvent" />
           <CalendarSectionNav />
         </template>
+        <template #right>
+          <AgentAssistantToggle />
+          <AppAppsMenu />
+        </template>
       </UDashboardNavbar>
       <UProgress v-if="loading" size="2xs" class="absolute inset-x-0 top-0" />
     </template>

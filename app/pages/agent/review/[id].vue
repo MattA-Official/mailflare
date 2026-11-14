@@ -31,14 +31,10 @@ const reviewable = computed(() => request.value?.status === 'pending' && !reques
 <template>
   <UDashboardPanel id="agent-review">
     <template #header>
-      <UDashboardNavbar :title="t('agent.review.title')">
-        <template #leading>
-          <UDashboardSidebarCollapse />
-        </template>
-      </UDashboardNavbar>
+      <AppNavbar :title="t('agent.review.title')" />
     </template>
     <template #body>
-      <p v-if="error" role="alert" class="text-error">{{ error }}</p>
+      <UAlert v-if="error" color="error" variant="subtle" icon="i-lucide-circle-alert" :title="error" role="alert" />
       <p v-else-if="!request">{{ t('agent.review.loading') }}</p>
       <p v-else-if="!reviewable">{{ request.stale ? t('agent.review.stale') : t('agent.review.status', { status: request.status }) }}</p>
       <AgentSendReview

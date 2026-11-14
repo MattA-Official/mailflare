@@ -8,11 +8,7 @@ useHead({ title: () => t('mailboxes.title') })
 <template>
   <UDashboardPanel id="mailboxes">
     <template #header>
-      <UDashboardNavbar :title="t('mailboxes.title')">
-        <template #leading>
-          <UDashboardSidebarCollapse />
-        </template>
-      </UDashboardNavbar>
+      <AppNavbar :title="t('mailboxes.title')" />
     </template>
     <template #body>
       <AdminEmailMailboxesList />

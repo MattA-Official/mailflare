@@ -7,20 +7,17 @@ defineProps<{ id: string, title: string, description?: string, wide?: boolean }>
 <template>
   <UDashboardPanel :id="id">
     <template #header>
-      <UDashboardNavbar :title="title">
-        <template #leading>
-          <UDashboardSidebarCollapse />
-        </template>
+      <AppNavbar :title="title">
         <template #right>
           <slot name="actions" />
         </template>
-      </UDashboardNavbar>
+      </AppNavbar>
       <UDashboardToolbar v-if="$slots.toolbar">
         <slot name="toolbar" />
       </UDashboardToolbar>
     </template>
     <template #body>
-      <div class="w-full space-y-6" :class="wide ? 'max-w-5xl' : 'max-w-3xl'">
+      <div class="mx-auto w-full space-y-6" :class="wide ? 'max-w-5xl' : 'max-w-3xl'">
         <p v-if="description" class="text-sm text-muted">
           {{ description }}
         </p>
