@@ -5,12 +5,13 @@ import { NextResponse } from "#lib/http/next-compat";
 import { getDb } from "#db";
 import { groupMembers, groups, mailboxAccess, mailboxGroupAccess, users } from "#db/schema";
 import { requireTeamSharingAdmin } from "#handlers/api/accounts/utils";
+import { getMailboxOwnerGroupId } from "#lib/groups/ownership";
 import { highestPermission } from "#lib/mailboxes/access";
 import type { MailboxPermission } from "#lib/mailboxes/types";
 import { getSharedMailboxForAdmin } from "../access/utils";
 import type { MailboxAccessSummaryRouteParams } from "./types";
 
-type Route = { kind: "owner" | "direct" | "group"; permission: MailboxPermission; groupId?: string; groupName?: string };
+type Route = { kind: "owner" | "direct" | "group"; permission: MailboxPermission; groupId?: string; groupName?: string; ownsInbox?: boolean };
 
 export async function GET(request: Request, { params }: MailboxAccessSummaryRouteParams) {
 	const access = await requireTeamSharingAdmin(request);
@@ -21,7 +22,7 @@ export async function GET(request: Request, { params }: MailboxAccessSummaryRout
 	if (!mailbox) return NextResponse.json({ error: "Shared inbox not found" }, { status: 404 });
 
 	const person = { userId: users.id, name: users.name, email: users.email, disabled: users.disabled };
-	const [owner, direct, viaGroups] = await Promise.all([
+	const [owner, direct, viaGroups, ownerGroupId] = await Promise.all([
 		db.select(person).from(users).where(eq(users.id, mailbox.userId)).limit(1),
 		db
 			.select({ ...person, permission: mailboxAccess.permission })
@@ -35,6 +36,7 @@ export async function GET(request: Request, { params }: MailboxAccessSummaryRout
 			.innerJoin(groupMembers, eq(groupMembers.groupId, groups.id))
 			.innerJoin(users, eq(groupMembers.userId, users.id))
 			.where(eq(mailboxGroupAccess.mailboxId, id)),
+		getMailboxOwnerGroupId(db, id),
 	]);
 
 	const people = new Map<string, { userId: string; name: string; email: string; disabled: boolean; routes: Route[] }>();
@@ -45,7 +47,7 @@ export async function GET(request: Request, { params }: MailboxAccessSummaryRout
 	};
 	for (const row of owner) add(row, { kind: "owner", permission: "full_access" });
 	for (const row of direct) add(row, { kind: "direct", permission: row.permission });
-	for (const row of viaGroups) add(row, { kind: "group", permission: row.permission, groupId: row.groupId, groupName: row.groupName });
+	for (const row of viaGroups) add(row, { kind: "group", permission: row.permission, groupId: row.groupId, groupName: row.groupName, ownsInbox: row.groupId === ownerGroupId });
 
 	const summary = [...people.values()]
 		.map((entry) => ({ ...entry, permission: highestPermission(entry.routes.map((route) => route.permission))! }))

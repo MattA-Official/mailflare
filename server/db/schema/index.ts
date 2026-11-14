@@ -1568,3 +1568,11 @@ export const driveGroupShares = sqliteTable("drive_group_shares", {
 	uniqueIndex("drive_group_shares_item_group_idx").on(t.itemId, t.groupId),
 	index("drive_group_shares_group_idx").on(t.groupId),
 ]);
+
+// Fork-only: the group that owns a shared inbox. See migration 0091.
+export const mailboxOwnerGroups = sqliteTable("mailbox_owner_groups", {
+	mailboxId: text("mailbox_id").primaryKey().references(() => mailboxes.id, { onDelete: "cascade" }),
+	groupId: text("group_id").notNull().references(() => groups.id, { onDelete: "cascade" }),
+	assignedByUserId: text("assigned_by_user_id").references(() => users.id, { onDelete: "set null" }),
+	createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
+}, (t) => [index("mailbox_owner_groups_group_idx").on(t.groupId)]);

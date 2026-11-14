@@ -299,6 +299,10 @@ export const mailboxGroupAccessSchema = z.object({
 	permission: z.enum(["read_only", "send_as", "send_on_behalf", "full_access"]),
 });
 
+export const mailboxOwnerGroupSchema = z.object({
+	groupId: z.string().min(1),
+});
+
 export const groupSchema = z.object({
 	name: z.string().trim().min(1).max(80),
 	description: z.string().trim().max(500).nullish(),

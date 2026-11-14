@@ -5,6 +5,7 @@ import { NextResponse } from "#lib/http/next-compat";
 import { getDb } from "#db";
 import { groupMembers, groups, mailboxGroupAccess } from "#db/schema";
 import { requireTeamSharingAdmin } from "#handlers/api/accounts/utils";
+import { getMailboxOwnerGroupId } from "#lib/groups/ownership";
 import { newId } from "#lib/ids";
 import { createAuditLog } from "#lib/mailboxes/audit";
 import { mailboxGroupAccessSchema } from "#lib/validators";
@@ -19,7 +20,7 @@ export async function GET(request: Request, { params }: MailboxGroupAccessRouteP
 	const mailbox = await getSharedMailboxForAdmin(db, id, access.user!);
 	if (!mailbox) return NextResponse.json({ error: "Shared inbox not found" }, { status: 404 });
 
-	const [grants, availableGroups] = await Promise.all([
+	const [grants, availableGroups, ownerGroupId] = await Promise.all([
 		db
 			.select({
 				id: mailboxGroupAccess.id,
@@ -38,12 +39,14 @@ export async function GET(request: Request, { params }: MailboxGroupAccessRouteP
 			.leftJoin(groupMembers, eq(groupMembers.groupId, groups.id))
 			.groupBy(groups.id)
 			.orderBy(asc(groups.name)),
+		getMailboxOwnerGroupId(db, id),
 	]);
 	const memberCounts = new Map(availableGroups.map((group) => [group.id, group.memberCount]));
 
 	return NextResponse.json({
 		groups: grants.map((grant) => ({ ...grant, memberCount: memberCounts.get(grant.groupId) ?? 0 })),
 		availableGroups,
+		ownerGroupId,
 	});
 }
 
@@ -58,6 +61,9 @@ export async function POST(request: Request, { params }: MailboxGroupAccessRoute
 	if (!mailbox) return NextResponse.json({ error: "Shared inbox not found" }, { status: 404 });
 	const [group] = await db.select({ id: groups.id, name: groups.name }).from(groups).where(eq(groups.id, parsed.data.groupId)).limit(1);
 	if (!group) return NextResponse.json({ error: "Group not found" }, { status: 404 });
+	if (parsed.data.permission !== "full_access" && (await getMailboxOwnerGroupId(db, id)) === group.id) {
+		return NextResponse.json({ error: "The group that owns this inbox always has full access" }, { status: 409 });
+	}
 
 	await db
 		.insert(mailboxGroupAccess)
@@ -90,6 +96,9 @@ export async function DELETE(request: Request, { params }: MailboxGroupAccessRou
 	const db = getDb(access.env);
 	const mailbox = await getSharedMailboxForAdmin(db, id, access.user!);
 	if (!mailbox) return NextResponse.json({ error: "Shared inbox not found" }, { status: 404 });
+	if ((await getMailboxOwnerGroupId(db, id)) === groupId) {
+		return NextResponse.json({ error: "This group owns the inbox. Remove it as owner first" }, { status: 409 });
+	}
 	const removed = await db
 		.delete(mailboxGroupAccess)
 		.where(and(eq(mailboxGroupAccess.mailboxId, id), eq(mailboxGroupAccess.groupId, groupId)))
