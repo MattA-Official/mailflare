@@ -27,6 +27,8 @@ await build({
 			export * as accessRoute from "./server/handlers/api/mailboxes/[id]/access/route.ts";
 			export * as summaryRoute from "./server/handlers/api/mailboxes/[id]/access-summary/route.ts";
 			export * as detail from "./server/handlers/api/mailboxes/[id]/route.ts";
+			export * as domainRoute from "./server/handlers/api/domains/[id]/route.ts";
+			export * as accountsRoute from "./server/handlers/api/accounts/route.ts";
 		`,
 		resolveDir: root,
 		sourcefile: "inbox-principals-test-entry.ts",
@@ -43,7 +45,7 @@ await build({
 const {
 	SqliteDatabase, applyMigrations, getDb, createSession, getMailboxAccessLevel, listAccessibleMailboxes, createInboxPrincipal,
 	grantCreatorFullAccess, inboxPrincipalId, listAccountsForAdmin, countUsedAccountSeats, selectAccountById, deleteAccounts,
-	membersRoute, groupsRoute, accessRoute, summaryRoute, detail,
+	membersRoute, groupsRoute, accessRoute, summaryRoute, detail, domainRoute, accountsRoute,
 } = await import(pathToFileURL(join(directory, "entry.mjs")).href);
 const context = id => ({ params: Promise.resolve({ id }) });
 const primary = { id: "primary", role: "admin", isPrimaryAdmin: true, canManageUsers: true, canManageMailboxes: false };
@@ -200,4 +202,38 @@ test("before the upgrade is applied, people can still sign in and reach the app"
 	const response = await detail.GET(f.request("primary", "/api/mailboxes/m-owner"), context("m-owner"));
 	assert.equal(response.status, 200);
 	assert.equal((await selectAccountById(f.db, "anna")).id, "anna");
+});
+
+test("an admin who owns domains is only deleted when an admin who manages domains takes them over", async () => {
+	const f = await fixture();
+	f.sql.exec(`INSERT INTO users (id, email, password_hash, name, role, can_manage_domains, created_by_user_id, created_at) VALUES
+		('dom-admin', 'dom@one.test', 'hash', 'Domain admin', 'admin', 1, 'primary', 1),
+		('helper', 'helper@one.test', 'hash', 'Helper', 'admin', 0, 'primary', 1);
+		INSERT INTO domains (id, user_id, hostname, zone_id, status, created_at) VALUES ('two', 'dom-admin', 'two.test', 'zone-two', 'active', 1);
+		INSERT INTO mailboxes (id, user_id, domain_id, local_part, display_name, type, use_all_domains, disabled, created_at)
+			VALUES ('m-anna-two', 'anna', 'two', 'anna', 'Anna', 'personal', 0, 0, 1);`);
+
+	const listed = await (await accountsRoute.GET(f.request("primary", "/api/accounts"))).json();
+	assert.deepEqual(listed.accounts.find(account => account.id === "dom-admin").ownedDomains, ["two.test"]);
+	assert.deepEqual(listed.accounts.find(account => account.id === "anna").ownedDomains, []);
+
+	const blocked = await deleteAccounts(f.env, primary, { ids: ["dom-admin"] });
+	assert.equal(blocked.status, 409);
+	assert.match(blocked.error, /two\.test/);
+	const wrongRecipient = await deleteAccounts(f.env, primary, { ids: ["dom-admin"], transferToId: "helper" });
+	assert.equal(wrongRecipient.status, 400);
+	assert.equal(f.sql.prepare("SELECT deleted_at FROM users WHERE id = 'dom-admin'").get().deleted_at, null);
+
+	assert.equal((await deleteAccounts(f.env, primary, { ids: ["dom-admin"], transferToId: "primary" })).ok, true);
+	assert.equal(f.sql.prepare("SELECT user_id FROM domains WHERE id = 'two'").get().user_id, "primary");
+	// Anna's mailbox on the domain no longer depends on the deleted admin.
+	assert.equal(f.sql.prepare("SELECT COUNT(*) AS n FROM mailboxes WHERE id = 'm-anna-two'").get().n, 1);
+});
+
+test("a domain that hosts a shared inbox cannot be deleted", async () => {
+	const f = await fixture();
+	const response = await domainRoute.DELETE(f.request("primary", "/api/domains/one", "DELETE"), context("one"));
+	assert.equal(response.status, 409);
+	assert.match((await response.json()).error, /support@one\.test/);
+	assert.equal(f.sql.prepare("SELECT COUNT(*) AS n FROM domains WHERE id = 'one'").get().n, 1);
 });

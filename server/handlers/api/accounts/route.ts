@@ -1,5 +1,6 @@
 import { NextResponse } from "#lib/http/next-compat";
 import { getDb } from "#db";
+import { domains } from "#db/schema";
 import { createUserAccountSchema } from "#lib/validators";
 import { canManageUsers, isPrimaryAdmin } from "#lib/auth/admin";
 import { deleteAccounts } from "#lib/accounts/deletion";
@@ -9,10 +10,16 @@ import { accountListItemFromUser, countUsedAccountSeats, listAccountsForAdmin, r
 export async function GET(request: Request) {
 	const access = await requireTeamAdmin(request);
 	if (access.error) return access.error;
-	const rows = await listAccountsForAdmin(getDb(access.env));
+	const db = getDb(access.env);
+	const rows = await listAccountsForAdmin(db);
 	const seatsUsed = await countUsedAccountSeats(access.env);
+	// Fork-only: the domains each account owns, so the delete dialog can say they must be handed over.
+	const owned = new Map<string, string[]>();
+	for (const domain of await db.select({ userId: domains.userId, hostname: domains.hostname }).from(domains)) {
+		owned.set(domain.userId, [...(owned.get(domain.userId) ?? []), domain.hostname].sort());
+	}
 	return NextResponse.json({
-		accounts: rows.map((row) => accountListItemFromUser(row)),
+		accounts: rows.map((row) => ({ ...accountListItemFromUser(row), ownedDomains: owned.get(row.id) ?? [] })),
 		// Seats are unlimited; the shape is kept for the accounts page and API clients.
 		seats: { limit: null, used: seatsUsed },
 	});
