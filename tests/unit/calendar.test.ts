@@ -1,6 +1,6 @@
 // Pure helpers behind the calendar, booking and public booking pages (app/utils/calendar).
 import { describe, expect, it } from 'vitest'
-import { CALENDAR_HOUR_HEIGHT as H, dateKey, eventPosition, formatEventTime, monthGridDates, orderedWeekdays, startOfWeek, weekStartDay, expandCalendarEvents, groupUpcomingEvents, resizeEventTimes, slotMinutesForPosition, slotSelectionTimes, takeUpcomingGroups } from '../../app/utils/calendar/calendar'
+import { CALENDAR_HOUR_HEIGHT as H, dateKey, eventPosition, formatEventTime, layoutOverlappingEvents, monthGridDates, orderedWeekdays, startOfWeek, weekStartDay, expandCalendarEvents, groupUpcomingEvents, resizeEventTimes, slotMinutesForPosition, slotSelectionTimes, takeUpcomingGroups } from '../../app/utils/calendar/calendar'
 import { bookingFormWithName, matchBookingHost, nextBookingTimeRange, parseBookingHostIds, visibleBookingEvents } from '../../app/utils/calendar/booking'
 import { calendarDays, localDateIn, moveMonth, readBookingPageSelection } from '../../app/utils/calendar/public-booking'
 import type { BookingEvent, CalendarEvent } from '../../app/types/calendar'
@@ -52,6 +52,17 @@ describe('calendar grid', () => {
     expect(dateKey(startOfWeek(new Date('2026-11-05T12:00:00Z'), 1))).toBe('2026-11-02')
     expect(dateKey(startOfWeek(new Date('2026-11-05T12:00:00Z'), 0))).toBe('2026-11-01')
     expect(dateKey(monthGridDates(new Date('2026-11-05T12:00:00Z'), 1)[0]!)).toBe('2026-10-26')
+  })
+
+  it('puts overlapping events side by side and leaves separate ones full width', () => {
+    // 9:00-9:30 and 9:15-10:30 overlap; 10:00-11:00 overlaps the second; 13:00 stands alone.
+    const layout = layoutOverlappingEvents([
+      { top: 9 * H, height: H / 2 },
+      { top: 9.25 * H, height: 1.25 * H },
+      { top: 10 * H, height: H },
+      { top: 13 * H, height: H },
+    ])
+    expect(layout).toEqual([{ column: 0, columns: 2 }, { column: 1, columns: 2 }, { column: 0, columns: 2 }, { column: 0, columns: 1 }])
   })
 
   it('always shows minutes in event times', () => {

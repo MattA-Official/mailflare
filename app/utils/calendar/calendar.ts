@@ -321,3 +321,36 @@ export function resizeEventTimes(event: CalendarEvent, day: Date, edge: EventRes
 
 /** Upstream's mailbox provider keeps the selected mailbox id here; the calendar sends invitations from it. */
 export const SELECTED_MAILBOX_STORAGE_KEY = 'selected-mailbox-id'
+
+/**
+ * Columns for a day's overlapping events. Events that overlap, directly or through a chain of
+ * others, form a cluster with as many columns as it needs at once; each event takes the leftmost column that
+ * is free when it starts. Input is each event's top and height on the grid, in any order.
+ */
+export function layoutOverlappingEvents(blocks: Array<{ top: number, height: number }>): Array<{ column: number, columns: number }> {
+  const order = blocks.map((block, index) => ({ index, top: block.top, bottom: block.top + block.height }))
+    .sort((a, b) => a.top - b.top || b.bottom - a.bottom)
+  const result: Array<{ column: number, columns: number }> = blocks.map(() => ({ column: 0, columns: 1 }))
+  let cluster: number[] = []
+  let columnEnds: number[] = []
+  let clusterBottom = -Infinity
+  const close = () => {
+    for (const index of cluster) result[index]!.columns = columnEnds.length
+    cluster = []
+    columnEnds = []
+  }
+  for (const item of order) {
+    if (item.top >= clusterBottom) {
+      close()
+      clusterBottom = -Infinity
+    }
+    let column = columnEnds.findIndex(end => end <= item.top)
+    if (column === -1) column = columnEnds.push(item.bottom) - 1
+    else columnEnds[column] = item.bottom
+    result[item.index]!.column = column
+    cluster.push(item.index)
+    clusterBottom = Math.max(clusterBottom, item.bottom)
+  }
+  close()
+  return result
+}
