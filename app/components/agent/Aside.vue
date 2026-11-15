@@ -13,6 +13,6 @@ const { enabled, visible, fullSize, close } = useAssistant()
     :aria-hidden="!visible"
     :inert="!visible"
   >
-    <AgentPanel v-if="enabled" :open="visible" :full-size="fullSize" @toggle-full-size="fullSize = !fullSize" @close="close()" />
+    <LazyAgentPanel v-if="enabled" :open="visible" :full-size="fullSize" @toggle-full-size="fullSize = !fullSize" @close="close()" />
   </aside>
 </template>

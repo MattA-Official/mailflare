@@ -18,14 +18,14 @@ const { selectedMailbox } = useSelectedMailbox()
 const mailboxId = computed(() => selectedMailbox.value?.id ?? '')
 
 const { data: folders } = useAsyncData<RuleFolder[]>(
-  'settings-rule-folders',
+  () => `settings-rule-folders-${mailboxId.value}`,
   () => mailboxId.value ? fetchMailboxFolders(mailboxId.value) : Promise.resolve([]),
-  { watch: [mailboxId], default: () => [] },
+  { default: () => [] },
 )
 const { data: rules, refresh: refreshRules } = useAsyncData<InboxRule[]>(
-  'settings-inbox-rules',
+  () => `settings-inbox-rules-${mailboxId.value}`,
   () => mailboxId.value ? fetchInboxRules(mailboxId.value) : Promise.resolve([]),
-  { watch: [mailboxId], default: () => [] },
+  { default: () => [] },
 )
 
 const dialogOpen = ref(false)

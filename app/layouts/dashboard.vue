@@ -21,6 +21,10 @@ const routeTitle = computed(() => {
 })
 useHead({ title: routeTitle })
 
+// The page sits behind a full-size assistant, as upstream's layouts hide it.
+const { visible: assistantVisible, fullSize: assistantFullSize } = useAssistant()
+const pageHidden = computed(() => assistantVisible.value && assistantFullSize.value)
+
 // Inbox unread count on the installed app's icon. The placeholder before the first load must not clear
 // a badge the service worker set.
 const badgeSupported = import.meta.client && 'setAppBadge' in navigator
@@ -32,6 +36,7 @@ watch(() => [countsLoaded.value, allCounts.value.folders.inbox.unread] as const,
 
 <template>
   <UDashboardGroup unit="rem" storage="local" storage-key="mailflare-sidebar">
+    <AppSkipLink target="main-content" />
     <UDashboardSidebar
       id="main"
       collapsible
@@ -74,7 +79,10 @@ watch(() => [countsLoaded.value, allCounts.value.folders.inbox.unread] as const,
       </template>
     </UDashboardSidebar>
 
-    <slot />
+    <!-- tabindex="-1" lets the skip link focus it. -->
+    <main id="main-content" tabindex="-1" class="flex min-w-0 flex-1 outline-none" :aria-hidden="pageHidden || undefined" :inert="pageHidden">
+      <slot />
+    </main>
     <AgentAside v-if="user" />
 
     <AppShortcuts v-if="user" />

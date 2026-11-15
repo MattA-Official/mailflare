@@ -7,7 +7,7 @@ const props = defineProps<{ webhookId: string }>()
 const emit = defineEmits<{ changed: [] }>()
 const { t } = useLanguage()
 const toast = useToast()
-const { data: deliveries, status, refresh } = useAsyncData(`webhook-deliveries-${props.webhookId}`, () => fetchDeliveries(props.webhookId))
+const { data: deliveries, status, refresh } = useAsyncData(() => `webhook-deliveries-${props.webhookId}`, () => fetchDeliveries(props.webhookId))
 
 // Retries land asynchronously from the queue, so keep the table fresh while it is open.
 const timer = setInterval(() => void refresh(), 15_000)

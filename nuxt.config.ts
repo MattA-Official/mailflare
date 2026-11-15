@@ -21,6 +21,8 @@ export default defineNuxtConfig({
   // A signed-in app: rendered in the browser. The Worker serves the shell and the API.
   ssr: false,
   devtools: { enabled: true },
+  // The page shell's language before the app starts; app.vue then follows the chosen language.
+  app: { head: { htmlAttrs: { lang: 'en' } } },
   // Upstream's storage key, so a saved light/dark choice carries over.
   colorMode: { storageKey: 'mailflare-theme' },
   // Public values the browser needs. Override at runtime with NUXT_PUBLIC_* vars on the Worker.
