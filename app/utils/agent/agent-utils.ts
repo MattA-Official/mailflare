@@ -96,30 +96,8 @@ export function saveAgentConversationId(mailboxId: string, conversationId: strin
   } catch { /* Storage is optional. */ }
 }
 
-/** Grows the prompt with its content, up to four lines. */
-export function resizeAgentInput(input: HTMLTextAreaElement | null | undefined) {
-  if (!input) return
-  const style = getComputedStyle(input)
-  const lineHeight = Number.parseFloat(style.lineHeight) || 20
-  const borders = Number.parseFloat(style.borderTopWidth) + Number.parseFloat(style.borderBottomWidth)
-  const spacing = Number.parseFloat(style.paddingTop) + Number.parseFloat(style.paddingBottom) + borders
-  const minHeight = lineHeight + spacing
-  const maxHeight = lineHeight * 4 + spacing
-  if (!input.value) {
-    input.style.height = `${minHeight}px`
-    return
-  }
-  input.style.height = 'auto'
-  input.style.height = `${Math.min(maxHeight, Math.max(minHeight, input.scrollHeight + borders))}px`
-  input.style.overflowY = input.scrollHeight + borders > maxHeight ? 'auto' : 'hidden'
-}
-
 export function isAgentScrollAtBottom(container: HTMLElement): boolean {
   return container.scrollHeight - container.scrollTop - container.clientHeight <= 2
-}
-
-export function shouldSubmitAgentInput(event: KeyboardEvent) {
-  return event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !event.metaKey && !event.altKey && !event.isComposing
 }
 
 export function appendAgentReasoning(messages: AgentMessage[], assistantId: string, text: string, reclassify = false): AgentMessage[] {
