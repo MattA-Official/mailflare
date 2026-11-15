@@ -11,7 +11,7 @@ export async function GET(request: Request) {
 	const query = new URL(request.url).searchParams.get("q")?.trim().slice(0, 200) ?? "";
 	const snapshot = await loadDirectory(getDb(access.env));
 	return NextResponse.json({
-		people: searchPeople(snapshot, query).map((person) => ({ ...personSummary(person), groupIds: person.groups.map((group) => group.id) })),
+		people: searchPeople(snapshot, query).map((person) => ({ ...personSummary(person), addresses: person.addresses, groupIds: person.groups.map((group) => group.id) })),
 		groups: searchGroups(snapshot, query).map((group) => ({ id: group.id, name: group.name, description: group.description, memberCount: group.memberIds.length })),
 		inboxes: searchInboxes(snapshot, query),
 		departments: departments(snapshot),

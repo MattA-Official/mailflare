@@ -2805,5 +2805,6 @@
 	"directory.hideReports": "Hide reports",
 	"directory.colleague": "Colleague",
 	"directory.zoomIn": "Zoom in",
-	"directory.zoomOut": "Zoom out"
+	"directory.zoomOut": "Zoom out",
+	"directory.openInDirectory": "Open in directory"
 }

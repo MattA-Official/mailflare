@@ -4,6 +4,7 @@
 import { formatUserDate } from '#lib/time/utils'
 import type { ContactChangedDetail, ContactDetailsRecord } from '~/types/contacts/contacts'
 import { CONTACT_CHANGED_EVENT, fetchContactDetails, updateContactName } from '~/utils/contacts/contact-utils'
+import { personSubtitle } from '~/utils/directory/directory'
 
 defineOptions({ inheritAttrs: false })
 const props = defineProps<{
@@ -17,7 +18,11 @@ const props = defineProps<{
 
 const { t } = useLanguage()
 const open = ref(false)
-const visibleLabel = computed(() => props.label ?? props.name)
+// Fork-only (directory): a colleague shows under their directory name, with their title and department.
+const directory = useDirectoryPeople()
+onMounted(() => { void directory.load() })
+const colleague = computed(() => directory.find(props.address))
+const visibleLabel = computed(() => props.label ?? colleague.value?.name ?? props.name)
 const renamed = ref<{ from: string, value: string } | null>(null)
 const shownName = computed(() => renamed.value?.from === visibleLabel.value ? renamed.value.value : visibleLabel.value)
 const contact = ref<ContactDetailsRecord | null>(null)
@@ -77,6 +82,18 @@ async function save() {
     </button>
     <UModal v-model:open="open" :title="t('contact.title')" :description="t('contact.description')" :ui="{ content: 'max-h-[calc(100vh-4rem)] overflow-y-auto' }">
       <template #body>
+        <div v-if="colleague" class="mb-5 flex items-center gap-3 rounded-lg bg-muted p-3">
+          <DirectoryPersonAvatar :person="colleague" size="lg" />
+          <div class="min-w-0 flex-1">
+            <p class="truncate text-sm font-semibold text-highlighted">
+              {{ colleague.name }}
+            </p>
+            <p class="truncate text-xs text-muted">
+              {{ personSubtitle(colleague) ?? t('directory.colleague') }}
+            </p>
+          </div>
+          <UButton size="sm" color="neutral" variant="outline" icon="i-lucide-building-2" :to="`/directory/people/${colleague.id}`" :label="t('directory.openInDirectory')" @click="open = false" />
+        </div>
         <form class="space-y-5" @submit.prevent="save">
           <ContactsContactAvatarForm
             :mailbox-id="mailboxId"

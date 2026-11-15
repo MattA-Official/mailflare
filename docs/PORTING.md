@@ -272,7 +272,9 @@ Tick in the PR that lands it. Add rows for anything discovered.
   their reports move up. API: `GET /api/directory`, `GET|PATCH /api/directory/people/:id`,
   `GET /api/directory/people/:id/avatar`, `GET /api/directory/groups/:id`,
   `GET|PATCH /api/directory/profile`, `GET /api/directory/org-chart`, `GET|PATCH /api/directory/settings`.
-  The org chart draws with Vue Flow and dagre on wide screens and a UTree on phones.
+  The org chart draws with Vue Flow and dagre on wide screens and a UTree on phones. In mail, the
+  contact card (`ContactDetailsTrigger`) shows a colleague's directory name, title and department, and
+  the MCP server has a read-only `lookup_people` tool (scope `mcp:read`).
 
 - (fork) All-day events (Matt, 2026-11-15). Upstream has none of its own; incoming all-day invites
   were already stored midnight to midnight. The mark lives in its own table, `calendar_event_all_day`

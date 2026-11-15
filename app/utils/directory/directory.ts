@@ -10,7 +10,7 @@ export type DirectoryPersonSummary = {
   hasAvatar: boolean
 }
 
-export type DirectoryListPerson = DirectoryPersonSummary & { groupIds: string[] }
+export type DirectoryListPerson = DirectoryPersonSummary & { addresses: string[], groupIds: string[] }
 export type DirectoryListGroup = { id: string, name: string, description: string | null, memberCount: number }
 export type DirectoryInbox = { id: string, name: string, address: string, managers: { id: string, name: string }[] }
 
