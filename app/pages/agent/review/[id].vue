@@ -9,21 +9,8 @@ const { t } = useLanguage()
 useHead({ title: () => t('agent.review.title') })
 const route = useRoute()
 const id = computed(() => String(route.params.id))
-const request = ref<AgentReviewResponse | null>(null)
-const error = ref<string | null>(null)
-
-watch(id, async (value) => {
-  request.value = null
-  error.value = null
-  try {
-    const response = await authFetch(`/api/agent/approvals/${encodeURIComponent(value)}`)
-    const data = await response.json().catch(() => ({})) as AgentReviewResponse
-    if (!response.ok) throw new Error(data.error || t('agent.review.loadFailed'))
-    request.value = data
-  } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : t('agent.review.loadFailed')
-  }
-}, { immediate: true })
+const { data: request, error: loadError } = useApi<AgentReviewResponse>(() => `/api/agent/approvals/${encodeURIComponent(id.value)}`)
+const error = computed(() => loadError.value ? apiErrorMessage(loadError.value, t('agent.review.loadFailed')) : null)
 
 const reviewable = computed(() => request.value?.status === 'pending' && !request.value.stale && !!request.value.snapshot)
 </script>

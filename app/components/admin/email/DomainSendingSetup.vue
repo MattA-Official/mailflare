@@ -9,18 +9,16 @@ const props = defineProps<{ domain: Domain, busy?: boolean, message?: string | n
 const emit = defineEmits<{ change: [SendingProvider] }>()
 const { t } = useLanguage()
 const { confirm } = useAdminConfirm()
-const present = ref<boolean | null>(null)
 const removing = ref(false)
 const error = ref('')
 
-async function loadPresence() {
-  try {
-    present.value = (await api<{ cloudflare?: boolean | null }>(`/api/domains/${props.domain.id}/sending`)).cloudflare ?? null
-  } catch {
-    present.value = null
-  }
-}
-watch(() => [props.domain.id, props.domain.sendingProvider], loadPresence, { immediate: true })
+// Whether Cloudflare still has this domain set up; null when it cannot be checked.
+const { data: presence, refresh: loadPresence } = useAsyncData(
+  () => `domain-sending-presence:${props.domain.id}`,
+  () => api<{ cloudflare?: boolean | null }>(`/api/domains/${props.domain.id}/sending`).then(json => json.cloudflare ?? null).catch(() => null),
+  { watch: [() => props.domain.sendingProvider] },
+)
+const present = computed(() => presence.value ?? null)
 
 async function cleanUp() {
   const title = t('domains.opt.cfEmail')

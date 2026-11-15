@@ -8,22 +8,19 @@ import { ABUSECH_SIGNUP_URL, SPAMHAUS_SIGNUP_URL, formatBrandLines, loadSpamFilt
 definePageMeta({ layout: 'dashboard', nav: 'admin', auth: { role: 'admin', primary: true, requireMailbox: true } })
 const { t } = useLanguage()
 
-const settings = ref<SpamFilterSettingsResponse | null>(null)
-const loadError = ref('')
 const brandText = ref('')
 const brandStatus = ref('')
 const brandSaving = ref(false)
 const ageSaving = ref(false)
 const ageStatus = ref('')
 
-onMounted(async () => {
-  try {
-    settings.value = await loadSpamFilterSettings()
-    brandText.value = formatBrandLines(settings.value.brands)
-  } catch (error) {
-    loadError.value = errorMessage(error, t('spamFilter.loadFailed'))
-  }
-})
+const { data: settings, error: loadFailure } = useAsyncData<SpamFilterSettingsResponse | null>('admin-spam-filter-settings', loadSpamFilterSettings)
+const loadError = computed(() => loadFailure.value ? errorMessage(loadFailure.value, t('spamFilter.loadFailed')) : '')
+
+// Fill the editor once, when the settings first arrive; saves update it themselves.
+watch(settings, (value, previous) => {
+  if (value && !previous) brandText.value = formatBrandLines(value.brands)
+}, { immediate: true })
 
 const editable = computed(() => Boolean(settings.value?.available))
 const parsedBrands = computed(() => parseBrandLines(brandText.value))
