@@ -106,7 +106,16 @@ if (import.meta.client) {
   })
 }
 
-const linkClass = 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-default hover:bg-elevated'
+// Rows in the menu's footer: full-width ghost buttons with a muted icon.
+const menuButton = {
+  color: 'neutral',
+  variant: 'ghost',
+  block: true,
+  activeColor: 'primary',
+  activeVariant: 'soft',
+  class: 'justify-start gap-3 px-3',
+  ui: { leadingIcon: 'size-4.5 text-muted', trailingIcon: 'ms-auto size-4 text-primary' },
+} as const
 </script>
 
 <template>
@@ -160,12 +169,19 @@ const linkClass = 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-med
           <UIcon name="i-lucide-check" class="size-5 shrink-0 text-primary" />
         </NuxtLink>
         <div v-if="otherMailboxes.length > 0" class="mt-2 border-t border-default pt-2">
-          <button type="button" :aria-expanded="inboxesOpen" class="flex w-full items-center justify-between rounded-md px-3 py-2 text-xs font-semibold uppercase tracking-wide text-muted hover:bg-elevated" @click="inboxesOpen = !inboxesOpen">
-            {{ t('account.inboxes', { count: otherMailboxes.length }) }}
-            <UIcon name="i-lucide-chevron-down" class="size-4 transition-transform" :class="inboxesOpen && 'rotate-180'" />
-          </button>
-          <template v-if="inboxesOpen">
-            <button v-for="mailbox in otherMailboxes" :key="mailbox.id" type="button" class="flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left hover:bg-elevated" @click="selectMailbox(mailbox)">
+          <UCollapsible v-model:open="inboxesOpen">
+            <UButton
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              block
+              trailing-icon="i-lucide-chevron-down"
+              :label="t('account.inboxes', { count: otherMailboxes.length })"
+              class="justify-between px-3 py-2 font-semibold uppercase tracking-wide text-muted"
+              :ui="{ trailingIcon: 'size-4 transition-transform group-data-[state=open]:rotate-180' }"
+            />
+            <template #content>
+              <UButton v-for="mailbox in otherMailboxes" :key="mailbox.id" color="neutral" variant="ghost" block class="justify-start gap-3 px-3 py-2.5 text-start font-normal" @click="selectMailbox(mailbox)">
               <AppAccountAvatar
                 :name="getMailboxName(mailbox)"
                 :color-seed="getMailboxAddress(mailbox)"
@@ -180,21 +196,22 @@ const linkClass = 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-med
                 <span class="block truncate text-xs text-muted">{{ getMailboxAddress(mailbox) }}</span>
               </span>
               <UBadge v-if="unreadFor(mailbox.id) > 0" :label="unreadFor(mailbox.id) > 99 ? '99+' : String(unreadFor(mailbox.id))" variant="soft" size="sm" />
-            </button>
-          </template>
+            </UButton>
+            </template>
+          </UCollapsible>
         </div>
       </div>
 
       <div class="mt-2 border-t border-default pt-2">
         <p v-if="otherAccounts.length > 0" class="px-3 pt-1 pb-1 text-xs font-semibold uppercase tracking-wide text-muted">{{ t('account.otherAccounts') }}</p>
         <div v-for="account in otherAccounts" :key="account.userId" class="group flex items-center rounded-md hover:bg-primary/10 focus-within:bg-primary/10">
-          <button type="button" class="flex min-w-0 flex-1 items-center gap-3 px-3 py-2.5 text-left" @click="switchAccount(account.userId)">
+          <UButton color="neutral" variant="link" class="min-w-0 flex-1 justify-start gap-3 px-3 py-2.5 text-start font-normal" @click="switchAccount(account.userId)">
             <AppAccountAvatar :name="account.name" :color-seed="account.email" :has-avatar="account.hasAvatar" :avatar-url="`/api/auth/accounts/${account.userId}/avatar`" />
             <span class="min-w-0 flex-1">
               <span class="block truncate text-sm font-semibold text-highlighted">{{ account.name }}</span>
               <span class="block truncate text-xs text-muted">{{ account.email }}</span>
             </span>
-          </button>
+          </UButton>
           <UTooltip :text="t('account.signOut')">
             <UButton
               icon="i-lucide-log-out"
@@ -207,16 +224,22 @@ const linkClass = 'flex items-center gap-3 rounded-md px-3 py-2 text-sm font-med
             />
           </UTooltip>
         </div>
-        <NuxtLink to="/login?add=1" :class="linkClass" @click="open = false"><UIcon name="i-lucide-user-plus" class="size-4.5 text-muted" />{{ t('account.addAnother') }}</NuxtLink>
+        <UButton to="/login?add=1" v-bind="menuButton" icon="i-lucide-user-plus" :label="t('account.addAnother')" @click="open = false" />
       </div>
 
       <div class="mt-2 flex flex-col border-t border-default pt-2">
-        <NuxtLink to="/settings/account" :class="linkClass" @click="open = false"><UIcon name="i-lucide-settings" class="size-4.5 text-muted" />{{ t('account.settings') }}</NuxtLink>
-        <NuxtLink v-if="user?.role === 'admin'" to="/admin" :class="[linkClass, adminActive && 'bg-primary/10']" @click="open = false">
-          <UIcon name="i-lucide-shield-check" class="size-4.5 text-muted" />{{ t('account.admin') }}
-          <UIcon v-if="adminActive" name="i-lucide-check" class="ms-auto size-4 text-primary" />
-        </NuxtLink>
-        <button type="button" :class="[linkClass, 'w-full text-left']" @click="logout"><UIcon name="i-lucide-log-out" class="size-4.5 text-muted" />{{ t('account.signOut') }}</button>
+        <UButton to="/settings/account" v-bind="menuButton" icon="i-lucide-settings" :label="t('account.settings')" @click="open = false" />
+        <UButton
+          v-if="user?.role === 'admin'"
+          to="/admin"
+          v-bind="menuButton"
+          icon="i-lucide-shield-check"
+          :label="t('account.admin')"
+          :trailing-icon="adminActive ? 'i-lucide-check' : undefined"
+          :active="adminActive"
+          @click="open = false"
+        />
+        <UButton v-bind="menuButton" icon="i-lucide-log-out" :label="t('account.signOut')" @click="logout" />
       </div>
     </template>
   </UPopover>

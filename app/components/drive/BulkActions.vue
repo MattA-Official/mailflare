@@ -121,20 +121,21 @@ async function deleteForever() {
               <UButton type="submit" size="sm" :disabled="busy || !name.trim()" :title="t('drive.createAndMove')" :label="t('drive.create')" />
             </form>
             <div class="max-h-64 overflow-y-auto pt-1">
-              <button type="button" class="flex w-full items-center gap-2 rounded-lg px-2.5 py-2 text-left text-sm hover:bg-elevated" @click="move(null)">
-                <UIcon name="i-lucide-hard-drive" class="size-4 shrink-0" />{{ treeName }}
-              </button>
-              <button
+              <UButton color="neutral" variant="ghost" block icon="i-lucide-hard-drive" :label="treeName" class="justify-start" @click="move(null)" />
+              <UButton
                 v-for="folder in rows"
                 :key="folder.id"
-                type="button"
+                color="neutral"
+                variant="ghost"
+                block
+                icon="i-lucide-folder"
+                :label="folder.name"
                 :disabled="folder.disabled"
                 :style="{ paddingLeft: `${10 + folder.depth * 14}px` }"
-                class="flex w-full items-center gap-2 rounded-lg py-2 pr-2.5 text-left text-sm hover:bg-elevated disabled:cursor-default disabled:opacity-40 disabled:hover:bg-transparent"
+                class="justify-start"
+                :ui="{ leadingIcon: 'text-amber-500' }"
                 @click="move(folder.id)"
-              >
-                <UIcon name="i-lucide-folder" class="size-4 shrink-0 text-amber-500" /><span class="truncate">{{ folder.name }}</span>
-              </button>
+              />
               <p v-if="folders && !rows.length" class="px-2.5 py-2 text-xs text-muted">{{ t('drive.noFolders') }}</p>
             </div>
           </div>
