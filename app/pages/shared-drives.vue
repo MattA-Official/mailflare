@@ -72,9 +72,7 @@ async function create() {
       <USkeleton v-for="index in 2" :key="index" class="h-16 w-full rounded-lg" />
     </div>
     <template v-else>
-      <p v-if="!active.length" class="rounded-lg border border-default bg-default px-5 py-4 text-sm text-muted">
-        {{ t('sharedDrives.noneAdmin') }}
-      </p>
+      <UEmpty v-if="!active.length" variant="outline" icon="i-lucide-hard-drive" :description="t('sharedDrives.noneAdmin')" />
       <ul v-else class="divide-y divide-default overflow-hidden rounded-lg border border-default bg-default">
         <li v-for="drive in active" :key="drive.id">
           <NuxtLink :to="`/drive?drive=${encodeURIComponent(drive.id)}`" class="flex items-center gap-4 px-5 py-4 hover:bg-elevated/50">

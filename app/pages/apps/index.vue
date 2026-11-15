@@ -55,9 +55,13 @@ async function copy(value: string) {
     <div v-else-if="status === 'pending' && !apps" class="space-y-2">
       <USkeleton v-for="index in 2" :key="index" class="h-20 w-full rounded-lg" />
     </div>
-    <p v-else-if="!apps?.length" class="rounded-lg border border-default bg-default px-5 py-4 text-sm text-muted">
-      {{ t('oidc.apps.none') }}
-    </p>
+    <UEmpty
+      v-else-if="!apps?.length"
+      variant="outline"
+      icon="i-lucide-app-window"
+      :description="t('oidc.apps.none')"
+      :actions="[{ label: t('oidc.apps.new'), icon: 'i-lucide-plus', color: 'neutral', variant: 'outline', onClick: () => { createOpen = true } }]"
+    />
     <ul v-else class="divide-y divide-default overflow-hidden rounded-lg border border-default bg-default">
       <li v-for="app in apps" :key="app.id">
         <NuxtLink :to="`/apps/${app.id}`" class="flex items-center gap-4 px-5 py-4 hover:bg-elevated/50">

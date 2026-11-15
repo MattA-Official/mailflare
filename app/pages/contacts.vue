@@ -91,15 +91,13 @@ function sendEmail(contact: ContactListItem) {
           <USkeleton v-for="n in 3" :key="n" class="h-16 w-full rounded-lg" />
         </div>
         <UAlert v-else-if="failed" role="alert" color="error" variant="subtle" :title="t('contacts.loadFailed')" />
-        <div v-else-if="contacts.length === 0" class="flex flex-col items-center gap-2 rounded-lg border border-default bg-default px-5 py-12 text-center">
-          <UIcon name="i-lucide-users-round" class="size-8 text-dimmed" />
-          <p class="text-sm font-medium text-default">
-            {{ query ? t('contacts.emptySearch') : t('contacts.empty') }}
-          </p>
-          <p v-if="!query" class="text-xs text-muted">
-            {{ t('contacts.emptyHint') }}
-          </p>
-        </div>
+        <UEmpty
+          v-else-if="contacts.length === 0"
+          variant="outline"
+          icon="i-lucide-users-round"
+          :title="query ? t('contacts.emptySearch') : t('contacts.empty')"
+          :description="query ? undefined : t('contacts.emptyHint')"
+        />
         <div v-else class="overflow-hidden rounded-lg border border-default bg-default">
           <div :class="CONTACT_COLUMNS" class="border-b border-default px-5 py-3 text-xs font-medium uppercase text-muted">
             <span class="w-9" />

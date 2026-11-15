@@ -73,9 +73,8 @@ watchEffect((onCleanup) => {
         </div>
       </div>
     </div>
-    <p v-else-if="groups.length === 0" class="text-sm text-muted">
-      {{ loadError ? t('calendar.upcomingLoadFailed') : t('calendar.noUpcoming') }}
-    </p>
+    <UAlert v-else-if="loadError" role="alert" color="error" variant="subtle" :title="t('calendar.upcomingLoadFailed')" />
+    <UEmpty v-else-if="groups.length === 0" variant="naked" icon="i-lucide-calendar" :title="t('calendar.noUpcoming')" />
     <template v-else>
       <section v-for="group in visibleGroups" :key="group.key" class="mb-6 last:mb-0">
         <h3 class="sticky top-0 z-10 mb-2 bg-default py-2 text-sm font-semibold text-highlighted">

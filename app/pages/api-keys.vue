@@ -85,9 +85,13 @@ async function revoke() {
     <div v-if="status === 'pending' && !apiKeys" class="space-y-2">
       <USkeleton v-for="index in 3" :key="index" class="h-20 w-full rounded-lg" />
     </div>
-    <p v-else-if="!apiKeys?.length" class="rounded-lg border border-default bg-default px-5 py-4 text-sm text-muted">
-      {{ t('apiKeys.none') }}
-    </p>
+    <UEmpty
+      v-else-if="!apiKeys?.length"
+      variant="outline"
+      icon="i-lucide-key-round"
+      :title="t('apiKeys.none')"
+      :actions="[{ label: t('apiKeys.new'), icon: 'i-lucide-plus', color: 'neutral', variant: 'outline', onClick: () => { createOpen = true } }]"
+    />
     <ul v-else class="divide-y divide-default overflow-hidden rounded-lg border border-default bg-default">
       <li v-for="key in apiKeys" :key="key.id" class="flex items-center gap-4 px-5 py-4">
         <UAvatar icon="i-lucide-key-round" color="primary" size="xl" />

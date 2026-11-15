@@ -121,9 +121,7 @@ const columns = 'grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 md:gri
     <div v-if="status === 'pending' && !mailboxes" class="space-y-2">
       <USkeleton v-for="n in 3" :key="n" class="h-16 w-full rounded-lg" />
     </div>
-    <UCard v-else-if="!rows.length" :ui="{ body: 'text-sm text-muted' }">
-      {{ t('mailboxes.none') }}
-    </UCard>
+    <UEmpty v-else-if="!rows.length" variant="outline" icon="i-lucide-mail" :title="t('mailboxes.none')" />
     <div v-else class="overflow-hidden rounded-lg border border-default bg-default">
       <div :class="columns" class="border-b border-default px-5 py-3 text-xs font-medium uppercase text-muted">
         <span class="w-10" />

@@ -14,9 +14,7 @@ const { data, status, error } = useAsyncData('my-groups', fetchMyGroups)
     <div v-else-if="status === 'pending' && !data" class="space-y-2">
       <USkeleton v-for="index in 2" :key="index" class="h-16 w-full rounded-lg" />
     </div>
-    <p v-else-if="!data?.groups.length" class="rounded-lg border border-default bg-default px-5 py-4 text-sm text-muted">
-      {{ t('groups.mineNone') }}
-    </p>
+    <UEmpty v-else-if="!data?.groups.length" variant="outline" icon="i-lucide-network" :description="t('groups.mineNone')" />
     <ul v-else class="divide-y divide-default overflow-hidden rounded-lg border border-default bg-default">
       <li v-for="group in data.groups" :key="group.id">
         <NuxtLink :to="`/settings/groups/${group.id}`" class="flex items-center gap-4 px-5 py-4 hover:bg-elevated/50">
