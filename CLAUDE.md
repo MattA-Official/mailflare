@@ -30,6 +30,7 @@ bun run typecheck           # must pass before pushing
 bun run lint
 bun run test                # vitest
 bun run routes:generate     # after adding or removing a handler under server/handlers
+bun run db:generate -- --name <what>   # write a migration from a schema change (Drizzle Kit)
 bun run db:bundle           # after adding a migration
 ```
 
@@ -74,17 +75,21 @@ The server was carried across from upstream nearly unchanged, so [docs/architect
 - **Database.** D1 only. `getDb(env)` from `#db`. The schema is `server/db/schema/index.ts`, written
   against the SQLite kit in `kits.ts` exactly as upstream writes it. `#db/dialect` always answers
   `"sqlite"`; branches for PostgreSQL and MySQL in ported code are dead and can be deleted when touched.
-- **Migrations.** `server/db/migrations/sqlite/*.sql` are upstream's, applied by the in-app runner
-  (`#lib/migrations/service`, ledger table `d1_migrations`) from first-run setup and the admin update
-  card. A new migration is a new numbered `.sql` file, written by hand, plus `bun run db:bundle`.
-  Drizzle is 1.0 (upstream is on 0.x); don't run `drizzle-kit up` or `generate` on this folder, see
-  PORTING.md's deviations. NuxtHub's own migration runner is switched off.
+- **Migrations.** `server/db/migrations/sqlite/<name>/migration.sql` (Drizzle Kit 1.0 folders; the
+  numbered ones are upstream's and the fork's from before), applied by the in-app runner
+  (`#lib/migrations/service`, ledger table `d1_migrations`, each recorded as `<name>.sql`) from
+  first-run setup and the admin update card. Generate migrations with Drizzle Kit rather than writing
+  them by hand: change the schema, `bun run db:generate -- --name <what>`, then `bun run db:bundle`.
+  Drizzle is 1.0 while upstream is on 0.x; see PORTING.md's deviations. NuxtHub's own migration
+  runner is switched off.
 - **Storage.** `env.BUCKET` is the R2 bucket. The Backblaze/S3 swap is gone from the runtime path.
 - **Worker entry.** `server/worker.ts` handles `/api/realtime` upgrades, email, queue and cron itself,
   because Nitro's `cloudflare:email` and `cloudflare:queue` hooks run after the handler has returned,
   too late for `setReject()`, `forward()` and per-message ack/retry. Everything else goes to Nitro.
   Nuxt 4.6 uses Nitro 2: there is no `cloudflare_durable` preset in use and no `server.ts` exports
-  file (that is Nitro 3). The Durable Object is exported from the custom entry.
+  file (that is Nitro 3). The Durable Object is exported from the custom entry. The custom entry is
+  for builds only (`$production` in nuxt.config.ts): `nuxt dev` runs Nitro's own entry, with
+  bindings from a local wrangler config that nuxt.config.ts writes to `.nuxt/wrangler.dev.json`.
 - **Not ported, by decision:** the self-hosted Node/Docker runtime, PostgreSQL/MySQL/libSQL, Backblaze
   B2 and S3 storage, Resend and Amazon SES providers, and the Paymug licence gate (branding and other
   licensed features are simply always available).

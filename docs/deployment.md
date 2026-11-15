@@ -86,7 +86,7 @@ To connect more domains later, open **Admin → Domains → New domain**.
 
 ## Database migrations
 
-Upstream's migrations live in `server/db/migrations/sqlite` and are bundled into the Worker
+Migrations live in `server/db/migrations/sqlite` (one Drizzle Kit folder each) and are bundled into the Worker
 (`bun run db:bundle`, run by every build). Setup applies them to an empty database. After a deploy
 that adds a migration, open **Admin** and apply pending migrations from the database card. Nothing
 applies migrations automatically.

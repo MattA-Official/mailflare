@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterAll as after, test, onTestFinished } from "vitest";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -35,7 +35,7 @@ const columns = (database, table) => database.db.prepare(`PRAGMA table_info(${ta
 test("a fresh database records every migration, so later deploys do not re-apply them", async (t) => {
 	const database = new SqliteDatabase(":memory:");
 	onTestFinished(() => database.db.close());
-	const files = readdirSync(migrationsDirectory).filter((name) => name.endsWith(".sql"));
+	const files = readdirSync(migrationsDirectory).filter((name) => existsSync(join(migrationsDirectory, name, "migration.sql"))).map((name) => `${name}.sql`);
 	const applied = await applyMigrations(database, migrationsDirectory);
 	assert.deepEqual([...applied].sort(), [...files].sort());
 	const recorded = database.db.prepare("SELECT name FROM d1_migrations").all().map((row) => row.name);

@@ -3,7 +3,7 @@
 //   bun run seed:local
 // Sign in as admin@example.test / mailflare-dev. Never run against production: it is --local only.
 import { execFileSync } from 'node:child_process'
-import { mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readFileSync, readdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import bcrypt from 'bcryptjs'
@@ -27,10 +27,12 @@ const ledger = join(dir, 'ledger.sql')
 writeFileSync(ledger, 'CREATE TABLE IF NOT EXISTS d1_migrations (id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT UNIQUE, applied_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP NOT NULL);')
 run(ledger)
 const applied = JSON.parse(execFileSync('bunx', ['wrangler', 'd1', 'execute', 'DB', '--local', '--persist-to', join(root, '.wrangler/state'), '-c', config, '--json', '--command', 'select name from d1_migrations'], { cwd: root }).toString())[0].results.map(row => row.name)
-for (const name of readdirSync(migrations).filter(file => file.endsWith('.sql')).sort()) {
+// Each migration is a Drizzle Kit folder, recorded as "<folder>.sql" as the in-app runner does.
+for (const folder of readdirSync(migrations).filter(name => existsSync(join(migrations, name, 'migration.sql'))).sort()) {
+  const name = `${folder}.sql`
   if (applied.includes(name)) continue
   const file = join(dir, name)
-  writeFileSync(file, `${readFileSync(join(migrations, name), 'utf8')}\n;INSERT INTO d1_migrations (name) VALUES ('${name}');`)
+  writeFileSync(file, `${readFileSync(join(migrations, folder, 'migration.sql'), 'utf8')}\n;INSERT INTO d1_migrations (name) VALUES ('${name}');`)
   run(file)
 }
 

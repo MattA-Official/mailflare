@@ -1,4 +1,4 @@
-import { readFileSync, readdirSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, readdirSync, writeFileSync } from "node:fs";
 
 const root = new URL("../", import.meta.url);
 
@@ -32,11 +32,14 @@ function splitSql(sql) {
 	return statements;
 }
 
+// Each migration is a Drizzle Kit folder (<name>/migration.sql). It is recorded as "<name>.sql", the
+// name the d1_migrations ledger has used since migrations were flat files, so nothing applied before
+// the move to folders is applied again.
 function readMigrations(directory, split) {
 	return readdirSync(directory)
-		.filter((name) => name.endsWith(".sql"))
+		.filter((folder) => existsSync(new URL(`${folder}/migration.sql`, directory)))
 		.sort()
-		.map((name) => ({ name, statements: split(readFileSync(new URL(name, directory), "utf8")) }));
+		.map((folder) => ({ name: `${folder}.sql`, statements: split(readFileSync(new URL(`${folder}/migration.sql`, directory), "utf8")) }));
 }
 
 const bundles = [

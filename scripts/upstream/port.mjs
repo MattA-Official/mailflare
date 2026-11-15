@@ -39,6 +39,8 @@ const PATH_MAP = [
 /** Upstream paths that are not ported at all (dropped features, other dialects, generated files). */
 const IGNORED = [
 	/^drizzle\/migrations-(pg|mysql)\//,
+	// Drizzle Kit 0.x metadata; this fork is on Drizzle Kit 1.0, whose snapshot lives in the folder.
+	/^drizzle\/migrations\/meta\//,
 	/^server\/runtime\//,
 	/^deploy\//,
 	/^docker|^Dockerfile|^\.dockerignore/,
@@ -73,6 +75,9 @@ function fetchUpstream() {
 }
 
 function mapPath(path) {
+	// Upstream's flat Drizzle Kit 0.x migrations become Drizzle Kit 1.0 folders here.
+	const migration = /^drizzle\/migrations\/([^/]+)\.sql$/.exec(path);
+	if (migration) return `server/db/migrations/sqlite/${migration[1]}/migration.sql`;
 	for (const [from, to] of PATH_MAP) if (path.startsWith(from)) return to + path.slice(from.length);
 	return null;
 }
