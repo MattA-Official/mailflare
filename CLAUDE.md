@@ -76,8 +76,9 @@ The server was carried across from upstream nearly unchanged, so [docs/architect
   `"sqlite"`; branches for PostgreSQL and MySQL in ported code are dead and can be deleted when touched.
 - **Migrations.** `server/db/migrations/sqlite/*.sql` are upstream's, applied by the in-app runner
   (`#lib/migrations/service`, ledger table `d1_migrations`) from first-run setup and the admin update
-  card. A new migration is a new numbered `.sql` file plus `bun run db:bundle`. NuxtHub's own migration
-  runner is switched off.
+  card. A new migration is a new numbered `.sql` file, written by hand, plus `bun run db:bundle`.
+  Drizzle is 1.0 (upstream is on 0.x); don't run `drizzle-kit up` or `generate` on this folder, see
+  PORTING.md's deviations. NuxtHub's own migration runner is switched off.
 - **Storage.** `env.BUCKET` is the R2 bucket. The Backblaze/S3 swap is gone from the runtime path.
 - **Worker entry.** `server/worker.ts` handles `/api/realtime` upgrades, email, queue and cron itself,
   because Nitro's `cloudflare:email` and `cloudflare:queue` hooks run after the handler has returned,

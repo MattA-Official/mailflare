@@ -32,25 +32,33 @@ export async function loadFixture({ name, entryPoint, mocks }) {
 	};
 }
 
-// An in-memory SQLite database behind drizzle's sqlite-proxy driver. The hooks
-// let a test inject a competing write immediately before or after a query.
+// drizzle's sqlite-proxy executors over a node:sqlite database. The hooks let a
+// test inject a competing write immediately before or after a query.
+export function sqliteExecutors(sqlite, { beforeQuery, afterQuery } = {}) {
+	const query = (sql, params, rowMode, read) => {
+		beforeQuery?.(sql, sqlite);
+		const statement = sqlite.prepare(sql);
+		statement.setReturnArrays(rowMode !== "object");
+		const result = read(statement, params);
+		afterQuery?.(sql, sqlite);
+		return result;
+	};
+	return {
+		all: async (sql, params, rowMode) => query(sql, params, rowMode, (statement) => statement.all(...params)),
+		get: async (sql, params, rowMode) => query(sql, params, rowMode, (statement) => statement.get(...params)),
+		// Shaped like a D1 run result, which is what the app's code reads.
+		run: async (sql, params) => query(sql, params, "array", (statement) => {
+			const { changes, lastInsertRowid } = statement.run(...params);
+			return { success: true, results: [], meta: { changes: Number(changes), last_row_id: Number(lastInsertRowid) } };
+		}),
+	};
+}
+
+// An in-memory SQLite database behind drizzle's sqlite-proxy driver.
 export function sqliteProxy({ schema = "", beforeQuery, afterQuery } = {}) {
 	const sqlite = new DatabaseSync(":memory:", { enableDoubleQuotedStringLiterals: true });
 	sqlite.exec(schema);
-	const db = drizzle(async (sql, params, method) => {
-		beforeQuery?.(sql, sqlite);
-		const query = sqlite.prepare(sql);
-		let rows;
-		if (method === "run") {
-			query.run(...params);
-			rows = [];
-		} else {
-			query.setReturnArrays(true);
-			rows = query.all(...params);
-		}
-		afterQuery?.(sql, sqlite);
-		return { rows };
-	});
+	const db = drizzle(sqliteExecutors(sqlite, { beforeQuery, afterQuery }));
 	return { db, sqlite };
 }
 

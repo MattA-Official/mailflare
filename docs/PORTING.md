@@ -237,6 +237,15 @@ Tick in the PR that lands it. Add rows for anything discovered.
 
 ## Deviations from upstream
 
+- (fork) Drizzle 1.0 (Matt, 2026-11-15), while upstream stays on 0.x. Migrations are unchanged:
+  `server/db/migrations/sqlite/NNNN_name.sql` stay flat files applied by the in-app runner, which
+  records them by file name in `d1_migrations`, so nothing is renamed or re-applied. `drizzle-kit up`
+  was deliberately not run: it would move every migration into its own folder, which the runner, the
+  bundle generator and `port.mjs` do not expect, and upstream's migrations keep arriving flat. Drizzle
+  Kit is not used to write migrations here (its 0.x journal and snapshots stopped at 0087/0080, and
+  Drizzle Kit 1.0 refuses the old layout), so the `db:generate` script is gone; write a new migration
+  by hand and run `bun run db:bundle`. `drizzle-kit` stays installed because NuxtHub's module looks for it.
+
 - (11) No licences. `/api/licenses/*` is gone, there is no licence indicator (workstream 1) and no
   licences page (workstream 8). Every licensed feature is on: `canForwardEmail`, `canCreateShared` and
   `canManageHosts` are always true for those who would have had them with a Team licence, and
@@ -502,6 +511,16 @@ port started from `cee65a5` (v0.5.4, the tree that was `legacy/`). Read upstream
   - D1 read replicas (upstream #268): `server/worker.ts` wraps Nitro's fetch in `runWithD1Session` and
     `getEnv()` swaps `DB` for the request's session; `DB_PRIMARY` keeps the raw binding for
     authentication reads. Email, queue and cron keep reading the primary.
+  - This fork is on Drizzle 1.0 (`drizzle-orm` and `drizzle-kit` 1.0 RC); upstream is on 0.x. Its
+    server code ports across unchanged with three exceptions that typecheck or the tests will show:
+    `not()` returns `SQL | undefined` (add `!` where the result goes into an `SQL[]`, as `or()` already
+    needs); `SQLiteSyncDialect` is now `SQLiteDialect` (`port-test.mjs` rewrites it); and the
+    `drizzle-orm/sqlite-proxy` driver takes `{ all, get, run }` executors instead of one callback, so an
+    upstream test that builds `drizzle(async (sql, params, method) => ...)` over `node:sqlite` should use
+    `drizzle(sqliteExecutors(sqlite))` from `tests/unit/helpers/fixtures.mjs`. `drizzle(d1, { schema })`
+    becomes `drizzle(d1)` (there are no relational queries). `getTableColumns` is deprecated in favour
+    of `getColumns` but still works; leave upstream's spelling. Upstream's `drizzle/migrations/meta`
+    files still come across with its migrations and are ignored: see the Drizzle 1.0 deviation.
 
 ## Open items
 

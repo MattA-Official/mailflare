@@ -10,6 +10,7 @@ import { drizzle } from "drizzle-orm/sqlite-proxy";
 import { getTableConfig } from "drizzle-orm/sqlite-core";
 import { build } from "./helpers/esbuild.mjs";
 import { root as project } from "./helpers/paths.mjs";
+import { sqliteExecutors } from "./helpers/fixtures.mjs";
 
 const temporary = mkdtempSync(join(project, "node_modules", "permission-test-"));
 after(() => rmSync(temporary, { recursive: true, force: true }));
@@ -30,7 +31,7 @@ let sqlite;
 function setup(user) {
 	sqlite?.close(); sqlite = new DatabaseSync(":memory:");
 	for (const value of Object.values(schema)) { let table; try { table = getTableConfig(value); } catch { continue; } sqlite.exec(`CREATE TABLE ${quote(table.name)} (${table.columns.map(column => `${quote(column.name)} ${column.getSQLType()}`).join(",")})`); }
-	globalThis.permissionDb = drizzle(async (sql, params, method) => { const query = sqlite.prepare(sql); if (method === "run") { query.run(...params); return { rows: [] }; } query.setReturnArrays(true); return { rows: query.all(...params) }; });
+	globalThis.permissionDb = drizzle(sqliteExecutors(sqlite));
 	globalThis.permissionUser = user; globalThis.managedMailboxes = ["m-user", "m-shared"];
 	sqlite.exec("INSERT INTO domains(id,user_id,hostname) VALUES ('d-owner','owner','example.test'),('d-other','other','other.test'),('d-self','manager','self.test'); INSERT INTO mailboxes(id,user_id,domain_id,local_part,disabled) VALUES ('m-user','user','d-owner','user',0),('m-shared','owner','d-owner','team',0),('m-other','other','d-other','other',0); INSERT INTO routing_rules(id,user_id,domain_id,scope,mailbox_id,match_field,match_operator,match_value,action,enabled,keep_copy,priority,created_at) VALUES ('r-domain','owner','d-owner','domain','m-user','recipient','exact','*','store',1,0,100,0),('r-mailbox','user','d-owner','mailbox','m-user','sender','contains','news','spam',1,0,10,0),('r-other','other','d-other','domain','m-other','recipient','exact','*','store',1,0,100,0);");
 }
