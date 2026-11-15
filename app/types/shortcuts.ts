@@ -5,7 +5,7 @@ export interface ShortcutDefinition {
   /** 'j', '?', '/' or a sequence such as 'g i'. */
   key: string
   label: string
-  category: 'Navigation' | 'Actions' | 'Composing' | 'Selection' | 'General'
+  category: 'Navigation' | 'Actions' | 'Composing' | 'Selection' | 'General' | 'Calendar'
   description?: string
   modifiers?: ModifierKey[]
   allowInInputs?: boolean

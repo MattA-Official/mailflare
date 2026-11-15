@@ -4,6 +4,7 @@
 import { formatUserDate, getUserTimeZone } from '#lib/time/utils'
 import { normalizeCalendarColor } from '#lib/calendar/colors'
 import { parseCalendarRepeatDays } from '#lib/calendar/recurrence'
+import type { ShortcutDefinition } from '~/types/shortcuts'
 import type { CalendarEvent, CalendarMailbox, CalendarView, EventDragPreview, EventResizeEdge, EventResizeSession } from '~/types/calendar'
 import {
   addDays, addMonths, calendarAnchorDay, CALENDAR_END_HOUR, CALENDAR_HOUR_HEIGHT, CALENDAR_START_HOUR,
@@ -106,6 +107,23 @@ function scrollToWorkingHours() {
   scroller.scrollTop = Math.max(0, top)
 }
 onMounted(() => nextTick(scrollToWorkingHours))
+
+// Calendar keys, listed in the shortcuts cheat sheet while the calendar is open (C stays Compose).
+// Registered during setup, so they are dropped again when the page unmounts.
+const { registerShortcut } = useShortcuts()
+const calendarShortcuts: ShortcutDefinition[] = [
+  { key: 't', label: t('shortcut.calendarToday'), category: 'Calendar', action: () => { visibleDate.value = new Date() } },
+  { key: 'j', label: t('shortcut.calendarNext'), category: 'Calendar', action: () => step(1) },
+  { key: 'k', label: t('shortcut.calendarPrevious'), category: 'Calendar', action: () => step(-1) },
+  { key: 'd', label: t('shortcut.calendarDayView'), category: 'Calendar', action: () => chooseView('day') },
+  { key: 'w', label: t('shortcut.calendarWeekView'), category: 'Calendar', action: () => chooseView('week') },
+  { key: 'm', label: t('shortcut.calendarMonthView'), category: 'Calendar', action: () => chooseView('month') },
+  { key: 'n', label: t('shortcut.calendarNewEvent'), category: 'Calendar', action: () => { if (!busy.value) openNewEvent() } },
+]
+// Not while the event editor or another dialog is open over the calendar.
+for (const shortcut of calendarShortcuts) {
+  registerShortcut({ ...shortcut, action: () => { if (!editorOpen.value && !pendingInvite.value && !subscribeOpen.value) shortcut.action() } })
+}
 
 // Swiping sideways moves to the previous or next day, week or month, except where the grid is wider
 // than the screen and a sideways swipe scrolls it (the week view on a phone).
