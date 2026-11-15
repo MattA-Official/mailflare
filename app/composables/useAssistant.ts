@@ -1,17 +1,19 @@
 // The email assistant's shared state: whether it is available to this account, and whether its panel
 // is open and full size. Ported from legacy/src/app/(dashboard)/use-assistant-availability.ts,
-// dashboard-state.ts and dashboard-state-utils.ts; module-level refs stand in for React state.
+// dashboard-state.ts and dashboard-state-utils.ts; useState stands in for React state.
 import { readInitialAssistantAvailability, saveAssistantAvailability } from '#lib/agent/availability-client'
 import type { AssistantAvailabilityResponse } from '~/types/agent/agent'
 
 const ASSISTANT_OPEN_KEY = 'mailflare-dashboard:assistant-open'
 const ASSISTANT_FULL_SIZE_KEY = 'mailflare-dashboard:assistant-full-size'
 
-const enabled = ref<boolean | null>(null)
-const open = ref(false)
-const fullSize = ref(false)
-let started = false
-let userPrefix: string | null = null
+const useEnabled = () => useState<boolean | null>('assistant-enabled', () => null)
+const useOpen = () => useState('assistant-open', () => false)
+const useFullSize = () => useState('assistant-full-size', () => false)
+// Browser-only bookkeeping: whether the listeners are installed, the account's storage prefix and
+// when availability was last checked (focus and visibility checks within a minute are skipped).
+const AVAILABILITY_TTL_MS = 60_000
+const local = () => appScoped('assistant', () => ({ started: false, userPrefix: null as string | null, lastCheckedAt: 0 }))
 
 function readFlag(key: string): boolean | null {
   try {
@@ -23,6 +25,9 @@ function readFlag(key: string): boolean | null {
 }
 
 function save() {
+  const open = useOpen()
+  const fullSize = useFullSize()
+  const { userPrefix } = local()
   try {
     localStorage.setItem(ASSISTANT_OPEN_KEY, String(open.value))
     localStorage.setItem(ASSISTANT_FULL_SIZE_KEY, String(fullSize.value))
@@ -33,30 +38,33 @@ function save() {
   } catch { /* Storage is optional. */ }
 }
 
-// Focus and visibility checks within a minute of the last one are skipped.
-const AVAILABILITY_TTL_MS = 60_000
-let lastCheckedAt = 0
-
 async function refreshAvailability(force = false) {
-  if (!force && Date.now() - lastCheckedAt < AVAILABILITY_TTL_MS) return
-  lastCheckedAt = Date.now()
+  const state = local()
+  const enabled = useEnabled()
+  if (!force && Date.now() - state.lastCheckedAt < AVAILABILITY_TTL_MS) return
+  state.lastCheckedAt = Date.now()
   try {
     const response = await authFetch('/api/agent/availability', { redirectOnUnauthorized: false })
     if (!response.ok) {
-      lastCheckedAt = 0
+      state.lastCheckedAt = 0
       return
     }
     const data = await response.json() as AssistantAvailabilityResponse
     enabled.value = data.enabled
     saveAssistantAvailability(data.enabled)
   } catch {
-    lastCheckedAt = 0
+    state.lastCheckedAt = 0
   }
 }
 
 function start() {
-  if (started || !import.meta.client) return
-  started = true
+  if (!import.meta.client) return
+  const state = local()
+  if (state.started) return
+  state.started = true
+  const enabled = useEnabled()
+  const open = useOpen()
+  const fullSize = useFullSize()
   enabled.value = readInitialAssistantAvailability()
   open.value = readFlag(ASSISTANT_OPEN_KEY) ?? false
   fullSize.value = readFlag(ASSISTANT_FULL_SIZE_KEY) ?? false
@@ -64,17 +72,20 @@ function start() {
   void fetchSessionInfo().then((info) => {
     const id = info?.user?.id
     if (!id) return
-    userPrefix = `mailflare-dashboard:${id}`
-    open.value = readFlag(`${userPrefix}:assistant-open`) ?? open.value
-    fullSize.value = readFlag(`${userPrefix}:assistant-full-size`) ?? fullSize.value
+    state.userPrefix = `mailflare-dashboard:${id}`
+    open.value = readFlag(`${state.userPrefix}:assistant-open`) ?? open.value
+    fullSize.value = readFlag(`${state.userPrefix}:assistant-full-size`) ?? fullSize.value
   })
-  watch([open, fullSize], save)
-  // A disabled assistant cannot stay open.
-  watch(enabled, (value) => {
-    if (value === false) {
-      open.value = false
-      fullSize.value = false
-    }
+  // Detached from the calling component, so they outlive it.
+  effectScope(true).run(() => {
+    watch([open, fullSize], save)
+    // A disabled assistant cannot stay open.
+    watch(enabled, (value) => {
+      if (value === false) {
+        open.value = false
+        fullSize.value = false
+      }
+    })
   })
   void refreshAvailability(true)
   window.addEventListener('focus', () => void refreshAvailability())
@@ -86,6 +97,9 @@ function start() {
 
 export function useAssistant() {
   start()
+  const enabled = useEnabled()
+  const open = useOpen()
+  const fullSize = useFullSize()
   const route = useRoute()
   // Upstream offers the assistant in the mail and calendar sections only.
   const here = computed(() => enabled.value === true && ['mail', 'calendar'].includes(route.meta.nav ?? 'mail') && route.meta.layout === 'dashboard')

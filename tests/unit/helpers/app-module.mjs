@@ -3,6 +3,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { afterAll } from "vitest";
 import { build } from "./esbuild.mjs";
+import { installNuxtState } from "./nuxt-state.mjs";
 import { root } from "./paths.mjs";
 
 /**
@@ -78,7 +79,11 @@ export const vuePlugin = {
 export function installVueAutoImports(vue) {
 	const names = ["ref", "shallowRef", "computed", "reactive", "readonly", "watch", "watchEffect", "toValue", "toRef", "unref", "nextTick", "onMounted", "onBeforeUnmount", "onUnmounted", "useTemplateRef", "useId", "useSlots", "useAttrs", "provide", "inject", "h", "defineComponent"];
 	for (const name of names) globalThis[name] = vue[name];
-	return () => { for (const name of names) delete globalThis[name]; };
+	const removeNuxtState = installNuxtState(vue);
+	return () => {
+		removeNuxtState();
+		for (const name of names) delete globalThis[name];
+	};
 }
 
 const DOM_GLOBALS = ["window", "document", "Document", "HTMLTextAreaElement", "HTMLSelectElement", "HTMLElement", "HTMLInputElement", "Element", "Node", "Text", "Event", "CustomEvent", "KeyboardEvent", "MouseEvent", "SVGElement", "DOMParser", "getComputedStyle"];

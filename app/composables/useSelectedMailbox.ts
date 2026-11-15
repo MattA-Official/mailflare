@@ -1,6 +1,6 @@
 // The mailbox the mail views are scoped to, shared by every page. Ported from
-// legacy/src/components/mailbox-provider.tsx and mailbox-provider-utils.ts; module-level refs stand
-// in for the React context.
+// legacy/src/components/mailbox-provider.tsx and mailbox-provider-utils.ts; useState stands in for
+// the React context.
 import { PROFILE_AVATAR_CHANGED_EVENT } from '#lib/profile/avatar-client'
 import { PROFILE_NAME_CHANGED_EVENT } from '#lib/profile/name-client'
 import type { ProfileNameChangedDetail } from '#lib/profile/types'
@@ -26,11 +26,17 @@ export const SELECTED_MAILBOX_STORAGE_KEY = 'selected-mailbox-id'
 /** Admin pages dispatch this after creating, renaming or deleting mailboxes. */
 export const MAILBOXES_CHANGED_EVENT = 'mailflare:mailboxes-changed'
 
-let mailboxesCache: MailboxOption[] | null = null
-let mailboxesCacheSessionToken: string | null = null
-let mailboxesRequest: Promise<MailboxOption[]> | null = null
-let mailboxesRequestSessionToken: string | null = null
-let cacheGeneration = 0
+// The /api/mailboxes cache, the request in flight and the retry timer, kept per app.
+const local = () => appScoped('selected-mailbox', () => ({
+  mailboxesCache: null as MailboxOption[] | null,
+  mailboxesCacheSessionToken: null as string | null,
+  mailboxesRequest: null as Promise<MailboxOption[]> | null,
+  mailboxesRequestSessionToken: null as string | null,
+  cacheGeneration: 0,
+  started: false,
+  retryTimer: null as ReturnType<typeof setTimeout> | null,
+  retryDelay: 5_000,
+}))
 
 /** The primary mailbox is the one at the account address; only its name and avatar follow the profile. */
 export function isIdentityMailbox(mailbox: Pick<MailboxOption, 'type' | 'isPrimary'>): boolean {
@@ -38,11 +44,12 @@ export function isIdentityMailbox(mailbox: Pick<MailboxOption, 'type' | 'isPrima
 }
 
 export function clearMailboxesCache() {
-  cacheGeneration += 1
-  mailboxesCache = null
-  mailboxesCacheSessionToken = null
-  mailboxesRequest = null
-  mailboxesRequestSessionToken = null
+  const state = local()
+  state.cacheGeneration += 1
+  state.mailboxesCache = null
+  state.mailboxesCacheSessionToken = null
+  state.mailboxesRequest = null
+  state.mailboxesRequestSessionToken = null
 }
 
 export function getMailboxAddress(mailbox: MailboxOption): string {
@@ -54,13 +61,14 @@ export function getMailboxName(mailbox: MailboxOption): string {
 }
 
 export async function fetchMailboxOptions(force = false): Promise<MailboxOption[]> {
+  const state = local()
   const sessionToken = getClientSessionToken()
-  if (!force && mailboxesCache && mailboxesCacheSessionToken === sessionToken) return mailboxesCache
-  if (!force && mailboxesRequest && mailboxesRequestSessionToken === sessionToken) return mailboxesRequest
+  if (!force && state.mailboxesCache && state.mailboxesCacheSessionToken === sessionToken) return state.mailboxesCache
+  if (!force && state.mailboxesRequest && state.mailboxesRequestSessionToken === sessionToken) return state.mailboxesRequest
 
-  const requestGeneration = cacheGeneration
-  mailboxesRequestSessionToken = sessionToken
-  mailboxesRequest = authFetch('/api/mailboxes')
+  const requestGeneration = state.cacheGeneration
+  state.mailboxesRequestSessionToken = sessionToken
+  state.mailboxesRequest = authFetch('/api/mailboxes')
     // Fork-only: a failed request must not be cached as "no mailboxes", or the switcher and every
     // inbox picker stay empty until a full reload even after the server recovers.
     .then((response) => {
@@ -84,25 +92,28 @@ export async function fetchMailboxOptions(force = false): Promise<MailboxOption[
         isPrimary: m.isPrimary,
         senderAddresses: m.senderAddresses,
       }))
-      if (requestGeneration === cacheGeneration) {
-        mailboxesCache = items
-        mailboxesCacheSessionToken = sessionToken
+      if (requestGeneration === state.cacheGeneration) {
+        state.mailboxesCache = items
+        state.mailboxesCacheSessionToken = sessionToken
       }
       return items
     })
     .finally(() => {
-      if (requestGeneration === cacheGeneration) {
-        mailboxesRequest = null
-        mailboxesRequestSessionToken = null
+      if (requestGeneration === state.cacheGeneration) {
+        state.mailboxesRequest = null
+        state.mailboxesRequestSessionToken = null
       }
     })
-  return mailboxesRequest
+  return state.mailboxesRequest
 }
 
-const mailboxes = ref<MailboxOption[]>([])
-const selectedMailbox = ref<MailboxOption | null>(null)
-const isLoading = ref(true)
-let started = false
+function useMailboxState() {
+  return {
+    mailboxes: useState<MailboxOption[]>('mailboxes', () => []),
+    selectedMailbox: useState<MailboxOption | null>('selected-mailbox', () => null),
+    isLoading: useState('mailboxes-loading', () => true),
+  }
+}
 
 function readStoredId(): string | null {
   try {
@@ -121,27 +132,28 @@ function storeId(id: string | null) {
   }
 }
 
-let retryTimer: ReturnType<typeof setTimeout> | null = null
-let retryDelay = 5_000
 function scheduleRetry() {
-  if (!import.meta.client || retryTimer) return
+  const state = local()
+  if (!import.meta.client || state.retryTimer) return
   const retry = () => {
-    if (retryTimer) clearTimeout(retryTimer)
-    retryTimer = null
+    if (state.retryTimer) clearTimeout(state.retryTimer)
+    state.retryTimer = null
     window.removeEventListener('focus', retry)
     void loadMailboxes(true)
   }
-  retryTimer = setTimeout(retry, retryDelay)
-  retryDelay = Math.min(retryDelay * 2, 60_000)
+  state.retryTimer = setTimeout(retry, state.retryDelay)
+  state.retryDelay = Math.min(state.retryDelay * 2, 60_000)
   window.addEventListener('focus', retry)
 }
 
 async function loadMailboxes(force = false) {
+  const { mailboxes, selectedMailbox, isLoading } = useMailboxState()
+  const state = local()
   const sessionToken = getClientSessionToken()
   try {
     const items = await fetchMailboxOptions(force)
     if (sessionToken !== getClientSessionToken()) return
-    retryDelay = 5_000
+    state.retryDelay = 5_000
     mailboxes.value = items
     const keep = items.find(mb => mb.id === (selectedMailbox.value?.id ?? readStoredId()))
     const next = keep ?? items.find(mb => mb.isPrimary) ?? items[0] ?? null
@@ -158,6 +170,7 @@ async function loadMailboxes(force = false) {
 }
 
 function setSelectedMailbox(mailbox: MailboxOption | null) {
+  const { mailboxes, selectedMailbox } = useMailboxState()
   if (selectedMailbox.value?.id !== mailbox?.id) selectedMailbox.value = mailbox
   if (mailbox) {
     mailboxes.value = mailboxes.value.map(item => (item.id === mailbox.id && item !== mailbox ? mailbox : item))
@@ -174,8 +187,11 @@ export function clearMailboxClientState() {
 }
 
 function start() {
-  if (started || !import.meta.client) return
-  started = true
+  if (!import.meta.client) return
+  const state = local()
+  if (state.started) return
+  state.started = true
+  const { mailboxes, selectedMailbox, isLoading } = useMailboxState()
   void loadMailboxes()
 
   window.addEventListener(AUTH_SESSION_CHANGED_EVENT, (event) => {
@@ -205,6 +221,7 @@ function start() {
 /** `{ selectedMailbox, mailboxes, isLoading, setSelectedMailbox }`, shared app-wide. */
 export function useSelectedMailbox() {
   start()
+  const { mailboxes, selectedMailbox, isLoading } = useMailboxState()
   return {
     selectedMailbox: computed(() => selectedMailbox.value),
     mailboxes: computed(() => mailboxes.value),

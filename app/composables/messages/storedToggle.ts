@@ -3,8 +3,6 @@
 // newest-first toggles, which all default to on and store "on" / "off".
 import type { Ref } from 'vue'
 
-const toggles = new Map<string, Ref<boolean>>()
-
 function readStored(key: string): boolean {
   try {
     return localStorage.getItem(key) !== 'off'
@@ -15,20 +13,16 @@ function readStored(key: string): boolean {
 }
 
 export function useStoredToggle(key: string, changeEvent: string): [Readonly<Ref<boolean>>, (next: boolean) => void] {
-  let state = toggles.get(key)
-  if (!state) {
-    const created = ref(import.meta.client ? readStored(key) : true)
-    state = created
-    toggles.set(key, created)
-    if (import.meta.client) {
-      const sync = () => {
-        created.value = readStored(key)
-      }
-      window.addEventListener(changeEvent, sync)
-      window.addEventListener('storage', sync)
+  const target = useState(`stored-toggle:${key}`, () => (import.meta.client ? readStored(key) : true))
+  const listening = appScoped('stored-toggles', () => new Set<string>())
+  if (import.meta.client && !listening.has(key)) {
+    listening.add(key)
+    const sync = () => {
+      target.value = readStored(key)
     }
+    window.addEventListener(changeEvent, sync)
+    window.addEventListener('storage', sync)
   }
-  const target = state
   function update(next: boolean) {
     try {
       localStorage.setItem(key, next ? 'on' : 'off')

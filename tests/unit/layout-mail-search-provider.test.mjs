@@ -1,15 +1,20 @@
 // Ported from legacy/tests/layout-mail-search-provider.test.mjs against app/composables/useMailSearch.ts.
 // Upstream kept the search box in a React context, so it checked that every layout mounting a NavItem
 // sidebar wrapped it in MailSearchProvider and that useMailSearch had a fallback outside one. The port
-// keeps the state at module level with no provider, so only the "works anywhere" cases still apply.
+// keeps the state in useState with no provider, so only the "works anywhere" cases still apply.
 import assert from "node:assert/strict";
 import { afterAll, test } from "vitest";
 import { computed, nextTick, ref, watch } from "vue";
 import { importAppModule } from "./helpers/app-module.mjs";
+import { installNuxtState } from "./helpers/nuxt-state.mjs";
 
-Object.assign(globalThis, { ref, computed, watch, AUTH_SESSION_CHANGED_EVENT: "test-auth-changed" });
-afterAll(() => { for (const name of ["ref", "computed", "watch", "AUTH_SESSION_CHANGED_EVENT"]) delete globalThis[name]; });
-const { useMailSearch } = await importAppModule({ entry: "app/composables/useMailSearch.ts", name: "mail-search", define: { "import.meta.client": "false" } });
+const removeNuxtState = installNuxtState(await import("vue"));
+Object.assign(globalThis, { ref, computed, watch, window: new EventTarget(), AUTH_SESSION_CHANGED_EVENT: "test-auth-changed" });
+afterAll(() => {
+	removeNuxtState();
+	for (const name of ["ref", "computed", "watch", "window", "AUTH_SESSION_CHANGED_EVENT"]) delete globalThis[name];
+});
+const { useMailSearch } = await importAppModule({ entry: "app/composables/useMailSearch.ts", name: "mail-search" });
 
 test("useMailSearch starts empty and works outside any component", () => {
 	const search = useMailSearch();

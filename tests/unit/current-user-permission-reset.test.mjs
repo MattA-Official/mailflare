@@ -7,7 +7,9 @@ import { afterAll, test } from "vitest";
 import { JSDOM } from "jsdom";
 import { readonly, ref } from "vue";
 import { importAppModule } from "./helpers/app-module.mjs";
+import { installNuxtState } from "./helpers/nuxt-state.mjs";
 
+const removeNuxtState = installNuxtState(await import("vue"));
 const dom = new JSDOM("<!doctype html>");
 Object.assign(globalThis, {
 	window: dom.window,
@@ -19,6 +21,7 @@ Object.assign(globalThis, {
 const originalFetch = globalThis.fetch;
 globalThis.fetch = () => globalThis.fetchUserResponse();
 afterAll(() => {
+	removeNuxtState();
 	dom.window.close();
 	globalThis.fetch = originalFetch;
 	for (const name of ["window", "ref", "readonly", "AUTH_SESSION_CHANGED_EVENT", "authFetch", "fetchUserResponse"]) delete globalThis[name];

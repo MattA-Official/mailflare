@@ -2,20 +2,27 @@
 // legacy/src/components/shortcuts (shortcuts-context, use-hotkeys, use-shortcuts-enabled). The layout
 // mounts <AppShortcuts />, which owns the built-in shortcuts and renders the palette and help dialog;
 // pages add theirs with registerShortcut/registerCommand.
-import type { MaybeRefOrGetter } from 'vue'
+import type { MaybeRefOrGetter, ShallowRef } from 'vue'
 import type { CommandItem, ShortcutDefinition } from '~/types/shortcuts'
 import { createHotkeyHandler } from '~/utils/shortcuts/hotkeys'
 
 interface ShortcutsSettingsResponse { enabled?: boolean, error?: unknown }
 
-const enabled = ref(false)
-const preferenceLoading = ref(true)
-const preferenceError = ref<string | null>(null)
-const paletteOpen = ref(false)
-const helpOpen = ref(false)
-const customShortcuts = shallowRef<ShortcutDefinition[]>([])
-const customCommands = shallowRef<CommandItem[]>([])
-let preferenceRequest: Promise<void> | null = null
+function useShortcutsState() {
+  return {
+    enabled: useState('shortcuts-enabled', () => false),
+    preferenceLoading: useState('shortcuts-preference-loading', () => true),
+    preferenceError: useState<string | null>('shortcuts-preference-error', () => null),
+    paletteOpen: useState('shortcuts-palette-open', () => false),
+    helpOpen: useState('shortcuts-help-open', () => false),
+    // Registered shortcuts and commands carry handlers, and unregister compares them by identity,
+    // so the lists are held shallowly.
+    customShortcuts: useState('shortcuts-custom', () => shallowRef<ShortcutDefinition[]>([])) as ShallowRef<ShortcutDefinition[]>,
+    customCommands: useState('shortcuts-commands', () => shallowRef<CommandItem[]>([])) as ShallowRef<CommandItem[]>,
+  }
+}
+
+const local = () => appScoped('shortcuts', () => ({ preferenceRequest: null as Promise<void> | null }))
 
 async function readPreference(response: Response, fallback: string): Promise<boolean> {
   const data = (await response.json().catch(() => ({}))) as ShortcutsSettingsResponse
@@ -24,9 +31,11 @@ async function readPreference(response: Response, fallback: string): Promise<boo
 }
 
 function loadPreference(): Promise<void> {
-  if (!preferenceRequest) {
+  const state = local()
+  const { enabled, preferenceLoading, preferenceError } = useShortcutsState()
+  if (!state.preferenceRequest) {
     preferenceLoading.value = true
-    preferenceRequest = authFetch('/api/settings/shortcuts', { redirectOnUnauthorized: false })
+    state.preferenceRequest = authFetch('/api/settings/shortcuts', { redirectOnUnauthorized: false })
       .then(response => readPreference(response, 'Failed to load shortcut settings'))
       .then((value) => {
         enabled.value = value
@@ -41,12 +50,13 @@ function loadPreference(): Promise<void> {
         preferenceLoading.value = false
       })
   }
-  return preferenceRequest
+  return state.preferenceRequest
 }
 
 if (import.meta.client) {
   window.addEventListener(AUTH_SESSION_CHANGED_EVENT, () => {
-    preferenceRequest = null
+    const { paletteOpen, helpOpen } = useShortcutsState()
+    local().preferenceRequest = null
     paletteOpen.value = false
     helpOpen.value = false
     void loadPreference()
@@ -54,6 +64,7 @@ if (import.meta.client) {
 }
 
 async function setShortcutsEnabled(next: boolean): Promise<void> {
+  const { enabled, preferenceError } = useShortcutsState()
   const previous = enabled.value
   enabled.value = next
   preferenceError.value = null
@@ -88,10 +99,10 @@ export function openCompose() {
   useCompose().openComposer()
 }
 
-const active = computed(() => enabled.value && !preferenceLoading.value)
-
 export function useShortcuts() {
   if (import.meta.client) void loadPreference()
+  const { enabled, preferenceLoading, preferenceError, paletteOpen, helpOpen, customShortcuts, customCommands } = useShortcutsState()
+  const active = computed(() => enabled.value && !preferenceLoading.value)
   return {
     shortcutsEnabled: computed(() => enabled.value),
     shortcutsPreferenceLoading: computed(() => preferenceLoading.value),

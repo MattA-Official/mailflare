@@ -4,11 +4,13 @@ import type { Branding } from '#lib/branding/types'
 
 export const DEFAULT_BRANDING: Branding = { appName: 'Flytower Mail', hasCustomIcon: false, canCustomizeBranding: true }
 
-const branding = ref<Branding>({ ...DEFAULT_BRANDING })
-const iconVersion = ref(0)
-let request: Promise<void> | null = null
+const useBrandingState = () => useState<Branding>('branding', () => ({ ...DEFAULT_BRANDING }))
+const useIconVersion = () => useState('branding-icon-version', () => 0)
+const brandingRequest = () => appScoped('branding', () => ({ request: null as Promise<void> | null }))
 
 async function refreshBranding(): Promise<void> {
+  const branding = useBrandingState()
+  const iconVersion = useIconVersion()
   try {
     const response = await fetch('/api/branding', { cache: 'no-store' })
     branding.value = response.ok ? (await response.json()) as Branding : { ...DEFAULT_BRANDING }
@@ -20,7 +22,10 @@ async function refreshBranding(): Promise<void> {
 
 /** `{ appName, hasCustomIcon, iconUrl }` as refs, plus `refreshBranding()` for the branding page. */
 export function useBranding() {
-  if (import.meta.client && !request) request = refreshBranding()
+  const branding = useBrandingState()
+  const iconVersion = useIconVersion()
+  const pending = brandingRequest()
+  if (import.meta.client && !pending.request) pending.request = refreshBranding()
   return {
     branding: computed(() => branding.value),
     appName: computed(() => branding.value.appName || DEFAULT_BRANDING.appName),
