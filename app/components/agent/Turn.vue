@@ -67,7 +67,7 @@ function approveLabel(proposal: NonNullable<ReturnType<typeof agentActionProposa
       <div v-for="{ item, proposal } in pendingActions" :key="`${item.id}:actions`" class="space-y-2 text-xs">
         <ul v-if="proposal!.emails" class="space-y-1">
           <li v-for="email in proposal!.emails" :key="email.id">
-            <NuxtLink :to="agentEmailLinkHref(email)" class="text-primary hover:underline">{{ email.subject || '(No subject)' }}</NuxtLink>
+            <ULink :to="agentEmailLinkHref(email)" class="text-primary hover:underline">{{ email.subject || '(No subject)' }}</ULink>
           </li>
         </ul>
         <div class="flex flex-wrap items-center justify-end gap-3">

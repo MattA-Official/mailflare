@@ -2,11 +2,10 @@
 // Ported from the RecoveryCodesList in legacy/src/components/settings/two-step-settings.tsx.
 const props = defineProps<{ codes: string[] }>()
 const { t } = useLanguage()
-const copied = ref(false)
+const { copy: copyText, copied } = useCopy()
 
-async function copy() {
-  await navigator.clipboard.writeText(props.codes.join('\n'))
-  copied.value = true
+function copy() {
+  void copyText(props.codes.join('\n'))
 }
 </script>
 

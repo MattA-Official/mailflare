@@ -10,6 +10,7 @@ definePageMeta({ layout: 'dashboard', nav: 'calendar', auth: { feature: 'calenda
 
 const { t } = useLanguage()
 const toast = useToast()
+const { copy } = useCopy()
 useHead({ title: () => t('booking.title') })
 
 const events = ref<BookingEvent[]>([])
@@ -127,12 +128,7 @@ async function copyLink(event: BookingEvent) {
     toast.add({ title: t('booking.usernameUnavailable'), color: 'error' })
     return
   }
-  try {
-    await navigator.clipboard.writeText(`${window.location.origin}/c/${username.value}/${event.slug}`)
-    toast.add({ title: t('booking.linkCopied'), color: 'success' })
-  } catch {
-    toast.add({ title: t('booking.copyFailed'), color: 'error' })
-  }
+  await copy(`${window.location.origin}/c/${username.value}/${event.slug}`, t('booking.linkCopied'))
 }
 
 function editingEvent() {

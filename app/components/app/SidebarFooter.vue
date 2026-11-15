@@ -18,7 +18,7 @@ const host = import.meta.client ? location.hostname : ''
     </UButton>
     <p class="px-1 text-[11px] text-muted">
       {{ t('navigation.poweredBy') }}
-      <a :href="`https://mailflare.co/?ref=${host}&v=${version}`" target="_blank" rel="noreferrer" class="hover:underline">Mailflare v{{ version }}</a>
+      <ULink :to="`https://mailflare.co/?ref=${host}&v=${version}`" target="_blank" rel="noreferrer" class="text-muted hover:underline">Mailflare v{{ version }}</ULink>
     </p>
   </div>
 </template>

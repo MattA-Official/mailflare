@@ -4,12 +4,11 @@ import { buildMcpAgentPrompt } from '~/utils/admin/system/settings'
 
 const props = defineProps<{ mode: 'mail' | 'admin', apiKey: string }>()
 const { t } = useLanguage()
-const copied = ref(false)
+const { copy: copyText, copied } = useCopy()
 const prompt = computed(() => buildMcpAgentPrompt(window.location.origin, props))
 
-async function copy() {
-  await navigator.clipboard.writeText(prompt.value)
-  copied.value = true
+function copy() {
+  void copyText(prompt.value)
 }
 </script>
 

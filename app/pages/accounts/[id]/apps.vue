@@ -69,9 +69,9 @@ async function save(app: AccountApp) {
     <UCard v-for="app in data?.apps ?? []" :key="app.id" :ui="{ body: 'p-0 sm:p-0' }">
       <template #header>
         <div class="flex items-center gap-2">
-          <NuxtLink :to="`/apps/${app.id}`" class="text-sm font-semibold text-highlighted hover:underline">
+          <ULink :to="`/apps/${app.id}`" class="text-sm font-semibold text-highlighted hover:underline">
             {{ app.name }}
-          </NuxtLink>
+          </ULink>
           <UBadge v-if="app.disabled" color="warning" variant="subtle" :label="t('oidc.apps.off')" />
           <UBadge v-if="!(drafts[app.id]?.length)" color="neutral" variant="outline" :label="t('oidc.account.noRoles')" />
         </div>

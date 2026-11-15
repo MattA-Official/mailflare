@@ -22,7 +22,7 @@ const standardScopes = ref<ApiKeyScope[]>(['read'])
 const mcpScopes = ref<McpKeyScope[]>(['mcp:read'])
 const mailboxIds = ref<string[]>([])
 const newKey = ref<string | null>(null)
-const copied = ref(false)
+const { copy, copied } = useCopy()
 
 const { data: keys, status, error: loadError, refresh } = useAsyncData<ManagedApiKey[]>('settings-api-keys', loadManagedApiKeys, { default: () => [] })
 const loading = computed(() => status.value === 'pending' && keys.value.length === 0)
@@ -52,7 +52,6 @@ const dialogOpen = computed({
     }
     if (!open) {
       newKey.value = null
-      copied.value = false
     }
   },
 })
@@ -80,7 +79,6 @@ async function create() {
     const secret = await createManagedApiKey({ name: name.value.trim(), mcpAllowed: mcpAllowed.value, scopes: mcpAllowed.value ? mcpScopes.value : standardScopes.value, mailboxIds: mailboxIds.value })
     newKey.value = secret
     createdMcpAllowed.value = mcpAllowed.value
-    copied.value = false
     name.value = ''
     keys.value = await loadManagedApiKeys()
   } catch (cause) {
@@ -104,10 +102,8 @@ async function revoke(key: ManagedApiKey) {
   }
 }
 
-async function copyKey() {
-  if (!newKey.value) return
-  await navigator.clipboard.writeText(newKey.value)
-  copied.value = true
+function copyKey() {
+  if (newKey.value) void copy(newKey.value)
 }
 
 function mailboxList(key: ManagedApiKey) {

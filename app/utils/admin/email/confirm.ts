@@ -1,16 +1,13 @@
 // Promise-based confirmations for the admin email pages, in place of upstream's window.confirm.
-// Call from setup(): the overlay is created once per component.
-import ConfirmModal from '~/components/admin/email/ConfirmModal.vue'
+// They open the app's shared confirm modal (utils/confirm-dialog).
 import type { MxReplaceConfirm } from './domains'
 
-type ConfirmOptions = InstanceType<typeof ConfirmModal>['$props']
+type AdminConfirmOptions = Parameters<typeof openConfirmModal>[0] & { description?: string }
 
 export function useAdminConfirm() {
-  const overlay = useOverlay()
-  const modal = overlay.create(ConfirmModal)
   const { t } = useLanguage()
 
-  const confirm = async (options: ConfirmOptions): Promise<boolean> => (await modal.open(options).result) === true
+  const confirm = ({ description, ...options }: AdminConfirmOptions): Promise<boolean> => openConfirmModal({ ...options, message: description ?? options.message })
 
   /** Asks before replacing another service's MX records (the 409 MX_CONFLICT flow). */
   const confirmMxReplacement: MxReplaceConfirm = (message, records) => confirm({

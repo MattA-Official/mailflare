@@ -24,7 +24,7 @@ const rotateOpen = ref(false)
 const rotating = ref(false)
 const deleteOpen = ref(false)
 const deleting = ref(false)
-const copied = ref<string | null>(null)
+const { copy, copiedValue: copied } = useCopy()
 
 const discoveryUrl = computed(() => discovery.value ? `${discovery.value.issuer}/.well-known/openid-configuration` : '')
 const roleLabels = computed(() => new Map((data.value?.app.roles ?? []).map(role => [role.key, role.label])))
@@ -71,10 +71,6 @@ async function remove() {
   }
 }
 
-async function copy(value: string) {
-  await navigator.clipboard.writeText(value)
-  copied.value = value
-}
 </script>
 
 <template>
