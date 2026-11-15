@@ -1,6 +1,6 @@
-// Fork-only. Everyone in the directory, loaded once and kept for a few minutes, so mail views can show a
+// Fork-only. Everyone in the directory (and its groups), loaded once and kept for a few minutes, so mail views can show a
 // colleague's directory name, title and department without a request per address.
-import { fetchDirectory, type DirectoryListPerson } from '~/utils/directory/directory'
+import { fetchDirectory, type DirectoryListGroup, type DirectoryListPerson } from '~/utils/directory/directory'
 import { appScoped } from '~/utils/app-scoped'
 import { getEmailAddress } from '#lib/email/address'
 
@@ -8,6 +8,7 @@ const STALE_AFTER_MS = 5 * 60_000
 
 export function useDirectoryPeople() {
   const people = useState<DirectoryListPerson[]>('directory-people', () => [])
+  const groups = useState<DirectoryListGroup[]>('directory-groups', () => [])
   const loader = appScoped('directory-people-loader', () => ({ loadedAt: 0, pending: null as Promise<void> | null }))
 
   function load() {
@@ -15,6 +16,7 @@ export function useDirectoryPeople() {
     loader.pending = fetchDirectory()
       .then((result) => {
         people.value = result.people
+        groups.value = result.groups
         loader.loadedAt = Date.now()
       })
       // A failed load leaves mail views as they were and tries again next time.
@@ -36,5 +38,5 @@ export function useDirectoryPeople() {
     return address ? byAddress.value.get(getEmailAddress(address).trim().toLowerCase()) ?? null : null
   }
 
-  return { people, load, find }
+  return { people, groups, load, find }
 }
