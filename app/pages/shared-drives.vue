@@ -73,37 +73,26 @@ async function create() {
     </div>
     <template v-else>
       <UEmpty v-if="!active.length" variant="outline" icon="i-lucide-hard-drive" :description="t('sharedDrives.noneAdmin')" />
-      <ul v-else class="divide-y divide-default overflow-hidden rounded-lg border border-default bg-default">
-        <li v-for="drive in active" :key="drive.id">
-          <NuxtLink :to="`/drive?drive=${encodeURIComponent(drive.id)}`" class="flex items-center gap-4 px-5 py-4 hover:bg-elevated/50">
-            <UAvatar icon="i-lucide-hard-drive" color="primary" size="xl" />
-            <span class="min-w-0 flex-1 space-y-0.5">
-              <strong class="block truncate text-sm font-semibold text-highlighted">{{ drive.name }}</strong>
-              <span class="block truncate text-xs text-muted">
-                {{ drive.storageLimitBytes ? t('sharedDrives.usage', { used: formatDriveSize(drive.storageUsed), total: formatDriveSize(drive.storageLimitBytes) }) : t('sharedDrives.storageUsed', { size: formatDriveSize(drive.storageUsed) }) }}
-                <template v-if="!drive.managerCount"> · <span class="text-warning">{{ t('sharedDrives.noManager') }}</span></template>
-              </span>
-            </span>
-            <span class="hidden shrink-0 text-sm text-muted sm:block">{{ t('sharedDrives.groupCount', { count: drive.groupCount }) }}</span>
-            <span class="shrink-0 text-sm text-muted">{{ t('sharedDrives.peopleCount', { count: drive.peopleCount }) }}</span>
-            <UIcon name="i-lucide-chevron-right" class="size-4 shrink-0 text-muted" />
-          </NuxtLink>
-        </li>
-      </ul>
+      <AppList v-else>
+        <AppListItem v-for="drive in active" :key="drive.id" :to="`/drive?drive=${encodeURIComponent(drive.id)}`" icon="i-lucide-hard-drive" :name="drive.name">
+          <template #description>
+            {{ drive.storageLimitBytes ? t('sharedDrives.usage', { used: formatDriveSize(drive.storageUsed), total: formatDriveSize(drive.storageLimitBytes) }) : t('sharedDrives.storageUsed', { size: formatDriveSize(drive.storageUsed) }) }}
+            <template v-if="!drive.managerCount"> · <span class="text-warning">{{ t('sharedDrives.noManager') }}</span></template>
+          </template>
+          <span class="hidden shrink-0 text-sm text-muted sm:block">{{ t('sharedDrives.groupCount', { count: drive.groupCount }) }}</span>
+          <span class="shrink-0 text-sm text-muted">{{ t('sharedDrives.peopleCount', { count: drive.peopleCount }) }}</span>
+        </AppListItem>
+      </AppList>
 
       <section v-if="deleted.length" class="space-y-3">
         <h2 class="text-sm font-semibold text-highlighted">
           {{ t('sharedDrives.deletedTitle') }}
         </h2>
-        <ul class="divide-y divide-default overflow-hidden rounded-lg border border-default bg-default">
-          <li v-for="drive in deleted" :key="drive.id" class="flex items-center gap-4 px-5 py-4">
-            <span class="min-w-0 flex-1 space-y-0.5">
-              <strong class="block truncate text-sm font-semibold text-highlighted">{{ drive.name }}</strong>
-              <span v-if="drive.purgeAt" class="block truncate text-xs text-muted">{{ t('sharedDrives.removedOn', { date: formatDate(drive.purgeAt) }) }}</span>
-            </span>
+        <AppList>
+          <AppListItem v-for="drive in deleted" :key="drive.id" :name="drive.name" :description="drive.purgeAt ? t('sharedDrives.removedOn', { date: formatDate(drive.purgeAt) }) : undefined">
             <UButton color="neutral" variant="outline" :loading="restoring === drive.id" :disabled="!!restoring" :label="t('sharedDrives.restore')" @click="restore(drive.id)" />
-          </li>
-        </ul>
+          </AppListItem>
+        </AppList>
       </section>
     </template>
 

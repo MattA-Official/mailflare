@@ -42,7 +42,7 @@ async function remove(id: string) {
       <USkeleton v-for="n in 3" :key="n" class="h-24 w-full rounded-lg" />
     </div>
     <UEmpty v-else-if="!data?.domains.length" variant="outline" icon="i-lucide-globe" :title="t('domains.none')" />
-    <ul v-else class="divide-y divide-default overflow-hidden rounded-lg border border-default bg-default">
+    <AppList v-else>
       <AdminEmailDomainItemCard
         v-for="domain in data.domains"
         :key="domain.id"
@@ -54,6 +54,6 @@ async function remove(id: string) {
         @changed="refresh()"
         @remove="remove(domain.id)"
       />
-    </ul>
+    </AppList>
   </AppPage>
 </template>

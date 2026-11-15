@@ -41,39 +41,28 @@ async function restore(id: string) {
     </div>
     <template v-else>
       <UEmpty v-if="!active.length" variant="outline" icon="i-lucide-inbox" :description="t('sharedInboxes.none')" />
-      <ul v-else class="divide-y divide-default overflow-hidden rounded-lg border border-default bg-default">
-        <li v-for="inbox in active" :key="inbox.id">
-          <NuxtLink :to="`/mailboxes/${inbox.id}`" class="flex items-center gap-4 px-5 py-4 hover:bg-elevated/50">
-            <UAvatar icon="i-lucide-inbox" color="primary" size="xl" />
-            <span class="min-w-0 flex-1 space-y-0.5">
-              <strong class="block truncate text-sm font-semibold text-highlighted">{{ inbox.displayName || inbox.address }}</strong>
-              <span class="block truncate text-xs text-muted">{{ inbox.address }}</span>
-              <span v-if="inbox.managers.length" class="block truncate text-xs text-muted">
-                {{ t('sharedInboxes.managedBy', { names: inbox.managers.map(manager => manager.name).join(', ') }) }}
-              </span>
-            </span>
-            <span class="hidden shrink-0 text-sm text-muted sm:block">{{ t('sharedInboxes.groupCount', { count: inbox.groupCount }) }}</span>
-            <span class="shrink-0 text-sm text-muted">{{ t('sharedInboxes.peopleCount', { count: inbox.peopleCount }) }}</span>
-            <UIcon name="i-lucide-chevron-right" class="size-4 shrink-0 text-muted" />
-          </NuxtLink>
-        </li>
-      </ul>
+      <AppList v-else>
+        <AppListItem v-for="inbox in active" :key="inbox.id" :to="`/mailboxes/${inbox.id}`" icon="i-lucide-inbox" :name="inbox.displayName || inbox.address">
+          <template #description>
+            {{ inbox.address }}
+            <template v-if="inbox.managers.length">
+              · {{ t('sharedInboxes.managedBy', { names: inbox.managers.map(manager => manager.name).join(', ') }) }}
+            </template>
+          </template>
+          <span class="hidden shrink-0 text-sm text-muted sm:block">{{ t('sharedInboxes.groupCount', { count: inbox.groupCount }) }}</span>
+          <span class="shrink-0 text-sm text-muted">{{ t('sharedInboxes.peopleCount', { count: inbox.peopleCount }) }}</span>
+        </AppListItem>
+      </AppList>
 
       <section v-if="deleted.length" class="space-y-3">
         <h2 class="text-sm font-semibold text-highlighted">
           {{ t('sharedInboxes.deletedTitle') }}
         </h2>
-        <ul class="divide-y divide-default overflow-hidden rounded-lg border border-default bg-default">
-          <li v-for="inbox in deleted" :key="inbox.id" class="flex items-center gap-4 px-5 py-4">
-            <span class="min-w-0 flex-1 space-y-0.5">
-              <strong class="block truncate text-sm font-semibold text-highlighted">{{ inbox.displayName || inbox.address }}</strong>
-              <span class="block truncate text-xs text-muted">
-                {{ inbox.purgeAt ? t('sharedInboxes.removedOn', { date: formatDate(inbox.purgeAt) }) : inbox.address }}
-              </span>
-            </span>
+        <AppList>
+          <AppListItem v-for="inbox in deleted" :key="inbox.id" :name="inbox.displayName || inbox.address" :description="inbox.purgeAt ? t('sharedInboxes.removedOn', { date: formatDate(inbox.purgeAt) }) : inbox.address">
             <UButton color="neutral" variant="outline" :loading="restoring === inbox.id" :disabled="!!restoring" :label="t('sharedInboxes.restore')" @click="restore(inbox.id)" />
-          </li>
-        </ul>
+          </AppListItem>
+        </AppList>
         <UAlert v-if="restoreError" role="alert" color="error" variant="subtle" :title="restoreError" />
       </section>
     </template>
