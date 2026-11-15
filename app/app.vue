@@ -1,6 +1,11 @@
 <script setup lang="ts">
 const { appName, iconUrl } = useBranding()
 const { locale, dir } = useLanguage()
+const uiLocale = shallowRef<Awaited<ReturnType<typeof loadUiLocale>>>()
+watch(locale, async (code) => {
+  const next = await loadUiLocale(code).catch(() => undefined)
+  if (code === locale.value) uiLocale.value = next
+}, { immediate: true })
 
 useHead({
   // The language plugin sets these before the first render; keeping them in the head stops Unhead
@@ -17,7 +22,7 @@ useHead({
 </script>
 
 <template>
-  <UApp>
+  <UApp :locale="uiLocale">
     <NuxtLoadingIndicator />
     <!-- Reads each new page title to screen readers after a client-side navigation. -->
     <NuxtRouteAnnouncer />
