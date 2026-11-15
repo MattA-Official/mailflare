@@ -395,7 +395,7 @@ const sortColumns = computed(() => [
           :aria-label="!failed && !loading && sorted.length ? t('drive.title') : undefined"
           class="min-h-0 flex-1 space-y-px overflow-y-auto overscroll-contain px-2 pt-px"
         >
-          <p v-if="failed" class="p-8 text-center text-sm text-muted">{{ driveId && !folder ? t('sharedDrives.notFound') : t('drive.loadFailed') }}</p>
+          <UEmpty v-if="failed" variant="naked" icon="i-lucide-folder-x" :title="driveId && !folder ? t('sharedDrives.notFound') : t('drive.loadFailed')" />
           <template v-else-if="loading">
             <div v-for="index in 8" :key="index" aria-hidden="true" :style="gridStyle" :class="gridClass" class="px-3 py-3.5">
               <USkeleton class="ml-1 size-4" />
@@ -406,7 +406,7 @@ const sortColumns = computed(() => [
               <span />
             </div>
           </template>
-          <p v-else-if="!sorted.length" class="p-12 text-center text-sm text-muted">{{ emptyText }}</p>
+          <UEmpty v-else-if="!sorted.length" variant="naked" icon="i-lucide-folder-open" :title="emptyText" class="py-16" />
           <div
             v-for="item in sorted"
             v-else

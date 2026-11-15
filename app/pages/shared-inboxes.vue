@@ -40,9 +40,7 @@ async function restore(id: string) {
       <USkeleton v-for="index in 2" :key="index" class="h-16 w-full rounded-lg" />
     </div>
     <template v-else>
-      <p v-if="!active.length" class="rounded-lg border border-default bg-default px-5 py-4 text-sm text-muted">
-        {{ t('sharedInboxes.none') }}
-      </p>
+      <UEmpty v-if="!active.length" variant="outline" icon="i-lucide-inbox" :description="t('sharedInboxes.none')" />
       <ul v-else class="divide-y divide-default overflow-hidden rounded-lg border border-default bg-default">
         <li v-for="inbox in active" :key="inbox.id">
           <NuxtLink :to="`/mailboxes/${inbox.id}`" class="flex items-center gap-4 px-5 py-4 hover:bg-elevated/50">

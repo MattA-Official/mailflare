@@ -50,11 +50,8 @@ useHead({ title: () => name.value ? t('public.bookMeetingWith', { name: name.val
           <USkeleton class="mt-3 h-3 w-1/3" />
         </UCard>
       </div>
-      <UCard v-else-if="error || events.length === 0">
-        <p class="text-sm text-toned">
-          {{ error || t('public.noMeetings') }}
-        </p>
-      </UCard>
+      <UAlert v-else-if="error" role="alert" color="error" variant="subtle" :title="error" />
+      <UEmpty v-else-if="events.length === 0" variant="outline" icon="i-lucide-calendar-x" :description="t('public.noMeetings')" />
       <div v-else class="space-y-3">
         <NuxtLink
           v-for="event in events"

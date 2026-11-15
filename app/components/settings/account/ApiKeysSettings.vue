@@ -142,11 +142,7 @@ const revokeOpen = computed({ get: () => confirmRevoke.value !== null, set: (v) 
 
     <section class="space-y-3">
       <USkeleton v-if="loading" class="h-20 w-full rounded-lg" />
-      <UCard v-else-if="keys.length === 0">
-        <p class="text-sm text-muted">
-          {{ t('apiKeys.none') }}
-        </p>
-      </UCard>
+      <UEmpty v-else-if="keys.length === 0" variant="outline" icon="i-lucide-key-round" :title="t('apiKeys.none')" />
       <UCard v-else :ui="{ body: 'p-0 sm:p-0' }">
         <ul class="divide-y divide-default">
           <li v-for="key in keys" :key="key.id" class="flex items-start gap-4 px-5 py-4">

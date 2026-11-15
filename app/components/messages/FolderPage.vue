@@ -388,9 +388,13 @@ function dragIdsFor(messageId: string) {
           <USkeleton class="h-4 flex-1" />
         </div>
       </div>
-      <p v-if="!isLoading && messages.length === 0" class="px-6 py-4 text-sm text-muted">
-        {{ hasActiveFilters ? t('list.noMatch') : config.emptyTextKey ? t(config.emptyTextKey) : config.emptyText }}
-      </p>
+      <UEmpty
+        v-if="!isLoading && messages.length === 0"
+        variant="naked"
+        :icon="hasActiveFilters ? 'i-lucide-search-x' : 'i-lucide-inbox'"
+        :title="hasActiveFilters ? t('list.noMatch') : config.emptyTextKey ? t(config.emptyTextKey) : config.emptyText"
+        class="py-16"
+      />
     </template>
   </UDashboardPanel>
 </template>

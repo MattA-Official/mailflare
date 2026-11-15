@@ -41,9 +41,7 @@ async function remove(id: string) {
     <div v-if="status === 'pending' && !data" class="space-y-2">
       <USkeleton v-for="n in 3" :key="n" class="h-24 w-full rounded-lg" />
     </div>
-    <UCard v-else-if="!data?.domains.length" :ui="{ body: 'text-sm text-muted' }">
-      {{ t('domains.none') }}
-    </UCard>
+    <UEmpty v-else-if="!data?.domains.length" variant="outline" icon="i-lucide-globe" :title="t('domains.none')" />
     <ul v-else class="divide-y divide-default overflow-hidden rounded-lg border border-default bg-default">
       <AdminEmailDomainItemCard
         v-for="domain in data.domains"

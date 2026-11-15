@@ -51,7 +51,7 @@ useHead({ title: () => data.value?.item.name ?? t('drive.title') })
         <DrivePreviewBody class="min-h-0 flex-1" :src="publicContentUrl(token, data.item.id)" :download-href="publicContentUrl(token, data.item.id, true)" :content-type="data.item.contentType" :name="data.item.name" />
       </div>
       <div v-else class="rounded-2xl bg-default p-2">
-        <p v-if="!entries.length" class="p-10 text-center text-sm text-muted">{{ t('drive.empty') }}</p>
+        <UEmpty v-if="!entries.length" variant="naked" icon="i-lucide-folder-open" :title="t('drive.empty')" />
         <div v-for="entry in entries" :key="entry.id" class="flex items-center gap-4 rounded-lg px-3 text-sm hover:bg-elevated">
           <button type="button" class="flex min-w-0 flex-1 items-center gap-4 py-3 text-left" @click="itemId = entry.id">
             <UIcon :name="driveIconFor(entry).icon" class="size-4 shrink-0" :class="[driveIconFor(entry).className, entry.kind === 'folder' && 'fill-current']" />
