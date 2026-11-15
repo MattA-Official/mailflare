@@ -678,7 +678,7 @@ const iconButton = 'rounded-md p-1.5 hover:bg-elevated disabled:pointer-events-n
     ref="form"
     :class="[frameClass, closing && 'compose-sheet-closing']"
     :style="dragY ? { transform: `translateY(${dragY}px)`, transition: 'none' } : undefined"
-    :role="modalMode && !minimized ? 'dialog' : isPopup ? 'region' : undefined"
+    :role="modalMode && !minimized ? 'dialog' : undefined"
     :aria-modal="(modalMode && !minimized) || undefined"
     :aria-label="isPopup ? t('compose.dialogLabel') : undefined"
     novalidate

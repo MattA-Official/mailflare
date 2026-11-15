@@ -9,9 +9,9 @@ const open = ref(false)
 
 <template>
   <UPopover v-if="selectedMailbox" v-model:open="open" :content="{ align: 'start', sideOffset: 8 }" :ui="{ content: 'w-(--reka-popover-trigger-width) p-1 max-h-72 overflow-y-auto' }">
+    <!-- Named by the inbox it shows, so speech input can target the visible text. -->
     <button
       type="button"
-      :aria-label="t('settings.account.switchInbox')"
       class="flex w-full items-center gap-3 rounded-lg border border-default px-4 py-3 text-start transition-colors hover:bg-elevated/50"
     >
       <SettingsAccountMailboxAvatar :mailbox="selectedMailbox" />

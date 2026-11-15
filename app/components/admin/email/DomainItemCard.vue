@@ -145,7 +145,7 @@ const statusLabel = computed(() => props.item.status === 'active' ? t('dns.statu
             :label="t('domains.badge.routing')"
           />
           <UBadge v-else color="neutral" variant="soft" class="opacity-50" :label="t('domains.badge.sendingOnly')" />
-          <UBadge v-if="item.sendingProvider === 'none'" color="neutral" variant="soft" class="opacity-50" :label="t('domains.badge.receivingOnly')" />
+          <UBadge v-if="item.sendingProvider === 'none'" color="neutral" variant="soft" :label="t('domains.badge.receivingOnly')" />
           <UBadge
             v-else
             color="neutral"

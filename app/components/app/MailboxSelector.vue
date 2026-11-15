@@ -126,7 +126,7 @@ const menuButton = {
       block
       :square="collapsed"
       class="justify-start"
-      :aria-label="t('account.openMenu')"
+      :aria-label="collapsed ? t('account.openMenu') : undefined"
       :trailing-icon="collapsed ? undefined : 'i-lucide-chevrons-up-down'"
     >
       <USkeleton v-if="identityPending && !user" class="size-8 rounded-full" />

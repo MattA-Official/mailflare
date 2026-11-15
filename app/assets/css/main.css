@@ -35,10 +35,20 @@
 :root {
   /* Amber 700 on light grounds (5.8:1 on white); 400 on dark. */
   --ui-primary: var(--ui-color-primary-700);
+  /* The status colours follow suit: Nuxt UI's 500 shades fall below 4.5:1 as text on white and on
+     their own soft badges (green was 2:1). 700 passes on both. Dark mode restates Nuxt UI's 400 below, as this rule comes later. */
+  --ui-success: var(--ui-color-success-700);
+  --ui-info: var(--ui-color-info-700);
+  --ui-warning: var(--ui-color-warning-700);
+  --ui-error: var(--ui-color-error-700);
 }
 
 .dark {
   --ui-primary: var(--ui-color-primary-400);
+  --ui-success: var(--ui-color-success-400);
+  --ui-info: var(--ui-color-info-400);
+  --ui-warning: var(--ui-color-warning-400);
+  --ui-error: var(--ui-color-error-400);
   --ui-bg: var(--ui-color-neutral-950);
   --ui-bg-elevated: var(--ui-color-neutral-900);
 }
