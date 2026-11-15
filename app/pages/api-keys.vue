@@ -92,22 +92,21 @@ async function revoke() {
       :title="t('apiKeys.none')"
       :actions="[{ label: t('apiKeys.new'), icon: 'i-lucide-plus', color: 'neutral', variant: 'outline', onClick: () => { createOpen = true } }]"
     />
-    <ul v-else class="divide-y divide-default overflow-hidden rounded-lg border border-default bg-default">
-      <li v-for="key in apiKeys" :key="key.id" class="flex items-center gap-4 px-5 py-4">
-        <UAvatar icon="i-lucide-key-round" color="primary" size="xl" />
-        <span class="min-w-0 flex-1 space-y-2">
-          <span class="flex min-w-0 flex-wrap items-center gap-2">
-            <strong class="truncate text-sm font-semibold text-highlighted">{{ key.name }}</strong>
-            <UBadge v-if="key.kind === 'mcp'" color="neutral" variant="outline" label="MCP" />
-          </span>
-          <span class="block truncate text-sm text-muted">{{ key.prefix }}...</span>
-          <span class="flex flex-wrap gap-1">
+    <AppList v-else>
+      <AppListItem v-for="key in apiKeys" :key="key.id" icon="i-lucide-key-round" >
+        <template #name>
+          {{ key.name }}
+          <UBadge v-if="key.kind === 'mcp'" color="neutral" variant="outline" label="MCP" class="ms-2 align-middle" />
+        </template>
+        <template #description>
+          {{ key.prefix }}...
+          <span class="mt-1 flex flex-wrap gap-1">
             <UBadge v-for="scope in parseApiKeyScopes(key.scopes)" :key="scope" color="neutral" variant="outline" :label="scope" />
           </span>
-        </span>
+        </template>
         <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-trash-2" :loading="revoking === key.id" :disabled="!!revoking" :label="t('common.revoke')" @click="confirmRevoke = { id: key.id, name: key.name }" />
-      </li>
-    </ul>
+      </AppListItem>
+    </AppList>
 
     <UModal v-model:open="createOpen" :dismissible="!creating" :title="newKey ? t('apiKeys.createdTitle') : t('apiKeys.createTitle')" :description="newKey ? t('apiKeys.copyNow') : t('apiKeys.nameAndAccess')" scrollable>
       <template #body>

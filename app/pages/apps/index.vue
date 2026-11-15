@@ -62,26 +62,22 @@ async function copy(value: string) {
       :description="t('oidc.apps.none')"
       :actions="[{ label: t('oidc.apps.new'), icon: 'i-lucide-plus', color: 'neutral', variant: 'outline', onClick: () => { createOpen = true } }]"
     />
-    <ul v-else class="divide-y divide-default overflow-hidden rounded-lg border border-default bg-default">
-      <li v-for="app in apps" :key="app.id">
-        <NuxtLink :to="`/apps/${app.id}`" class="flex items-center gap-4 px-5 py-4 hover:bg-elevated/50">
-          <UAvatar icon="i-lucide-app-window" color="primary" size="xl" />
-          <span class="min-w-0 flex-1 space-y-1">
-            <span class="flex min-w-0 flex-wrap items-center gap-2">
-              <strong class="truncate text-sm font-semibold text-highlighted">{{ app.name }}</strong>
-              <UBadge v-if="app.disabled" color="warning" variant="subtle" :label="t('oidc.apps.off')" />
-              <UBadge v-if="!app.confidential" color="neutral" variant="outline" :label="t('oidc.apps.public')" />
-            </span>
-            <span class="block truncate font-mono text-xs text-muted">{{ app.clientId }}</span>
-            <span class="flex flex-wrap gap-1">
-              <UBadge v-for="role in app.roles" :key="role.key" color="neutral" variant="outline" :label="role.label" />
-            </span>
+    <AppList v-else>
+      <AppListItem v-for="app in apps" :key="app.id" :to="`/apps/${app.id}`" icon="i-lucide-app-window">
+        <template #name>
+          {{ app.name }}
+          <UBadge v-if="app.disabled" color="warning" variant="subtle" :label="t('oidc.apps.off')" class="ms-2 align-middle" />
+          <UBadge v-if="!app.confidential" color="neutral" variant="outline" :label="t('oidc.apps.public')" class="ms-2 align-middle" />
+        </template>
+        <template #description>
+          <span class="font-mono">{{ app.clientId }}</span>
+          <span v-if="app.roles.length" class="mt-1 flex flex-wrap gap-1">
+            <UBadge v-for="role in app.roles" :key="role.key" color="neutral" variant="outline" :label="role.label" />
           </span>
-          <span class="shrink-0 text-sm text-muted">{{ t('oidc.apps.members', { count: app.memberCount ?? 0 }) }}</span>
-          <UIcon name="i-lucide-chevron-right" class="size-4 shrink-0 text-muted" />
-        </NuxtLink>
-      </li>
-    </ul>
+        </template>
+        <span class="shrink-0 text-sm text-muted">{{ t('oidc.apps.members', { count: app.memberCount ?? 0 }) }}</span>
+      </AppListItem>
+    </AppList>
 
     <UModal v-model:open="createOpen" :dismissible="!creating" :title="created ? t('oidc.apps.createdTitle') : t('oidc.apps.createTitle')" :description="created ? (created.clientSecret ? t('oidc.apps.copySecret') : '') : t('oidc.apps.createDescription')" scrollable>
       <template #body>

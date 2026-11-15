@@ -55,20 +55,12 @@ async function create() {
       :description="data?.canManage ? t('groups.none') : t('groups.noneReadOnly')"
       :actions="data?.canManage ? [{ label: t('groups.new'), icon: 'i-lucide-plus', color: 'neutral', variant: 'outline', onClick: () => { createOpen = true } }] : undefined"
     />
-    <ul v-else class="divide-y divide-default overflow-hidden rounded-lg border border-default bg-default">
-      <li v-for="group in data.groups" :key="group.id">
-        <NuxtLink :to="`/groups/${group.id}`" class="flex items-center gap-4 px-5 py-4 hover:bg-elevated/50">
-          <UAvatar icon="i-lucide-network" color="primary" size="xl" />
-          <span class="min-w-0 flex-1 space-y-0.5">
-            <strong class="block truncate text-sm font-semibold text-highlighted">{{ group.name }}</strong>
-            <span v-if="group.description" class="block truncate text-xs text-muted">{{ group.description }}</span>
-          </span>
-          <span class="hidden shrink-0 text-sm text-muted sm:block">{{ t('groups.inboxCount', { count: group.mailboxCount }) }}</span>
-          <span class="shrink-0 text-sm text-muted">{{ t('groups.memberCount', { count: group.memberCount }) }}</span>
-          <UIcon name="i-lucide-chevron-right" class="size-4 shrink-0 text-muted" />
-        </NuxtLink>
-      </li>
-    </ul>
+    <AppList v-else>
+      <AppListItem v-for="group in data.groups" :key="group.id" :to="`/groups/${group.id}`" icon="i-lucide-network" :name="group.name" :description="group.description ?? undefined">
+        <span class="hidden shrink-0 text-sm text-muted sm:block">{{ t('groups.inboxCount', { count: group.mailboxCount }) }}</span>
+        <span class="shrink-0 text-sm text-muted">{{ t('groups.memberCount', { count: group.memberCount }) }}</span>
+      </AppListItem>
+    </AppList>
 
     <UModal v-model:open="createOpen" :dismissible="!creating" :title="t('groups.createTitle')" :description="t('groups.createDescription')">
       <template #body>
