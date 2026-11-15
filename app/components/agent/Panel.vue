@@ -43,6 +43,28 @@ const error = ref<string | null>(null)
 const approvingId = ref<string | null>(null)
 const draftReview = ref<{ approvalId: string, snapshot: ReviewSnapshot, draftId: string } | null>(null)
 const menuOpen = ref(false)
+const menuItems = computed(() => [
+  [{ label: t('agent.panel.newChat'), icon: 'i-lucide-plus', onSelect: startNewChat }],
+  conversations.value.length
+    ? [
+        { type: 'label' as const, label: t('agent.panel.previousChats') },
+        ...conversations.value.map(item => ({
+          id: item.id,
+          label: item.title,
+          slot: 'conversation' as const,
+          color: conversationId.value === item.id ? 'primary' as const : undefined,
+          onSelect: () => selectConversation(item.id),
+        })),
+      ]
+    : [{ label: t('agent.panel.noChats'), disabled: true }],
+  [{
+    label: view.value === 'settings' ? t('agent.panel.backToChat') : t('agent.panel.settings'),
+    icon: 'i-lucide-settings-2',
+    onSelect: () => {
+      view.value = view.value === 'settings' ? 'chat' : 'settings'
+    },
+  }],
+])
 const chatScroll = useTemplateRef<HTMLDivElement>('chatScroll')
 const inputRef = useTemplateRef<HTMLTextAreaElement>('inputRef')
 
@@ -445,41 +467,23 @@ const modelItems = computed(() => availableModels.value.map(model => ({ label: m
         <strong class="block truncate text-sm font-semibold">{{ view === 'settings' ? t('agent.panel.settings') : t('agent.panel.assistant') }}</strong>
       </div>
       <div class="flex shrink-0 items-center gap-0.5">
-        <UPopover v-model:open="menuOpen" :content="{ align: 'end' }">
+        <UDropdownMenu v-model:open="menuOpen" :items="menuItems" :content="{ align: 'end' }" :ui="{ content: 'w-72 max-h-96' }">
           <UButton icon="i-lucide-settings-2" :color="view === 'settings' ? 'primary' : 'neutral'" variant="ghost" :aria-label="t('agent.panel.menuLabel')" />
-          <template #content>
-            <div class="flex w-72 flex-col py-2 text-sm">
-              <button type="button" class="flex items-center gap-2 px-4 py-2 text-left hover:bg-elevated" @click="startNewChat">
-                <UIcon name="i-lucide-plus" class="size-4" /> {{ t('agent.panel.newChat') }}
-              </button>
-              <USeparator class="my-2 px-3" />
-              <template v-if="conversations.length">
-                <p class="px-4 pb-1 text-xs font-medium text-muted">{{ t('agent.panel.previousChats') }}</p>
-                <div class="max-h-64 overflow-y-auto">
-                  <div v-for="item in conversations" :key="item.id" class="group flex items-center hover:bg-elevated" :class="conversationId === item.id ? 'bg-primary/10 text-primary' : ''">
-                    <button type="button" class="min-w-0 flex-1 truncate py-2 pl-4 pr-2 text-left" @click="selectConversation(item.id)">{{ item.title }}</button>
-                    <UButton
-                      icon="i-lucide-trash-2"
-                      color="error"
-                      variant="ghost"
-                      size="sm"
-                      class="mr-2 opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
-                      :aria-label="t('agent.panel.deleteChatLabel', { title: item.title })"
-                      :title="t('agent.panel.deleteChat')"
-                      :disabled="deletingConversationId !== null"
-                      @click="deleteConversation(item.id)"
-                    />
-                  </div>
-                </div>
-              </template>
-              <p v-else class="px-4 py-3 text-muted">{{ t('agent.panel.noChats') }}</p>
-              <USeparator class="my-2 px-3" />
-              <button type="button" class="flex items-center gap-2 px-4 py-2 text-left hover:bg-elevated" @click="view = view === 'settings' ? 'chat' : 'settings'; menuOpen = false">
-                <UIcon name="i-lucide-settings-2" class="size-4" /> {{ view === 'settings' ? t('agent.panel.backToChat') : t('agent.panel.settings') }}
-              </button>
-            </div>
+          <template #conversation-trailing="{ item }">
+            <UButton
+              icon="i-lucide-trash-2"
+              color="error"
+              variant="ghost"
+              size="xs"
+              :aria-label="t('agent.panel.deleteChatLabel', { title: item.label })"
+              :title="t('agent.panel.deleteChat')"
+              :disabled="deletingConversationId !== null"
+              @pointerdown.stop
+              @pointerup.stop
+              @click.stop.prevent="deleteConversation(item.id)"
+            />
           </template>
-        </UPopover>
+        </UDropdownMenu>
         <UButton
           :icon="fullSize ? 'i-lucide-minimize-2' : 'i-lucide-maximize-2'"
           color="neutral"

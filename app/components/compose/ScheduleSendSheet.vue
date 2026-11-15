@@ -40,7 +40,15 @@ function choose(date: Date | null) {
   open.value = false
 }
 
-const rowClass = 'flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-start text-base text-highlighted active:bg-elevated'
+// Sheet rows: large, full-width ghost buttons sized for touch.
+const row = {
+  color: 'neutral',
+  variant: 'ghost',
+  size: 'xl',
+  block: true,
+  class: 'min-h-12 justify-start gap-3 rounded-xl px-3 text-start font-normal text-highlighted',
+  ui: { leadingIcon: 'size-5 text-muted', trailingIcon: 'ms-auto size-5 text-dimmed', label: 'whitespace-normal break-words' },
+} as const
 </script>
 
 <template>
@@ -55,21 +63,14 @@ const rowClass = 'flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-s
     </template>
     <template #body>
       <div v-if="page === 'root'" class="flex flex-col">
-        <button v-if="allowClear && value" type="button" :class="rowClass" @click="choose(null)">
-          <UIcon name="i-lucide-x" class="size-5 text-muted" />{{ t('schedule.clear') }}
-        </button>
-        <button v-for="option in options" :key="option.labelKey" type="button" :class="[rowClass, 'justify-between']" @click="choose(option.value)">
-          <span>{{ t(option.labelKey) }}</span>
-          <span class="text-sm text-muted">{{ formatScheduledSend(option.value) }}</span>
-        </button>
-        <button type="button" :class="[rowClass, 'mt-2 justify-between']" @click="page = 'date'">
-          <span class="flex items-center gap-3"><UIcon name="i-lucide-calendar-clock" class="size-5 text-muted" />{{ pickLabel }}</span>
-          <UIcon name="i-lucide-chevron-right" class="size-5 text-dimmed" />
-        </button>
-        <button v-if="showTemplates" type="button" :class="[rowClass, 'justify-between']" @click="page = 'templates'">
-          <span class="flex items-center gap-3"><UIcon name="i-lucide-file-text" class="size-5 text-muted" />{{ t('template.menu') }}</span>
-          <UIcon name="i-lucide-chevron-right" class="size-5 text-dimmed" />
-        </button>
+        <UButton v-if="allowClear && value" v-bind="row" icon="i-lucide-x" :label="t('schedule.clear')" @click="choose(null)" />
+        <UButton v-for="option in options" :key="option.labelKey" v-bind="row" :label="t(option.labelKey)" @click="choose(option.value)">
+          <template #trailing>
+            <span class="ms-auto text-sm text-muted">{{ formatScheduledSend(option.value) }}</span>
+          </template>
+        </UButton>
+        <UButton v-bind="row" icon="i-lucide-calendar-clock" trailing-icon="i-lucide-chevron-right" :label="pickLabel" class="mt-2" @click="page = 'date'" />
+        <UButton v-if="showTemplates" v-bind="row" icon="i-lucide-file-text" trailing-icon="i-lucide-chevron-right" :label="t('template.menu')" @click="page = 'templates'" />
       </div>
       <div v-else-if="page === 'date'" class="px-2">
         <input
@@ -86,18 +87,14 @@ const rowClass = 'flex min-h-12 w-full items-center gap-3 rounded-xl px-3 text-s
       </div>
       <div v-else class="flex flex-col">
         <p v-if="templates.length === 0" class="px-3 py-3 text-sm text-muted">{{ t('template.none') }}</p>
-        <button
+        <UButton
           v-for="template in templates"
           :key="template.id"
-          type="button"
-          :class="rowClass"
+          v-bind="row"
+          :label="template.subject || t('template.untitled')"
           @click="emit('applyTemplate', templateContent(template)); open = false"
-        >
-          <span class="break-words">{{ template.subject || t('template.untitled') }}</span>
-        </button>
-        <button type="button" :class="[rowClass, 'mt-2 text-primary']" @click="open = false; emit('newTemplate')">
-          <UIcon name="i-lucide-plus" class="size-5" />{{ t('template.new') }}
-        </button>
+        />
+        <UButton v-bind="row" color="primary" icon="i-lucide-plus" :label="t('template.new')" class="mt-2 text-primary" :ui="{ leadingIcon: 'size-5' }" @click="open = false; emit('newTemplate')" />
       </div>
     </template>
   </UDrawer>
