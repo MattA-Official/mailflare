@@ -410,7 +410,7 @@ async function onSubmit() {
   resetComposer()
   const notice = resolveSendNotice(data)
   if (notice.kind === 'undo') {
-    const content = buildSubjectNotice('compose.sendingIn', subjectLabel, notice.messageId, true)
+    const content = buildSubjectNotice('compose.sendingSubject', subjectLabel, notice.messageId, false)
     let undoNoticeId = 0
     // The send is queued for the undo window; Undo returns it to Drafts and Send now skips the wait.
     undoNoticeId = showNotice(content.message, {
