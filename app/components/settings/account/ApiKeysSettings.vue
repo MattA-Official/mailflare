@@ -138,9 +138,7 @@ const revokeOpen = computed({ get: () => confirmRevoke.value !== null, set: (v) 
 
 <template>
   <div class="space-y-6">
-    <p v-if="error && !createOpen" role="alert" class="text-sm text-error">
-      {{ error }}
-    </p>
+    <UAlert v-if="error && !createOpen" role="alert" color="error" variant="subtle" :title="error" />
 
     <section class="space-y-3">
       <USkeleton v-if="loading" class="h-20 w-full rounded-lg" />
@@ -234,9 +232,7 @@ const revokeOpen = computed({ get: () => confirmRevoke.value !== null, set: (v) 
             </p>
           </fieldset>
           <UButton type="submit" icon="i-lucide-key-round" :disabled="!canCreate" :label="busy ? t('apiKeys.creating') : t('apiKeys.createTitle')" />
-          <p v-if="error" role="alert" class="text-sm text-error">
-            {{ error }}
-          </p>
+          <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />
         </form>
         <div v-else class="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-4">
           <code class="block break-all rounded bg-default p-2 text-xs">{{ newKey }}</code>

@@ -87,9 +87,7 @@ async function update(patch: Partial<SharedInboxSettings>) {
           @update:model-value="update({ trashRetentionDays: String($event) === NEVER ? null : Number($event) })"
         />
       </SettingsMailSettingRow>
-      <p v-if="error" class="text-sm text-error">
-        {{ error }}
-      </p>
+      <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />
     </div>
   </UCard>
 </template>

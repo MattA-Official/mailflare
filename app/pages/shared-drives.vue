@@ -67,9 +67,7 @@ async function create() {
       <UButton icon="i-lucide-plus" :label="t('sharedDrives.new')" @click="name = ''; creating = true" />
     </template>
 
-    <p v-if="error" role="alert" class="text-sm text-error">
-      {{ t('sharedDrives.loadFailed') }}
-    </p>
+    <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="t('sharedDrives.loadFailed')" />
     <div v-else-if="status === 'pending' && !data" class="space-y-2">
       <USkeleton v-for="index in 2" :key="index" class="h-16 w-full rounded-lg" />
     </div>

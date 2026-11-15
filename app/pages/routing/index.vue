@@ -25,9 +25,7 @@ const domainItems = computed(() => (domains.value ?? []).map(domain => ({ label:
       </div>
       <UCard>
         <USkeleton v-if="status === 'pending' && !domains" class="h-10 w-full" />
-        <p v-else-if="error" role="alert" class="text-sm text-error">
-          {{ errorMessage(error, t('routing.requestFailed')) }}
-        </p>
+        <UAlert v-else-if="error" role="alert" color="error" variant="subtle" :title="errorMessage(error, t('routing.requestFailed'))" />
         <p v-else-if="!domains?.length" class="text-sm text-muted">
           {{ t('routingAdmin.addDomainFirst') }}
         </p>

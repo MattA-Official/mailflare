@@ -53,6 +53,6 @@ async function choose(next: RemoteContentMode) {
       :ui="{ fieldset: 'gap-3', item: 'w-full' }"
       @update:model-value="choose($event as RemoteContentMode)"
     />
-    <p v-if="error" role="alert" class="mt-2 px-4 text-sm text-error">{{ error }}</p>
+    <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" class="mx-4 mt-2 w-auto" />
   </div>
 </template>

@@ -97,9 +97,7 @@ async function onDeleted() {
       <UButton v-if="canManage" icon="i-lucide-plus" :label="t('accounts.new')" @click="createOpen = true" />
     </template>
 
-    <p v-if="message && !createOpen" role="alert" class="text-sm text-error">
-      {{ message }}
-    </p>
+    <UAlert v-if="message && !createOpen" role="alert" color="error" variant="subtle" :title="message" />
 
     <AdminSystemAccountsTable
       v-model:selected="selected"
@@ -138,9 +136,7 @@ async function onDeleted() {
               :domain-id="form.domainId"
               :username="form.username"
             />
-            <p v-if="message" role="alert" class="text-sm text-error">
-              {{ message }}
-            </p>
+            <UAlert v-if="message" role="alert" color="error" variant="subtle" :title="message" />
             <UButton type="submit" :loading="saving" :disabled="!form.domainId" :label="saving ? t('accounts.creating') : t('accounts.create')" />
           </fieldset>
         </form>

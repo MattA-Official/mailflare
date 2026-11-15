@@ -112,9 +112,7 @@ async function runTest(id: string) {
       <code class="mt-2 block break-all rounded-md bg-elevated p-2 text-xs">{{ secret }}</code>
       <UButton color="neutral" variant="outline" size="sm" class="mt-3" :label="t('webhooks.dismiss')" @click="secret = null" />
     </UCard>
-    <p v-if="error && !dialogOpen" role="alert" class="text-sm text-error">
-      {{ error }}
-    </p>
+    <UAlert v-if="error && !dialogOpen" role="alert" color="error" variant="subtle" :title="error" />
 
     <div v-if="status === 'pending' && !webhooks" class="space-y-2">
       <USkeleton v-for="n in 2" :key="n" class="h-40 w-full rounded-lg" />
@@ -205,9 +203,7 @@ async function runTest(id: string) {
           <UFormField :label="t('webhooks.stat.maxAttempts')">
             <UInputNumber v-model="maxAttempts" :min="1" :max="10" />
           </UFormField>
-          <p v-if="error" role="alert" class="text-sm text-error">
-            {{ error }}
-          </p>
+          <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />
           <div class="flex justify-end gap-2">
             <UButton color="neutral" variant="outline" :label="t('common.cancel')" @click="dialogOpen = false" />
             <UButton type="submit" :loading="creating" :disabled="creating || events.length === 0" :label="t('webhooks.create')" />

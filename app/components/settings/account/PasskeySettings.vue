@@ -226,9 +226,7 @@ const renameOpen = computed({ get: () => rename.value !== null, set: (v) => { if
           <UButton icon="i-lucide-plus" :label="t('passkey.add')" @click="addOpen = true" />
         </div>
       </div>
-      <p v-if="checkError" role="alert" class="mt-3 text-sm text-error">
-        {{ checkError }}
-      </p>
+      <UAlert v-if="checkError" role="alert" color="error" variant="subtle" :title="checkError" class="mt-3" />
       <p v-if="checkedPasskey" role="status" aria-live="polite" class="sr-only">
         {{ t('passkey.justVerified') }}: {{ displayName(checkedPasskey) }}
       </p>
@@ -312,9 +310,7 @@ const renameOpen = computed({ get: () => rename.value !== null, set: (v) => { if
           <UFormField :label="t('passkey.name')" name="rename-passkey">
             <UInput id="rename-passkey" v-model="rename.name" :maxlength="100" required autofocus />
           </UFormField>
-          <p v-if="renameError" role="alert" class="text-sm text-error">
-            {{ renameError }}
-          </p>
+          <UAlert v-if="renameError" role="alert" color="error" variant="subtle" :title="renameError" />
           <UButton type="submit" :disabled="renaming" :label="renaming ? t('common.pleaseWait') : t('common.save')" />
         </form>
       </template>

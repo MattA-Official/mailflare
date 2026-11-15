@@ -63,9 +63,7 @@ async function confirm() {
         <UFormField :label="t('accounts.transferLabel')" :help="ownedDomains.length ? t('accounts.transferDomainsHint', { domains: ownedDomains.join(', ') }) : t('accounts.transferHint')">
           <USelect v-model="transferToId" :items="recipients" :disabled="deleting" />
         </UFormField>
-        <p v-if="message" role="alert" class="text-sm text-error">
-          {{ message }}
-        </p>
+        <UAlert v-if="message" role="alert" color="error" variant="subtle" :title="message" />
       </div>
     </template>
     <template #footer>

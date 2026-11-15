@@ -104,7 +104,7 @@ async function save() {
             </div>
             <p v-if="contact?.blocked" class="text-sm font-medium text-error">{{ t('contact.blocked') }}</p>
           </div>
-          <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
+          <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />
           <UButton type="submit" :disabled="loading || saving || !displayName.trim()" :label="saving ? t('contact.saving') : t('contact.save')" />
         </form>
       </template>

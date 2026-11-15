@@ -51,9 +51,7 @@ async function copy(value: string) {
       <UButton icon="i-lucide-plus" :label="t('oidc.apps.new')" @click="createOpen = true" />
     </template>
 
-    <p v-if="error" role="alert" class="text-sm text-error">
-      {{ t('oidc.apps.loadFailed') }}
-    </p>
+    <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="t('oidc.apps.loadFailed')" />
     <div v-else-if="status === 'pending' && !apps" class="space-y-2">
       <USkeleton v-for="index in 2" :key="index" class="h-20 w-full rounded-lg" />
     </div>
@@ -85,9 +83,7 @@ async function copy(value: string) {
       <template #body>
         <form v-if="!created" class="space-y-5" @submit.prevent="create">
           <AdminSystemAppForm v-model="draft" mode="create" />
-          <p v-if="createError" role="alert" class="text-sm text-error">
-            {{ createError }}
-          </p>
+          <UAlert v-if="createError" role="alert" color="error" variant="subtle" :title="createError" />
           <UButton type="submit" :loading="creating" :disabled="!draft.name.trim() || !draft.redirectUris.trim()" :label="creating ? t('oidc.apps.creating') : t('oidc.apps.create')" />
         </form>
         <div v-else class="space-y-4">

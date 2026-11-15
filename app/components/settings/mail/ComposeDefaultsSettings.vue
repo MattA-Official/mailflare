@@ -63,6 +63,6 @@ async function change(patch: Partial<ComposePreferences>) {
         @update:model-value="change({ undoSendSeconds: Number($event) })"
       />
     </SettingsMailSettingRow>
-    <p v-if="error" role="alert" class="px-4 text-sm text-error">{{ error }}</p>
+    <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" class="mx-4 w-auto" />
   </div>
 </template>

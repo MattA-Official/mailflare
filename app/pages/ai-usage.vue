@@ -33,9 +33,7 @@ const totals = computed(() => data.value?.totals)
     <template #actions>
       <UButton color="neutral" variant="ghost" icon="i-lucide-arrow-left" to="/agent" :label="t('aiUsage.back')" />
     </template>
-    <p v-if="error" role="alert" class="text-sm text-error">
-      {{ error }}
-    </p>
+    <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />
     <div class="grid gap-4 sm:grid-cols-3">
       <UCard>
         <p class="text-sm text-muted">

@@ -81,9 +81,7 @@ async function revoke() {
       <UButton icon="i-lucide-plus" :label="t('apiKeys.new')" @click="createOpen = true" />
     </template>
 
-    <p v-if="revokeError" role="alert" class="text-sm text-error">
-      {{ revokeError }}
-    </p>
+    <UAlert v-if="revokeError" role="alert" color="error" variant="subtle" :title="revokeError" />
     <div v-if="status === 'pending' && !apiKeys" class="space-y-2">
       <USkeleton v-for="index in 3" :key="index" class="h-20 w-full rounded-lg" />
     </div>
@@ -127,9 +125,7 @@ async function revoke() {
               @update:model-value="value => toggleScope(scope.value, value === true)"
             />
           </fieldset>
-          <p v-if="createError" role="alert" class="text-sm text-error">
-            {{ createError }}
-          </p>
+          <UAlert v-if="createError" role="alert" color="error" variant="subtle" :title="createError" />
           <UButton type="submit" :loading="creating" :disabled="!name.trim() || scopes.length === 0" :label="creating ? t('accounts.creating') : t('adminKeys.createKey')" />
         </form>
         <div v-else class="space-y-3 rounded-lg border border-primary/30 bg-primary/5 p-4">

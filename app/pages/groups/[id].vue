@@ -137,9 +137,7 @@ async function remove() {
             <USelect v-model="subgroupId" :items="subgroupItems" :placeholder="subgroupItems.length ? t('groups.chooseSubgroup') : t('groups.noSubgroupOptions')" :disabled="!subgroupItems.length" class="min-w-0 flex-1" />
             <UButton type="submit" icon="i-lucide-plus" :disabled="!subgroupId || subgroupBusy" :label="t('groups.addSubgroup')" />
           </form>
-          <p v-if="subgroupError" role="alert" class="mt-2 text-sm text-error">
-            {{ subgroupError }}
-          </p>
+          <UAlert v-if="subgroupError" role="alert" color="error" variant="subtle" :title="subgroupError" class="mt-2" />
         </template>
       </UCard>
 

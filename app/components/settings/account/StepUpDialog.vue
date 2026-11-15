@@ -134,9 +134,7 @@ function submitPassword() {
           />
         </form>
 
-        <p v-if="!hasPasskey && !passwordPathAllowed" role="alert" class="text-sm text-error">
-          {{ t('passkey.verifyUnavailable') }}
-        </p>
+        <UAlert v-if="!hasPasskey && !passwordPathAllowed" role="alert" color="error" variant="subtle" :title="t('passkey.verifyUnavailable')" />
         <UButton
           v-if="hasPasskey && passwordPathAllowed && !showPassword"
           block
@@ -145,9 +143,7 @@ function submitPassword() {
           :label="t('passkey.usePasswordInstead')"
           @click="showPassword = true"
         />
-        <p v-if="error" role="alert" class="text-sm text-error">
-          {{ error }}
-        </p>
+        <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />
       </div>
     </template>
   </UModal>

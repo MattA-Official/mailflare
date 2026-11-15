@@ -287,17 +287,13 @@ async function remove() {
         <p v-if="aliases && aliases.aliases.length === 0" class="rounded-lg bg-elevated/60 px-4 py-3 text-sm text-muted">
           {{ t('mailbox.noAliases') }}
         </p>
-        <p v-if="aliasesError" class="text-sm text-error">
-          {{ errorMessage(aliasesError, t('mailbox.aliasesLoadFailed')) }}
-        </p>
+        <UAlert v-if="aliasesError" role="alert" color="error" variant="subtle" :title="errorMessage(aliasesError, t('mailbox.aliasesLoadFailed'))" />
         <form class="flex flex-wrap gap-2 sm:flex-nowrap" @submit.prevent="addAlias">
           <UInput v-model="aliasLocalPart" :placeholder="t('mailbox.aliasPlaceholder')" class="min-w-0 flex-1" :disabled="aliasBusy === 'add'" autocomplete="off" spellcheck="false" />
           <USelect v-model="aliasDomainId" :items="aliasDomainItems" class="min-w-0 flex-1" :disabled="aliasBusy === 'add'" />
           <UButton type="submit" icon="i-lucide-at-sign" :disabled="!aliasLocalPart.trim() || !aliasDomainId || aliasBusy === 'add'" :label="aliasBusy === 'add' ? t('account.mailboxes.adding') : t('mailbox.addAlias')" />
         </form>
-        <p v-if="aliasError" class="text-sm text-error">
-          {{ aliasError }}
-        </p>
+        <UAlert v-if="aliasError" role="alert" color="error" variant="subtle" :title="aliasError" />
       </div>
     </UCard>
 
@@ -352,22 +348,16 @@ async function remove() {
         <p v-if="sharedAccess && sharedAccess.members.length === 0 && !groupAccess?.groups.length" class="rounded-lg bg-elevated/60 px-4 py-3 text-sm text-muted">
           {{ t('mailbox.noMembers') }}
         </p>
-        <p v-if="sharedError" class="text-sm text-error">
-          {{ errorMessage(sharedError, t('mailbox.sharedLoadFailed')) }}
-        </p>
+        <UAlert v-if="sharedError" role="alert" color="error" variant="subtle" :title="errorMessage(sharedError, t('mailbox.sharedLoadFailed'))" />
         <form class="flex gap-2" @submit.prevent="addMember">
           <USelect v-model="selectedUserId" :items="memberItems" :placeholder="noAccountsToAdd ? t('mailbox.noAccountsToAdd') : t('groups.chooseAccountOrGroup')" :disabled="noAccountsToAdd" class="min-w-0 flex-1" />
           <UButton type="submit" icon="i-lucide-user-plus" :disabled="!selectedUserId || memberBusy" :label="memberBusy ? t('account.mailboxes.adding') : t('groups.addMember')" />
         </form>
-        <p v-if="memberError" class="text-sm text-error">
-          {{ memberError }}
-        </p>
+        <UAlert v-if="memberError" role="alert" color="error" variant="subtle" :title="memberError" />
         <UCollapsible v-model:open="summaryOpen" class="rounded-lg border border-default">
           <UButton color="neutral" variant="ghost" block class="justify-between px-4 py-3" trailing-icon="i-lucide-chevron-down" :label="t('groups.whoHasAccess')" :ui="{ trailingIcon: 'transition-transform group-data-[state=open]:rotate-180' }" />
           <template #content>
-            <p v-if="summaryError" class="px-4 pb-3 text-sm text-error">
-              {{ t('groups.whoHasAccessFailed') }}
-            </p>
+            <UAlert v-if="summaryError" role="alert" color="error" variant="subtle" :title="t('groups.whoHasAccessFailed')" class="mx-4 mb-3 w-auto" />
             <USkeleton v-else-if="!summary" class="mx-4 mb-3 h-10 rounded-lg" />
             <ul v-else class="divide-y divide-default border-t border-default">
               <li v-for="person in summary" :key="person.userId" class="flex items-center gap-3 px-4 py-2.5">

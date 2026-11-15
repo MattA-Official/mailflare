@@ -83,9 +83,7 @@ async function copy(value: string) {
       <UButton color="neutral" variant="ghost" icon="i-lucide-arrow-left" to="/apps" :label="t('oidc.apps.back')" />
     </template>
 
-    <p v-if="error" role="alert" class="text-sm text-error">
-      {{ error.message || t('oidc.apps.loadFailed') }}
-    </p>
+    <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error.message || t('oidc.apps.loadFailed')" />
 
     <template v-if="data && draft">
       <UCard>

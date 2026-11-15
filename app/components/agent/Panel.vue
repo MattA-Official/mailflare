@@ -493,7 +493,7 @@ const modelItems = computed(() => availableModels.value.map(model => ({ label: m
       </div>
     </header>
 
-    <p v-if="error" role="alert" class="mx-4 mt-3 break-words rounded-xl border border-error/20 bg-error/10 p-3 text-sm text-error">{{ error }}</p>
+    <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" class="mx-4 mt-3 w-auto break-words" />
 
     <template v-if="view === 'chat'">
       <div ref="chatScroll" class="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 text-sm sm:px-5" @scroll="stickToBottom = isAgentScrollAtBottom($event.target as HTMLElement)">
