@@ -12,6 +12,7 @@ import { addConversationNote, conversationForUser, CONVERSATION_NOTE_MAX_LENGTH,
 import type { EmailToolName } from "#lib/agent/types";
 import type { McpPrincipal } from "./types";
 import { registerAdminMcpTools } from "./admin-tools";
+import { loadDirectory, searchGroups, searchPeople, visibleManagers } from "#lib/directory/service";
 import { CALENDAR_TOOL_NAMES, calendarToolDescriptions, calendarToolSchemas, calendarToolScope, runCalendarTool } from "#lib/calendar/tools";
 
 const scopeByTool: Record<EmailToolName, string> = {
@@ -141,6 +142,31 @@ export function createMailflareMcpHandler(env: CloudflareEnv, principal: McpPrin
 				return result.ok ? output({ messageId, noteId, deleted: true }) : output({ error: result.error === "forbidden" ? "Only the author or a mailbox manager can delete this note" : "Note not found" }, true);
 			}
 			catch (error) { return output({ error: error instanceof Error ? error.message : "Tool failed" }, true); }
+		});
+		// Fork-only (contacts plan, phase 2): look colleagues up in the instance directory.
+		server.registerTool("lookup_people", { description: "Search this instance's directory of colleagues by name, address, job title, department, location or group, to answer questions such as who looks after billing. Pass short keywords (\"billing\"), not a sentence: every word must match. Members of a matching group are included. Returns each person's name, address, title, department, location, groups and manager. An empty query lists everyone.", inputSchema: z.object({ query: z.string().max(200).optional(), limit: z.number().int().min(1).max(100).optional() }), annotations: { readOnlyHint: true, openWorldHint: false } }, async ({ query, limit }) => {
+			if (!principal.scopes.includes("mcp:read")) return output({ error: "Permission denied" }, true);
+			audit(principal, "lookup_people");
+			const snapshot = await loadDirectory(getDb(env));
+			const managers = visibleManagers(snapshot);
+			const names = new Map(snapshot.people.map((person) => [person.id, person.name]));
+			const words = (query ?? "").trim();
+			const groupHits = words ? new Set(searchGroups(snapshot, words).flatMap((group) => group.memberIds)) : new Set<string>();
+			const direct = new Set(searchPeople(snapshot, words).map((person) => person.id));
+			const people = snapshot.people.filter((person) => direct.has(person.id) || groupHits.has(person.id));
+			return output({
+				people: people.slice(0, limit ?? 25).map((person) => ({
+					name: person.name,
+					email: person.email,
+					otherAddresses: person.addresses.filter((address) => address !== person.email),
+					title: person.profile.title,
+					department: person.profile.department,
+					location: person.profile.location,
+					groups: person.groups.map((group) => (group.role === "manager" ? `${group.name} (manager)` : group.name)),
+					manager: names.get(managers.get(person.id) ?? "") ?? null,
+				})),
+				total: people.length,
+			});
 		});
 		server.registerTool("get_send_request", { description: "Read the status of this key's send review request", inputSchema: z.object({ approvalId: z.string() }) }, async ({ approvalId }) => {
 			if (!principal.scopes.includes("mcp:request-send")) return output({ error: "Permission denied" }, true);
