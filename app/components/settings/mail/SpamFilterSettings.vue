@@ -1,32 +1,28 @@
 <script setup lang="ts">
 // Ported from legacy/src/components/settings/spam-filter-settings.tsx.
 const { t } = useLanguage()
-const enabled = ref(true)
-const loading = ref(true)
-const error = ref<string | null>(null)
-
-onMounted(async () => {
-  try {
-    enabled.value = (await api<{ enabled?: boolean }>('/api/settings/spam')).enabled !== false
-  } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : t('settings.spam.loadFailed')
-  } finally {
-    loading.value = false
-  }
-})
+const { data: enabled, status, error: loadError } = useAsyncData(
+  'settings-spam-protection',
+  () => api<{ enabled?: boolean }>('/api/settings/spam').then(data => data.enabled !== false),
+  { default: () => true },
+)
+const saving = ref(false)
+const loading = computed(() => saving.value || status.value === 'pending')
+const saveError = ref<string | null>(null)
+const error = computed(() => saveError.value ?? (loadError.value ? apiErrorMessage(loadError.value, t('settings.spam.loadFailed')) : null))
 
 async function update(next: boolean) {
   const previous = enabled.value
   enabled.value = next
-  loading.value = true
-  error.value = null
+  saving.value = true
+  saveError.value = null
   try {
     enabled.value = (await api<{ enabled?: boolean }>('/api/settings/spam', { method: 'PATCH', body: { enabled: next } })).enabled !== false
   } catch (cause) {
     enabled.value = previous
-    error.value = cause instanceof Error ? cause.message : t('settings.spam.updateFailed')
+    saveError.value = cause instanceof Error ? cause.message : t('settings.spam.updateFailed')
   } finally {
-    loading.value = false
+    saving.value = false
   }
 }
 </script>

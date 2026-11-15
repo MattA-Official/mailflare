@@ -1,5 +1,6 @@
 <script setup lang="ts">
 // Personal API keys, including MCP keys for agents. Ported from legacy/src/components/settings/api-keys-settings.tsx.
+import { useEventListener } from '@vueuse/core'
 import type { ApiKeyScope } from '#lib/api/scopes'
 import { formatUserDate } from '#lib/time/utils'
 import type { ManagedApiKey, McpKeyScope } from '~/types/settings/account'
@@ -8,8 +9,6 @@ import { createManagedApiKey, keyPermissions, loadManagedApiKeys, MCP_KEY_SCOPES
 const { t } = useLanguage()
 const { mailboxes, selectedMailbox } = useSelectedMailbox()
 
-const keys = ref<ManagedApiKey[]>([])
-const loading = ref(true)
 const busy = ref(false)
 // The page puts the New API key button in its header and opens the dialog through this model.
 const createOpen = defineModel<boolean>('createOpen', { default: false })
@@ -25,27 +24,13 @@ const mailboxIds = ref<string[]>([])
 const newKey = ref<string | null>(null)
 const copied = ref(false)
 
-let cancelled = false
-async function refresh() {
-  try {
-    const items = await loadManagedApiKeys()
-    if (cancelled) return
-    keys.value = items
-    error.value = null
-  } catch (cause) {
-    if (!cancelled) error.value = cause instanceof Error ? cause.message : t('apiKeys.loadFailed')
-  } finally {
-    if (!cancelled) loading.value = false
-  }
-}
-onMounted(() => {
-  void refresh()
-  window.addEventListener('mailflare:api-keys-changed', refresh)
+const { data: keys, status, error: loadError, refresh } = useAsyncData<ManagedApiKey[]>('settings-api-keys', loadManagedApiKeys, { default: () => [] })
+const loading = computed(() => status.value === 'pending' && keys.value.length === 0)
+watch(loadError, (cause) => {
+  if (cause) error.value = cause.message || t('apiKeys.loadFailed')
 })
-onBeforeUnmount(() => {
-  cancelled = true
-  window.removeEventListener('mailflare:api-keys-changed', refresh)
-})
+// Keys created elsewhere (the MCP setup page) announce themselves.
+useEventListener(window, 'mailflare:api-keys-changed', () => void refresh())
 
 // Opened from the page header: seed the mailbox choice as opening through dialogOpen does.
 watch(createOpen, (open) => {

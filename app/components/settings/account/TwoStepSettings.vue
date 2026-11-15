@@ -6,12 +6,12 @@ import { authErrorText } from '#lib/auth/error-messages'
 import { ClientRequestError } from '#lib/http/client-error'
 import { beginMfaEnrollment, confirmMfaEnrollment, disableMfa } from '~/utils/settings/account/account'
 import { generateRecoveryCodes, setSecondFactorRequirement } from '~/utils/settings/account/passkey-settings'
-import { refreshSecurityStatus, useSecurityStatus } from '~/utils/settings/account/security-status'
+import { useSecurityStatus } from '~/utils/settings/account/security-status'
 
 type PendingAction = 'toggle-on' | 'toggle-off' | 'enroll' | 'disable' | 'codes'
 
 const { t } = useLanguage()
-const { status, error: loadFailed } = useSecurityStatus()
+const { status, error: loadFailed, refresh: refreshSecurityStatus } = useSecurityStatus()
 const pending = ref<PendingAction | null>(null)
 const busy = ref(false)
 const error = ref<string | null>(null)
@@ -37,13 +37,13 @@ async function authorized(token: string) {
     secret.value = enrollment.secret
   } else if (pending.value === 'disable') {
     await disableMfa({ stepUpToken: token })
-    await refreshSecurityStatus(true)
+    await refreshSecurityStatus()
   } else if (pending.value === 'codes') {
     codes.value = await generateRecoveryCodes(token)
-    await refreshSecurityStatus(true)
+    await refreshSecurityStatus()
   } else {
     await setSecondFactorRequirement(pending.value === 'toggle-on', token)
-    await refreshSecurityStatus(true)
+    await refreshSecurityStatus()
   }
   pending.value = null
 }
@@ -55,7 +55,7 @@ async function confirmEnrollment() {
     codes.value = await confirmMfaEnrollment(code.value)
     qrSvg.value = null
     code.value = ''
-    await refreshSecurityStatus(true)
+    await refreshSecurityStatus()
   } catch (err) {
     error.value = authErrorText(err instanceof ClientRequestError ? err.code : undefined, t, 'mfa.confirmFailed')
   } finally {

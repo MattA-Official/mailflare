@@ -9,7 +9,7 @@ import { ClientRequestError } from '#lib/http/client-error'
 import type { PasskeyPolicyChoice, PasskeySummary } from '~/types/settings/account'
 import { disableMfa } from '~/utils/settings/account/account'
 import { addPasskey, checkPasskey, passkeyProvider, removePasskey, removePassword, renamePasskey, setSecondFactorRequirement } from '~/utils/settings/account/passkey-settings'
-import { refreshSecurityStatus, useSecurityStatus } from '~/utils/settings/account/security-status'
+import { useSecurityStatus } from '~/utils/settings/account/security-status'
 
 /** The security changes the first-passkey choice can ask for, in order. */
 type PolicyStep = 'mfa.disable' | 'password.remove' | 'second_factor.toggle'
@@ -19,7 +19,7 @@ type PendingAction
     | { type: 'policy', steps: PolicyStep[], index: number }
 
 const { t } = useLanguage()
-const { status, error: loadFailed } = useSecurityStatus()
+const { status, error: loadFailed, refresh: refreshSecurityStatus } = useSecurityStatus()
 
 const addOpen = ref(false)
 const name = ref('')
@@ -65,7 +65,7 @@ async function onCheck() {
   checkedId.value = null
   try {
     checkedId.value = await checkPasskey()
-    await refreshSecurityStatus(true)
+    await refreshSecurityStatus()
   } catch (err) {
     if (isPasskeyCancellation(err)) return
     checkError.value = isPasskeyUnsupported(err) ? t('passkey.browserUnsupported') : codeText(err, 'passkey.verifyFailed')
@@ -82,23 +82,23 @@ async function authorized(token: string): Promise<boolean> {
     if (action.type === 'add') {
       await addPasskey(action.name, token)
       name.value = ''
-      await refreshSecurityStatus(true)
+      await refreshSecurityStatus()
       choiceAfterAdd = action.first && action.hadPassword
     } else if (action.type === 'remove') {
       await removePasskey(action.id, token)
-      await refreshSecurityStatus(true)
+      await refreshSecurityStatus()
     } else {
       const step = action.steps[action.index]
       if (step === 'mfa.disable') {
         await disableMfa({ stepUpToken: token })
-        await refreshSecurityStatus(true)
+        await refreshSecurityStatus()
         notice.value = t('passkey.authenticatorOffNotice')
       } else if (step === 'password.remove') {
         await removePassword(token)
-        await refreshSecurityStatus(true)
+        await refreshSecurityStatus()
       } else {
         await setSecondFactorRequirement(true, token)
-        await refreshSecurityStatus(true)
+        await refreshSecurityStatus()
       }
       if (action.index + 1 < action.steps.length) {
         pending.value = { ...action, index: action.index + 1 }
@@ -107,7 +107,7 @@ async function authorized(token: string): Promise<boolean> {
     }
   } catch (err) {
     // The server may have applied part of the change; re-read the state before another attempt.
-    await refreshSecurityStatus(true)
+    await refreshSecurityStatus()
     throw err
   }
   return false
@@ -132,7 +132,7 @@ async function submitRename() {
   try {
     await renamePasskey(rename.value.id, rename.value.name)
     rename.value = null
-    await refreshSecurityStatus(true)
+    await refreshSecurityStatus()
   } catch (err) {
     renameError.value = codeText(err, 'passkey.renameFailed')
   } finally {

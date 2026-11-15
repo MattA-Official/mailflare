@@ -3,21 +3,17 @@
 import { TRASH_RETENTION_OPTIONS, describeTrashRetention } from '#lib/email/trash-retention-utils'
 
 const { t } = useLanguage()
-const days = ref<number | null>(null)
-const loading = ref(true)
-const error = ref<string | null>(null)
+const { data: days, status, error: loadError } = useAsyncData(
+  'settings-trash-retention',
+  () => api<{ days?: number | null }>('/api/settings/trash-retention').then(data => data.days ?? null),
+  { default: () => null as number | null },
+)
+const saving = ref(false)
+const loading = computed(() => saving.value || status.value === 'pending')
+const saveError = ref<string | null>(null)
+const error = computed(() => saveError.value ?? (loadError.value ? apiErrorMessage(loadError.value, t('settings.trash.loadFailed')) : null))
 // USelect cannot hold null, so "never" has its own value.
 const NEVER = 'never'
-
-onMounted(async () => {
-  try {
-    days.value = (await api<{ days?: number | null }>('/api/settings/trash-retention')).days ?? null
-  } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : t('settings.trash.loadFailed')
-  } finally {
-    loading.value = false
-  }
-})
 
 // Keep a custom value set through the API selectable instead of silently showing "Never".
 const items = computed(() => {
@@ -34,15 +30,15 @@ async function update(value: string) {
   const next = value === NEVER ? null : Number(value)
   const previous = days.value
   days.value = next
-  loading.value = true
-  error.value = null
+  saving.value = true
+  saveError.value = null
   try {
     days.value = (await api<{ days?: number | null }>('/api/settings/trash-retention', { method: 'PATCH', body: { days: next } })).days ?? null
   } catch (cause) {
     days.value = previous
-    error.value = cause instanceof Error ? cause.message : t('settings.trash.updateFailed')
+    saveError.value = cause instanceof Error ? cause.message : t('settings.trash.updateFailed')
   } finally {
-    loading.value = false
+    saving.value = false
   }
 }
 </script>

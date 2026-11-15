@@ -6,10 +6,10 @@ import { ClientRequestError } from '#lib/http/client-error'
 import type { PasskeyPolicyChoice } from '~/types/settings/account'
 import { updatePassword } from '~/utils/settings/account/account'
 import { removePassword, setPassword } from '~/utils/settings/account/passkey-settings'
-import { refreshSecurityStatus, useSecurityStatus } from '~/utils/settings/account/security-status'
+import { useSecurityStatus } from '~/utils/settings/account/security-status'
 
 const { t } = useLanguage()
-const { status, error: loadFailed } = useSecurityStatus()
+const { status, error: loadFailed, refresh: refreshSecurityStatus } = useSecurityStatus()
 
 const currentPassword = ref('')
 const newPassword = ref('')
@@ -46,7 +46,7 @@ async function change() {
     newPassword.value = ''
     confirmPassword.value = ''
     message.value = t('settings.password.changed')
-    await refreshSecurityStatus(true)
+    await refreshSecurityStatus()
   } catch (err) {
     error.value = failure(err)
   } finally {
@@ -73,7 +73,7 @@ async function authorized(token: string) {
   }
   await removePassword(token)
   message.value = t('passkey.passwordRemoved')
-  await refreshSecurityStatus(true)
+  await refreshSecurityStatus()
   pending.value = null
 }
 
@@ -92,10 +92,10 @@ async function choosePasswordPolicy(choice: PasskeyPolicyChoice) {
     message.value = t('passkey.passwordSet')
     newPassword.value = ''
     confirmPassword.value = ''
-    await refreshSecurityStatus(true)
+    await refreshSecurityStatus()
   } catch (err) {
     error.value = failure(err)
-    await refreshSecurityStatus(true)
+    await refreshSecurityStatus()
   } finally {
     passwordProof.value = null
     busy.value = false
