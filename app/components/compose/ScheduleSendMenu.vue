@@ -97,17 +97,16 @@ const items = computed<DropdownMenuItem[][]>(() => {
     </template>
     <template #picker>
       <div class="w-full" @keydown.stop>
-        <input
-          type="datetime-local"
+        <AppDateTimeInput
+          :model-value="pickerValue"
           :min="minimum"
-          :value="pickerValue"
-          :aria-invalid="pastPicked"
+          :invalid="pastPicked"
           :aria-describedby="pastPicked ? 'schedule-past-time' : undefined"
-          :aria-label="t('schedule.pick', { timeZone: getUserTimeZone() })"
-          class="h-9 w-full rounded-md border border-default bg-default px-2 text-sm outline-none focus:border-primary"
-          @input="pick(($event.target as HTMLInputElement).value)"
+          :label="t('schedule.pick', { timeZone: getUserTimeZone() })"
+          size="sm"
+          @update:model-value="pick"
           @click.stop
-        >
+        />
         <p v-if="pastPicked" id="schedule-past-time" role="alert" class="mt-1 text-xs text-error">{{ t('schedule.pastTime') }}</p>
       </div>
     </template>

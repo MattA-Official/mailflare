@@ -11,7 +11,6 @@ const presets = ref(getSnoozePresets())
 const snoozedUntil = ref(presets.value[0]!.value)
 const snoozing = ref(false)
 const error = ref<string | null>(null)
-const inputId = useId()
 
 watch(open, (isOpen) => {
   if (!isOpen) return
@@ -52,8 +51,8 @@ async function handleSnooze() {
             @click="snoozedUntil = preset.value"
           />
         </div>
-        <UFormField :label="t('snooze.selectDateTime', { timeZone: getUserTimeZone() })" :name="inputId">
-          <UInput :id="inputId" v-model="snoozedUntil" type="datetime-local" />
+        <UFormField :label="t('snooze.selectDateTime', { timeZone: getUserTimeZone() })">
+          <AppDateTimeInput v-model="snoozedUntil" :label="t('snooze.selectDateTime', { timeZone: getUserTimeZone() })" />
         </UFormField>
         <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />
         <UButton :loading="snoozing" :label="snoozing ? t('common.snoozing') : t('common.snooze')" @click="handleSnooze" />

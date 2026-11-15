@@ -92,16 +92,17 @@ function commit() {
           </button>
           <USeparator class="my-1" />
           <p class="px-3 pb-1 pt-2 text-xs font-medium text-muted">{{ t('schedule.pick', { timeZone: getUserTimeZone() }) }}</p>
-          <input
-            type="datetime-local"
+          <AppDateTimeInput
+            :model-value="pickedText ?? formatDateTimeLocal(new Date(scheduledAt))"
             :min="formatDateTimeLocal(new Date())"
-            :value="pickedText ?? formatDateTimeLocal(new Date(scheduledAt))"
-            :aria-invalid="pastPicked"
-            class="mx-2 mb-2 h-9 rounded-md border border-default bg-default px-2 text-sm outline-none focus:border-primary"
-            @input="pickedText = ($event.target as HTMLInputElement).value"
-            @blur="commit"
-            @keydown.stop="$event.key === 'Enter' && commit()"
-          >
+            :invalid="pastPicked"
+            :label="t('schedule.pick', { timeZone: getUserTimeZone() })"
+            size="sm"
+            class="mx-2 mb-2"
+            @update:model-value="pickedText = $event"
+            @commit="commit"
+            @keydown.stop
+          />
           <p v-if="pastPicked" role="alert" class="mx-2 mb-2 text-xs text-error">{{ t('schedule.pastTime') }}</p>
         </div>
       </template>

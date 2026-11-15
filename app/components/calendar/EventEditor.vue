@@ -183,6 +183,12 @@ function onTimesFocusOut(event: FocusEvent) {
   const container = event.currentTarget as HTMLElement
   if (!container.contains(event.relatedTarget as Node | null)) durationOptionsOpen.value = false
 }
+
+// The presets appear when a date or time segment takes focus. Not for the calendar button: the row
+// appearing re-centres the dialog between pointerdown and click, so the click would miss the button.
+function showDurations(event: FocusEvent) {
+  if (!(event.target as HTMLElement | null)?.closest('button')) durationOptionsOpen.value = true
+}
 </script>
 
 <template>
@@ -207,12 +213,12 @@ function onTimesFocusOut(event: FocusEvent) {
         <div class="grid grid-cols-[24px_minmax(0,1fr)] items-start gap-3">
           <UIcon name="i-lucide-clock-3" class="mt-2 size-5 text-muted" />
           <div class="min-w-0" @focusout="onTimesFocusOut">
-            <div class="grid gap-2 sm:grid-cols-2">
+            <div class="grid gap-2">
               <UFormField :label="t('calendar.from')">
-                <UInput v-model="startsAt" type="datetime-local" :aria-label="t('calendar.fromLabel')" @focus="durationOptionsOpen = true" />
+                <AppDateTimeInput v-model="startsAt" :label="t('calendar.fromLabel')" @focusin="showDurations" />
               </UFormField>
               <UFormField :label="t('calendar.to')">
-                <UInput v-model="endsAt" type="datetime-local" :aria-label="t('calendar.toLabel')" @focus="durationOptionsOpen = true" />
+                <AppDateTimeInput v-model="endsAt" :label="t('calendar.toLabel')" @focusin="showDurations" />
               </UFormField>
             </div>
             <div v-if="durationOptionsOpen" class="flex flex-wrap gap-1 pt-1" :aria-label="t('calendar.setDuration')">
