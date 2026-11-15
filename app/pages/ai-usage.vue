@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Ported from legacy/src/app/(admin)/ai-usage/page.tsx.
-import type { AiUsageResponse } from '~/types/admin/system/misc'
+import type { TableColumn } from '@nuxt/ui'
+import type { AiUsageResponse, AiUsageRow } from '~/types/admin/system/misc'
 import { fetchAiUsage, formatEstimatedUsd, formatTokenCount, formatUsageDate, formatUsageProvider } from '~/utils/admin/system/settings'
 
 definePageMeta({ layout: 'dashboard', nav: 'admin', auth: { role: 'admin', primary: true, requireMailbox: true } })
@@ -9,6 +10,15 @@ const { t } = useLanguage()
 useHead({ title: () => t('aiUsage.title') })
 
 const data = ref<AiUsageResponse | null>(null)
+const NUMBER = { class: { th: 'text-right', td: 'text-right tabular-nums' } }
+const columns = computed<TableColumn<AiUsageRow>[]>(() => [
+  { accessorKey: 'createdAt', header: t('aiUsage.col.dateTime'), cell: ({ row }) => formatUsageDate(row.original.createdAt), meta: { class: { td: 'text-toned' } } },
+  { accessorKey: 'model', header: t('aiUsage.col.model'), meta: { class: { td: 'max-w-56 whitespace-normal break-all' } } },
+  { accessorKey: 'provider', header: t('aiUsage.col.provider'), cell: ({ row }) => formatUsageProvider(row.original.provider) },
+  { accessorKey: 'inputTokens', header: t('aiUsage.col.input'), cell: ({ row }) => formatTokenCount(row.original.inputTokens), meta: NUMBER },
+  { accessorKey: 'outputTokens', header: t('aiUsage.col.output'), cell: ({ row }) => formatTokenCount(row.original.outputTokens), meta: NUMBER },
+  { accessorKey: 'costUsdMicros', header: t('aiUsage.col.spending'), cell: ({ row }) => formatEstimatedUsd(row.original.costUsdMicros), meta: NUMBER },
+])
 const error = ref<string | null>(null)
 const loadingPage = ref(false)
 
@@ -64,64 +74,19 @@ const totals = computed(() => data.value?.totals)
       </UCard>
     </div>
     <AdminSystemUsageChart :daily="data?.daily ?? []" :time-zone="data?.timeZone" />
-    <section role="region" tabindex="0" :aria-label="t('aiUsage.title')" :aria-busy="loadingPage" class="overflow-x-auto rounded-lg border border-default bg-default">
-      <table class="w-full min-w-[850px] text-left text-sm">
-        <thead class="border-b border-default bg-elevated/50 text-xs font-semibold uppercase tracking-wide text-muted">
-          <tr>
-            <th scope="col" class="px-4 py-3">
-              {{ t('aiUsage.col.dateTime') }}
-            </th>
-            <th scope="col" class="px-4 py-3">
-              {{ t('aiUsage.col.model') }}
-            </th>
-            <th scope="col" class="px-4 py-3">
-              {{ t('aiUsage.col.provider') }}
-            </th>
-            <th scope="col" class="px-4 py-3 text-right">
-              {{ t('aiUsage.col.input') }}
-            </th>
-            <th scope="col" class="px-4 py-3 text-right">
-              {{ t('aiUsage.col.output') }}
-            </th>
-            <th scope="col" class="px-4 py-3 text-right">
-              {{ t('aiUsage.col.spending') }}
-            </th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-default">
-          <tr v-for="row in data?.rows ?? []" :key="row.id">
-            <td class="whitespace-nowrap px-4 py-3 text-toned">
-              {{ formatUsageDate(row.createdAt) }}
-            </td>
-            <td class="max-w-56 break-all px-4 py-3">
-              {{ row.model }}
-            </td>
-            <td class="px-4 py-3">
-              {{ formatUsageProvider(row.provider) }}
-            </td>
-            <td class="px-4 py-3 text-right tabular-nums">
-              {{ formatTokenCount(row.inputTokens) }}
-            </td>
-            <td class="px-4 py-3 text-right tabular-nums">
-              {{ formatTokenCount(row.outputTokens) }}
-            </td>
-            <td class="px-4 py-3 text-right tabular-nums">
-              {{ formatEstimatedUsd(row.costUsdMicros) }}
-            </td>
-          </tr>
-          <tr v-if="data && data.rows.length === 0">
-            <td colspan="6" class="px-4 py-8 text-center text-muted">
-              {{ t('aiUsage.none') }}
-            </td>
-          </tr>
-          <tr v-if="!data && !error">
-            <td colspan="6" class="px-4 py-8 text-center text-muted">
-              {{ t('aiUsage.loading') }}
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
+    <UTable
+      :data="data?.rows ?? []"
+      :columns="columns"
+      :loading="!data && !error"
+      :empty="t('aiUsage.none')"
+      :caption="t('aiUsage.title')"
+      :aria-busy="loadingPage"
+      :ui="{ base: 'w-full min-w-[850px]', td: 'text-default' }"
+    >
+      <template #loading>
+        <span class="text-sm text-muted">{{ t('aiUsage.loading') }}</span>
+      </template>
+    </UTable>
     <div v-if="data" class="flex items-center justify-end gap-3 text-sm text-toned">
       <span>{{ t('aiUsage.pageOf', { page: data.page, total: data.totalPages, size: data.pageSize }) }}</span>
       <UButton color="neutral" variant="outline" size="sm" :disabled="loadingPage || data.page <= 1" :label="t('aiUsage.previous')" @click="load(data.page - 1, 'aiUsage.pageFailed')" />

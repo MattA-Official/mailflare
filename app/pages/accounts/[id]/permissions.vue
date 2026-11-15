@@ -85,6 +85,19 @@ const features = computed(() => [
   { key: 'calendarEnabled', label: t('account.calendar'), hint: t('account.permissions.calendarHint'), aria: t('account.permissions.allowCalendar') },
   { key: 'driveEnabled', label: t('account.drive'), hint: t('account.permissions.driveHint'), aria: t('account.permissions.allowDrive') },
 ] as const)
+
+type FlagKey = (typeof rows.value)[number]['key'] | (typeof features.value)[number]['key']
+function flagModel<K extends FlagKey>(list: () => readonly { key: K }[], fallback: boolean) {
+  return computed<K[]>({
+    get: () => list().filter(row => account.value?.[row.key] ?? fallback).map(row => row.key),
+    set: (keys) => {
+      if (!account.value) return
+      for (const row of list()) account.value[row.key] = keys.includes(row.key)
+    },
+  })
+}
+const allowed = flagModel(() => rows.value, false)
+const enabledFeatures = flagModel(() => features.value, true)
 </script>
 
 <template>
@@ -112,77 +125,26 @@ const features = computed(() => [
       </UFormField>
     </UCard>
 
-    <UCard :ui="{ body: 'p-0 sm:p-0' }">
-      <table class="w-full text-left">
-        <thead class="border-b border-default bg-elevated/50 text-xs font-semibold uppercase tracking-wide text-muted">
-          <tr>
-            <th scope="col" class="px-5 py-3">
-              {{ t('account.permissions.permission') }}
-            </th>
-            <th scope="col" class="w-28 px-5 py-3 text-center">
-              {{ t('account.permissions.allowed') }}
-            </th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-default">
-          <tr v-for="row in rows" :key="row.key">
-            <td class="px-5 py-4">
-              <p class="text-sm font-semibold text-highlighted">
-                {{ row.label }}
-              </p>
-              <p class="mt-1 text-xs text-muted">
-                {{ row.hint }}
-              </p>
-            </td>
-            <td class="px-5 py-4">
-              <div class="flex justify-center">
-                <UCheckbox
-                  :model-value="account?.[row.key] ?? false"
-                  :aria-label="row.aria"
-                  :disabled="!account || row.disabled"
-                  @update:model-value="value => account && (account[row.key] = value === true)"
-                />
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </UCard>
+    <UCheckboxGroup
+      v-model="allowed"
+      :legend="t('account.permissions.permission')"
+      :items="rows.map(row => ({ value: row.key, label: row.label, description: row.hint, disabled: !account || row.disabled }))"
+      variant="table"
+      indicator="end"
+      :ui="{ legend: 'mb-2' }"
+    />
 
-    <UCard :ui="{ header: 'bg-elevated/50 px-5 py-3 sm:px-5', body: 'p-0 sm:p-0' }">
-      <template #header>
-        <h3 class="text-xs font-semibold uppercase tracking-wide text-muted">
-          {{ t('account.permissions.features') }}
-        </h3>
-        <p class="mt-1 text-xs text-muted">
-          {{ t('account.permissions.featuresHint') }}
-        </p>
-      </template>
-      <table class="w-full text-left">
-        <tbody class="divide-y divide-default">
-          <tr v-for="row in features" :key="row.key">
-            <td class="px-5 py-4">
-              <p class="text-sm font-semibold text-highlighted">
-                {{ row.label }}
-              </p>
-              <p class="mt-1 text-xs text-muted">
-                {{ row.hint }}
-              </p>
-            </td>
-            <td class="w-28 px-5 py-4">
-              <div class="flex justify-center">
-                <UCheckbox
-                  :model-value="account?.[row.key] ?? true"
-                  :aria-label="row.aria"
-                  :disabled="!account || !editable"
-                  @update:model-value="value => account && (account[row.key] = value === true)"
-                />
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </UCard>
+    <UCheckboxGroup
+      v-model="enabledFeatures"
+      :legend="t('account.permissions.features')"
+      :items="features.map(row => ({ value: row.key, label: row.label, description: row.hint, disabled: !account || !editable }))"
+      variant="table"
+      indicator="end"
+      :ui="{ legend: 'mb-2' }"
+    />
+    <p class="-mt-4 text-xs text-muted">
+      {{ t('account.permissions.featuresHint') }}
+    </p>
 
     <UButton v-if="editable" :loading="saving" :label="saving ? t('common.saving') : t('account.permissions.save')" @click="savePermissions" />
 

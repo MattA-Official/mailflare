@@ -8,6 +8,8 @@ export default defineAppConfig({
     textarea: { slots: { root: 'w-full' } },
     select: { slots: { base: 'w-full' } },
     selectMenu: { slots: { base: 'w-full' } },
+    // Tables carry their own frame, so pages need no wrapping card.
+    table: { slots: { root: 'rounded-lg border border-default', thead: 'bg-elevated/50' } },
     // Dialog actions sit on the right, so footers take the buttons directly.
     modal: { slots: { footer: 'justify-end gap-2' } },
   },
