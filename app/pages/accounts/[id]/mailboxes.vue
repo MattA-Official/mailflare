@@ -9,8 +9,6 @@ const route = useRoute()
 const id = computed(() => String(route.params.id))
 const { data: account } = useManagedAccount(id)
 
-const mailboxes = ref<ManagedMailbox[]>([])
-const domains = ref<ManagedDomain[]>([])
 const localPart = ref('')
 const domainId = ref('')
 const saving = ref(false)
@@ -19,16 +17,18 @@ const message = ref<string | null>(null)
 const domainItems = computed(() => domains.value.map(domain => ({ label: domain.hostname, value: domain.id })))
 const hostname = computed(() => domains.value.find(domain => domain.id === domainId.value)?.hostname)
 
-async function load() {
-  const [nextMailboxes, nextDomains] = await Promise.all([fetchManagedMailboxes(id.value), fetchManagedDomains()])
-  mailboxes.value = nextMailboxes
-  domains.value = nextDomains
-  domainId.value ||= nextDomains[0]?.id ?? ''
-}
-
-onMounted(() => load().catch((error) => {
-  message.value = error instanceof Error ? error.message : t('account.mailboxes.loadFailed')
-}))
+const { data, error: loadError, refresh: load } = useAsyncData(() => `account-mailboxes:${id.value}`, async () => {
+  const [mailboxes, domains] = await Promise.all([fetchManagedMailboxes(id.value), fetchManagedDomains()])
+  return { mailboxes, domains }
+})
+const mailboxes = computed<ManagedMailbox[]>(() => data.value?.mailboxes ?? [])
+const domains = computed<ManagedDomain[]>(() => data.value?.domains ?? [])
+watch(domains, (list) => {
+  domainId.value ||= list[0]?.id ?? ''
+})
+watch(loadError, (error) => {
+  if (error) message.value = error.message || t('account.mailboxes.loadFailed')
+})
 
 async function add() {
   if (!account.value) return

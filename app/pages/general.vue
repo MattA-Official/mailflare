@@ -10,22 +10,21 @@ useHead({ title: () => t('general.title') })
 const maxMb = ref(25)
 const unlimited = ref(true)
 const limitGb = ref(10)
-const loaded = ref(false)
 const saving = ref(false)
 const status = ref('')
 const driveSaving = ref(false)
 const driveStatus = ref('')
 
-onMounted(async () => {
-  try {
-    const settings = await loadGeneralSettings()
-    maxMb.value = settings.outboundAttachmentMaxMb
-    unlimited.value = settings.driveStorageLimitGb === null
-    if (settings.driveStorageLimitGb !== null) limitGb.value = settings.driveStorageLimitGb
-    loaded.value = true
-  } catch (error) {
-    status.value = error instanceof Error ? error.message : t('general.loadFailed')
-  }
+const { data: settings, error: loadError } = useAsyncData('admin-general-settings', loadGeneralSettings)
+const loaded = computed(() => Boolean(settings.value))
+watch(settings, (value) => {
+  if (!value) return
+  maxMb.value = value.outboundAttachmentMaxMb
+  unlimited.value = value.driveStorageLimitGb === null
+  if (value.driveStorageLimitGb !== null) limitGb.value = value.driveStorageLimitGb
+}, { immediate: true })
+watch(loadError, (error) => {
+  if (error) status.value = error.message || t('general.loadFailed')
 })
 
 const maxMbValid = computed(() => Number.isInteger(maxMb.value) && maxMb.value >= 1 && maxMb.value <= 25)

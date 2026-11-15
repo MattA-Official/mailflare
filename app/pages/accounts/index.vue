@@ -14,9 +14,6 @@ useHead({ title: () => t('accounts.title') })
 const canManage = computed(() => !!currentUser.value && (currentUser.value.isPrimaryAdmin || currentUser.value.canManageUsers))
 const canChooseRole = computed(() => !!currentUser.value?.isPrimaryAdmin)
 
-const accounts = ref<Account[]>([])
-const domains = ref<AccountDomain[]>([])
-const loading = ref(true)
 const message = ref<string | null>(null)
 const selected = ref<Set<string>>(new Set())
 const deleteOpen = ref(false)
@@ -30,23 +27,21 @@ const domainItems = computed(() => domains.value.map(domain => ({ label: domain.
 const roleItems = computed(() => [{ label: t('accounts.roleUser'), value: 'user' }, { label: t('accounts.roleAdmin'), value: 'admin' }])
 const selectedAccounts = computed(() => accounts.value.filter(account => selected.value.has(account.id)))
 
-async function loadAccounts() {
-  const data = await fetchAccounts()
-  accounts.value = data.accounts ?? []
-}
-
-onMounted(async () => {
-  try {
-    await loadAccounts()
-    domains.value = await fetchDomains()
-    form.domainId = domains.value[0]?.id ?? ''
-    // /accounts?new=1 (linked from a mailbox's shared access card) opens the create dialog.
-    if (route.query.new && canManage.value) createOpen.value = true
-  } catch (error) {
-    message.value = error instanceof Error ? error.message : t('accounts.loadFailed')
-  } finally {
-    loading.value = false
-  }
+const { data, status, error: loadError, refresh: loadAccounts } = useAsyncData('admin-accounts', async () => {
+  const [list, domainList] = await Promise.all([fetchAccounts(), fetchDomains()])
+  return { accounts: list.accounts ?? [], domains: domainList }
+})
+const accounts = computed<Account[]>(() => data.value?.accounts ?? [])
+const domains = computed<AccountDomain[]>(() => data.value?.domains ?? [])
+const loading = computed(() => status.value === 'pending' && !data.value)
+watch(loadError, (error) => {
+  if (error) message.value = error.message || t('accounts.loadFailed')
+})
+watch(data, (value, previous) => {
+  if (!value || previous) return
+  form.domainId = value.domains[0]?.id ?? ''
+  // /accounts?new=1 (linked from a mailbox's shared access card) opens the create dialog.
+  if (route.query.new && canManage.value) createOpen.value = true
 })
 
 async function submit() {

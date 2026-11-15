@@ -13,7 +13,6 @@ const { data: account, error: loadError } = useManagedAccount(id)
 const password = ref('')
 const saving = ref(false)
 const message = ref<string | null>(null)
-const adminSecurity = ref<SecurityStatus | null>(null)
 const recoveryOpen = ref(false)
 const pendingRecovery = ref(false)
 const pendingReset = ref(false)
@@ -23,9 +22,9 @@ const copied = ref(false)
 watch(loadError, (error) => {
   if (error) message.value = error.message || t('account.loadFailed')
 })
-onMounted(() => loadSecurityStatus().then((value) => {
-  adminSecurity.value = value
-}).catch(() => undefined))
+// The signed-in admin's own sign-in methods, for the step-up check. Optional: without it the
+// check assumes a password.
+const { data: adminSecurity } = useAsyncData<SecurityStatus | null>('step-up-security-status', () => loadSecurityStatus().catch(() => null))
 
 const stepUp = computed(() => ({
   hasPassword: adminSecurity.value?.passwordSet ?? true,

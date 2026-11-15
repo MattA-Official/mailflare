@@ -8,27 +8,20 @@ import { fetchSharedInboxSettings, updateSharedInboxSettings, type SharedInboxSe
 const props = defineProps<{ mailboxId: string }>()
 const { t } = useLanguage()
 
-const settings = ref<SharedInboxSettings | null>(null)
-const canManage = ref(false)
-const busy = ref(true)
-const error = ref<string | null>(null)
+const saving = ref(false)
+const saveError = ref<string | null>(null)
 // USelect cannot hold null, so "never" has its own value.
 const NEVER = 'never'
 
-async function load() {
-  busy.value = true
-  error.value = null
-  try {
-    const result = await fetchSharedInboxSettings(props.mailboxId)
-    settings.value = result.settings
-    canManage.value = result.canManage
-  } catch (cause) {
-    error.value = errorMessage(cause, t('mailbox.inboxSettingsLoadFailed'))
-  } finally {
-    busy.value = false
-  }
-}
-watch(() => props.mailboxId, load, { immediate: true })
+const { data, status, error: loadError } = useAsyncData(() => `shared-inbox-settings:${props.mailboxId}`, () => fetchSharedInboxSettings(props.mailboxId))
+// An editable copy, so a change shows at once and rolls back if saving fails.
+const settings = ref<SharedInboxSettings | null>(null)
+watch(data, (value) => {
+  settings.value = value?.settings ?? null
+}, { immediate: true })
+const canManage = computed(() => data.value?.canManage ?? false)
+const busy = computed(() => saving.value || status.value === 'pending')
+const error = computed(() => saveError.value ?? (loadError.value ? errorMessage(loadError.value, t('mailbox.inboxSettingsLoadFailed')) : null))
 
 const retentionItems = computed(() => {
   const days = settings.value?.trashRetentionDays ?? null
@@ -45,15 +38,15 @@ async function update(patch: Partial<SharedInboxSettings>) {
   if (!settings.value) return
   const previous = settings.value
   settings.value = { ...previous, ...patch }
-  busy.value = true
-  error.value = null
+  saving.value = true
+  saveError.value = null
   try {
     settings.value = (await updateSharedInboxSettings(props.mailboxId, patch)).settings
   } catch (cause) {
     settings.value = previous
-    error.value = errorMessage(cause, t('mailbox.inboxSettingsFailed'))
+    saveError.value = errorMessage(cause, t('mailbox.inboxSettingsFailed'))
   } finally {
-    busy.value = false
+    saving.value = false
   }
 }
 </script>

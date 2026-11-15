@@ -1,6 +1,7 @@
 // Client session plumbing, ported from legacy/src/lib/auth/client.ts. The session lives in an
 // HttpOnly cookie; the token is also kept in localStorage so account switching can send it as a
 // Bearer header.
+import { FetchError, ofetch, type $Fetch, type FetchOptions } from 'ofetch'
 import { getUserTimeZone } from '#lib/time/utils'
 
 export interface AuthFetchOptions extends RequestInit {
@@ -76,21 +77,54 @@ export class ApiError extends Error {
   }
 }
 
-/** JSON helper over authFetch: sends `body` as JSON, returns the parsed response, throws ApiError on failure. */
+export type ApiFetchOptions = FetchOptions<'json'> & { redirectOnUnauthorized?: boolean }
+
+let apiFetchInstance: $Fetch | null = null
+
+/**
+ * The app's `$fetch`: the session and time zone headers on every request, and a 401 clears the
+ * session and goes to /login unless `redirectOnUnauthorized: false`. No automatic retries, so a
+ * request runs once, as `fetch` did. `useApi()` passes it to `useFetch`.
+ */
+export function apiFetch(): $Fetch {
+  apiFetchInstance ??= ofetch.create({
+    retry: 0,
+    onRequest({ options }) {
+      options.headers = getAuthHeaders(options.headers)
+    },
+    onResponseError({ response, options }) {
+      if (response.status === 401 && (options as ApiFetchOptions).redirectOnUnauthorized !== false) {
+        clearClientSessionToken()
+        window.location.assign('/login')
+      }
+    },
+  })
+  return apiFetchInstance
+}
+
+/** JSON helper over `apiFetch()`: sends `body` as JSON (FormData, Blob and strings as they are), returns the parsed response, throws ApiError on failure. */
 export async function api<T = unknown>(url: string, options: Omit<AuthFetchOptions, 'body'> & { body?: unknown } = {}): Promise<T> {
-  const { body, headers, ...rest } = options
-  const init: AuthFetchOptions = { ...rest, headers: new Headers(headers) }
-  if (body instanceof FormData || body instanceof Blob || typeof body === 'string') {
-    init.body = body
-  } else if (body !== undefined) {
-    ;(init.headers as Headers).set('Content-Type', 'application/json')
-    init.body = JSON.stringify(body)
+  const { body, ...rest } = options
+  try {
+    const data = await apiFetch()<T>(url, { ...(rest as ApiFetchOptions), body: body as ApiFetchOptions['body'] })
+    // A response without a body (204) reads as null, as before.
+    return (data ?? null) as T
+  } catch (error) {
+    // Network failures have no response and pass through unchanged.
+    if (!(error instanceof FetchError) || !error.response) throw error
+    const data = error.data ?? null
+    const message = (data as { error?: unknown } | null)?.error
+    throw new ApiError(typeof message === 'string' ? message : `Request failed (${error.response.status})`, error.response.status, data)
   }
-  const response = await authFetch(url, init)
-  const data = response.status === 204 ? null : await response.json().catch(() => null)
-  if (!response.ok) {
-    const error = (data as { error?: unknown } | null)?.error
-    throw new ApiError(typeof error === 'string' ? error : `Request failed (${response.status})`, response.status, data)
-  }
-  return data as T
+}
+
+/**
+ * The message to show for a failed request: the server's `{ error }` text when it sent one, otherwise
+ * `fallback`. Accepts ApiError and the errors useFetch, useApi and useAsyncData return.
+ */
+export function apiErrorMessage(error: unknown, fallback: string): string {
+  if (error instanceof ApiError) return error.message || fallback
+  const data = (error as { data?: unknown } | null)?.data
+  const message = data && typeof data === 'object' ? (data as { error?: unknown }).error : undefined
+  return typeof message === 'string' && message ? message : fallback
 }

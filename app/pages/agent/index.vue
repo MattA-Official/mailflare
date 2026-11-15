@@ -17,7 +17,6 @@ const form = ref<AgentAdminForm>({ provider: 'cloudflare', preset: 'openai', bas
 const assistantEnabled = ref(true)
 const enabledSaving = ref(false)
 const enabledStatus = ref<string | null>(null)
-const loaded = ref(false)
 const cloudflareAvailable = ref(false)
 const hasSavedKey = ref(false)
 const savedEndpoint = ref('')
@@ -34,18 +33,19 @@ const providerItems = computed(() => [
 ])
 const presetItems = PROVIDER_PRESETS.map(item => ({ label: item.label, value: item.id }))
 
-onMounted(async () => {
-  try {
-    const data = await loadAgentAdminSettings()
-    form.value = { provider: data.config.provider, preset: data.config.preset, baseUrl: data.config.baseUrl, apiKey: '', model: data.config.models.join(', '), rates: data.config.rates }
-    assistantEnabled.value = data.assistantEnabled
-    cloudflareAvailable.value = data.cloudflareAvailable
-    hasSavedKey.value = data.config.hasApiKey
-    savedEndpoint.value = `${data.config.preset}|${data.config.baseUrl}`
-    loaded.value = true
-  } catch (error) {
-    status.value = error instanceof Error ? error.message : t('agentAdmin.loadFailed')
-  }
+const { data: settings, error: loadError } = useAsyncData('agent-admin-settings', loadAgentAdminSettings)
+const loaded = computed(() => Boolean(settings.value))
+// Fill the form once, when the settings first arrive.
+watch(settings, (data, previous) => {
+  if (!data || previous) return
+  form.value = { provider: data.config.provider, preset: data.config.preset, baseUrl: data.config.baseUrl, apiKey: '', model: data.config.models.join(', '), rates: data.config.rates }
+  assistantEnabled.value = data.assistantEnabled
+  cloudflareAvailable.value = data.cloudflareAvailable
+  hasSavedKey.value = data.config.hasApiKey
+  savedEndpoint.value = `${data.config.preset}|${data.config.baseUrl}`
+}, { immediate: true })
+watch(loadError, (error) => {
+  if (error) status.value = error.message || t('agentAdmin.loadFailed')
 })
 
 const canUseSavedKey = computed(() => hasSavedKey.value && savedEndpoint.value === `${form.value.preset}|${form.value.baseUrl}`)

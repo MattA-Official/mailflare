@@ -6,19 +6,18 @@ import { errorMessage, probeTrackingHost } from '~/utils/admin/email/domains'
 
 const props = defineProps<{ domain: Domain }>()
 const { t } = useLanguage()
-const saved = ref<TrackingHostResponse | null>(null)
 const value = ref('')
 const busy = ref(false)
 const error = ref('')
 const probe = ref<{ hostname: string, ok: boolean } | null>(null)
 
-watch(() => props.domain.id, async (id) => {
-  try {
-    saved.value = await api<TrackingHostResponse>(`/api/domains/${id}/tracking`)
-  } catch {
-    saved.value = { hostname: null, available: false }
-  }
-  value.value = saved.value.hostname ?? ''
+const { data: saved } = useAsyncData<TrackingHostResponse>(
+  () => `domain-tracking-host:${props.domain.id}`,
+  () => api<TrackingHostResponse>(`/api/domains/${props.domain.id}/tracking`).catch(() => ({ hostname: null, available: false })),
+)
+// The field follows the saved hostname whenever it loads or is saved.
+watch(() => saved.value?.hostname, (hostname) => {
+  value.value = hostname ?? ''
 }, { immediate: true })
 
 watch(() => saved.value?.hostname, async (hostname, _old, onCleanup) => {

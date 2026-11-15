@@ -14,23 +14,12 @@ useHead({ title: () => t('agent.calendarReview.title') })
 const route = useRoute()
 const router = useRouter()
 const token = computed(() => typeof route.query.token === 'string' ? route.query.token : '')
-const preview = ref<Preview | null>(null)
-const error = ref<string | null>(null)
 const done = ref(false)
 const busy = ref(false)
 
-watch(token, async (value) => {
-  preview.value = null
-  error.value = null
-  try {
-    const response = await authFetch(`/api/agent/calendar-confirmation?token=${encodeURIComponent(value)}`)
-    const data = await response.json().catch(() => ({})) as Preview & { error?: string }
-    if (!response.ok) throw new Error(data.error || t('agent.calendarReview.loadFailed'))
-    preview.value = data
-  } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : t('agent.calendarReview.loadFailed')
-  }
-}, { immediate: true })
+const { data: preview, error: loadError } = useApi<Preview>(() => `/api/agent/calendar-confirmation?token=${encodeURIComponent(token.value)}`)
+const confirmError = ref<string | null>(null)
+const error = computed(() => confirmError.value ?? (loadError.value ? apiErrorMessage(loadError.value, t('agent.calendarReview.loadFailed')) : null))
 
 async function confirm() {
   busy.value = true
@@ -38,7 +27,7 @@ async function confirm() {
     await api('/api/agent/calendar-confirmation', { method: 'POST', body: { token: token.value } })
     done.value = true
   } catch (cause) {
-    error.value = cause instanceof Error && cause.message ? cause.message : t('agent.calendarReview.failed')
+    confirmError.value = cause instanceof Error && cause.message ? cause.message : t('agent.calendarReview.failed')
   } finally {
     busy.value = false
   }

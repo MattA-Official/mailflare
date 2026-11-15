@@ -5,20 +5,17 @@ type SkippedDomain = { id: string, hostname: string, dnsSkipped?: boolean }
 
 const { t } = useLanguage()
 const user = useCurrentUser()
-const domains = ref<SkippedDomain[]>([])
 const busy = ref(false)
 const canManage = computed(() => !!user.value && (user.value.isPrimaryAdmin || (user.value.role === 'admin' && user.value.canManageDomains)))
 
-async function load() {
-  try {
-    const response = await authFetch('/api/domains', { redirectOnUnauthorized: false })
-    if (!response.ok) return
-    const data = (await response.json()) as { domains?: SkippedDomain[] }
-    domains.value = (data.domains ?? []).filter(domain => domain.dnsSkipped)
-  } catch {
-    // Hidden.
-  }
-}
+const { data: domains, refresh: load } = useAsyncData(
+  'dns-skipped-domains',
+  () => api<{ domains?: SkippedDomain[] }>('/api/domains', { redirectOnUnauthorized: false })
+    .then(data => (data.domains ?? []).filter(domain => domain.dnsSkipped))
+    // Hidden when it cannot be read.
+    .catch(() => [] as SkippedDomain[]),
+  { default: () => [] },
+)
 
 async function markDone() {
   busy.value = true
@@ -34,7 +31,6 @@ async function markDone() {
   }
 }
 
-onMounted(load)
 </script>
 
 <template>
