@@ -177,6 +177,8 @@ async function enrollAuthenticator(page: Page) {
   await completeStepUp(page);
   const dialog = page.getByRole("dialog", { name: "Scan the code" });
   await expect(dialog).toBeVisible({ timeout: 30_000 });
+  // The key sits behind a disclosure under the QR code.
+  await dialog.getByRole("button", { name: "Can't scan? Enter the key manually" }).click();
   totpSecret = ((await dialog.locator("code").first().textContent()) ?? "").trim();
   await dialog.getByLabel("6-digit code").fill(totpCode(totpSecret));
   await dialog.getByRole("button", { name: "Verify and turn on" }).click();
@@ -257,7 +259,7 @@ test("passkey lifecycle: add, rename, sign in, second step, password removal", a
   await page.getByRole("button", { name: "Remove password" }).click();
   await page.getByRole("dialog").getByRole("button", { name: "Remove password" }).click();
   await completeStepUp(page);
-  await expect(page.getByText("Password removed.", { exact: false })).toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText("Password removed. Your passkeys are now the only way to sign in.", { exact: true })).toBeVisible({ timeout: 30_000 });
 
   // The last passkey is protected without a second confirmation.
   await expect(page.getByRole("button", { name: "Remove Renamed passkey" })).toBeDisabled();
