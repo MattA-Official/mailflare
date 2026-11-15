@@ -5,6 +5,7 @@ import { loadGeneralSettings, saveGeneralSettings } from '~/utils/admin/system/s
 definePageMeta({ layout: 'dashboard', nav: 'admin', auth: { role: 'admin', primary: true, requireMailbox: true } })
 
 const { t } = useLanguage()
+const toast = useToast()
 useHead({ title: () => t('general.title') })
 
 const maxMb = ref(25)
@@ -35,7 +36,7 @@ async function save() {
   try {
     const settings = await saveGeneralSettings({ outboundAttachmentMaxMb: maxMb.value })
     maxMb.value = settings.outboundAttachmentMaxMb
-    status.value = t('general.saved')
+    toast.add({ title: t('general.saved'), color: 'success' })
   } catch (error) {
     status.value = error instanceof Error ? error.message : t('general.saveFailed')
   } finally {
@@ -50,7 +51,7 @@ async function saveDrive() {
     const settings = await saveGeneralSettings({ driveStorageLimitGb: unlimited.value ? null : limitGb.value })
     unlimited.value = settings.driveStorageLimitGb === null
     if (settings.driveStorageLimitGb !== null) limitGb.value = settings.driveStorageLimitGb
-    driveStatus.value = t('general.driveSaved')
+    toast.add({ title: t('general.driveSaved'), color: 'success' })
   } catch (error) {
     driveStatus.value = error instanceof Error ? error.message : t('general.saveFailed')
   } finally {
@@ -75,9 +76,7 @@ async function saveDrive() {
           <p>{{ t('general.cloudflareLimit') }}</p>
           <p>{{ t('general.largeFiles') }}</p>
         </div>
-        <p v-if="status" role="status" class="text-sm text-toned">
-          {{ status }}
-        </p>
+        <UAlert v-if="status" role="alert" color="error" variant="subtle" :title="status" />
         <UButton type="submit" :loading="saving" :disabled="!loaded || !maxMbValid" :label="saving ? t('common.saving') : t('general.save')" />
       </form>
     </UCard>
@@ -95,9 +94,7 @@ async function saveDrive() {
         <p class="text-sm text-muted">
           {{ t('general.driveHint') }}
         </p>
-        <p v-if="driveStatus" role="status" class="text-sm text-toned">
-          {{ driveStatus }}
-        </p>
+        <UAlert v-if="driveStatus" role="alert" color="error" variant="subtle" :title="driveStatus" />
         <UButton type="submit" :loading="driveSaving" :disabled="!loaded || (!unlimited && !(limitGb > 0))" :label="driveSaving ? t('common.saving') : t('general.save')" />
       </form>
     </UCard>

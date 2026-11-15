@@ -5,6 +5,7 @@ import { addSubgroup, deleteGroup, fetchGroup, getGroupMailboxAddress, removeSub
 definePageMeta({ layout: 'dashboard', nav: 'admin', auth: { role: 'admin', requireMailbox: true } })
 
 const { t } = useLanguage()
+const toast = useToast()
 const route = useRoute()
 const id = computed(() => String(route.params.id))
 const { data, error, refresh } = useAsyncData(() => `group-${id.value}`, () => fetchGroup(id.value))
@@ -20,7 +21,7 @@ watch(() => data.value?.group, (group) => {
 }, { immediate: true })
 
 const saving = ref(false)
-const message = ref<{ ok: boolean, text: string } | null>(null)
+const message = ref<string | null>(null)
 async function save() {
   if (!name.value.trim()) return
   saving.value = true
@@ -28,9 +29,9 @@ async function save() {
   try {
     await updateGroup(id.value, { name: name.value.trim(), description: description.value.trim() || null })
     await refresh()
-    message.value = { ok: true, text: t('groups.saved') }
+    toast.add({ title: t('groups.saved'), color: 'success' })
   } catch (cause) {
-    message.value = { ok: false, text: cause instanceof Error ? cause.message : t('groups.saveFailed') }
+    message.value = cause instanceof Error ? cause.message : t('groups.saveFailed')
   } finally {
     saving.value = false
   }
@@ -64,7 +65,7 @@ async function remove() {
     await deleteGroup(id.value)
     await navigateTo('/groups', { replace: true })
   } catch {
-    message.value = { ok: false, text: t('groups.deleteFailed') }
+    message.value = t('groups.deleteFailed')
     deleteOpen.value = false
   } finally {
     deleting.value = false
@@ -96,11 +97,9 @@ async function remove() {
           <UFormField :label="t('groups.descriptionLabel')" :hint="t('groups.optional')">
             <UTextarea v-model="description" :rows="2" />
           </UFormField>
+          <UAlert v-if="message" role="alert" color="error" variant="subtle" :title="message" />
           <div class="flex items-center gap-3">
             <UButton type="submit" :loading="saving" :disabled="!name.trim()" :label="saving ? t('common.saving') : t('common.save')" />
-            <p v-if="message" role="status" class="text-sm" :class="message.ok ? 'text-success' : 'text-error'">
-              {{ message.text }}
-            </p>
           </div>
         </form>
       </UCard>

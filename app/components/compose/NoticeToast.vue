@@ -1,8 +1,13 @@
 <script setup lang="ts">
 // The send toast: undo countdown, delivery status poll and the subject link, ported from
-// ComposeNoticeToast in legacy/src/components/compose/floating-composer.tsx. Nuxt UI's useToast
-// cannot host a live countdown with a link inside the text, so this stays custom markup.
+// ComposeNoticeToast in legacy/src/components/compose/floating-composer.tsx. It renders nothing
+// itself: it drives one Nuxt UI toast (id "compose-notice") and updates it in place as the notice
+// changes, so "Sending…", "Sent" and "Failed" replace each other instead of stacking. The title is
+// a render function, so the countdown and the subject link stay live inside the toast.
+import type { ToastProps } from '@nuxt/ui'
+import { NuxtLink } from '#components'
 import type { ComposeNotice, ComposeNoticeAction } from '~/types/compose/notice'
+import { COMPOSE_NOTICE_TOAST_ID } from '~/utils/compose/notice-toast'
 
 const STATUS_POLL_MS = 1000
 
@@ -54,6 +59,56 @@ onBeforeUnmount(() => {
   if (pollTimer) window.clearTimeout(pollTimer)
 })
 
+const toast = useToast()
+
+function title() {
+  const { parts, message } = props.notice
+  if (!parts) return h('span', { class: 'break-words' }, message)
+  return h('span', { class: 'break-words' }, [
+    parts.before,
+    parts.link ? h(NuxtLink, { to: parts.link.href, class: 'underline decoration-current underline-offset-2' }, () => parts.link!.label) : null,
+    parts.after,
+    ticker.value !== null ? h('span', { 'aria-live': 'off' }, ticker.value) : null,
+  ])
+}
+
+function toastProps(): Partial<ToastProps> & { id: string } {
+  const { tone, countdown, actions } = props.notice
+  return {
+    id: COMPOSE_NOTICE_TOAST_ID,
+    title,
+    color: tone === 'error' ? 'error' : tone === 'loading' ? 'neutral' : 'success',
+    icon: tone === 'error' ? 'i-lucide-circle-alert' : tone === 'loading' ? 'i-lucide-loader-2' : 'i-lucide-circle-check',
+    // The notice decides when it ends (useCompose clears it), so the toast never times out itself.
+    duration: 0,
+    // An undo countdown or a pending action can't be dismissed by accident.
+    close: tone !== 'loading' && !countdown,
+    actions: actions.map(action => ({
+      label: action.label,
+      color: 'neutral' as const,
+      variant: 'outline' as const,
+      size: 'xs' as const,
+      disabled: pendingAction.value !== null,
+      loading: pendingAction.value === action.label,
+      // The action replaces the notice itself (Sending…, Cancelled), so the toast stays open for it.
+      closeOnClick: false,
+      onClick: () => void runAction(action),
+    })),
+    progress: false,
+    orientation: 'horizontal',
+    ui: tone === 'loading' ? { icon: 'animate-spin' } : undefined,
+  }
+}
+
+function show() {
+  const next = toastProps()
+  if (toast.toasts.value.some(item => item.id === COMPOSE_NOTICE_TOAST_ID)) toast.update(COMPOSE_NOTICE_TOAST_ID, next)
+  else toast.add(next)
+}
+
+onMounted(show)
+watch(pendingAction, show)
+
 async function runAction(action: ComposeNoticeAction) {
   if (pendingAction.value) return
   const result = action.onClick()
@@ -68,32 +123,6 @@ async function runAction(action: ComposeNoticeAction) {
 </script>
 
 <template>
-  <div
-    role="status"
-    aria-atomic="false"
-    class="fixed right-6 top-6 z-[60] flex max-w-[calc(100vw-3rem)] items-center gap-4 rounded-lg px-4 py-3 text-sm font-medium text-white shadow-lg"
-    :class="notice.tone === 'error' ? 'bg-red-600' : notice.tone === 'loading' ? 'bg-neutral-800' : 'bg-green-600'"
-  >
-    <UIcon v-if="notice.tone === 'loading'" name="i-lucide-loader-2" class="size-4 shrink-0 animate-spin" aria-hidden="true" />
-    <span class="min-w-0 break-words">
-      <template v-if="notice.parts">
-        {{ notice.parts.before }}<NuxtLink
-          v-if="notice.parts.link"
-          :to="notice.parts.link.href"
-          class="underline decoration-current underline-offset-2"
-        >{{ notice.parts.link.label }}</NuxtLink>{{ notice.parts.after }}<span v-if="ticker !== null" aria-live="off">{{ ticker }}</span>
-      </template>
-      <template v-else>{{ notice.message }}</template>
-    </span>
-    <button
-      v-for="action in notice.actions"
-      :key="action.label"
-      type="button"
-      :disabled="pendingAction !== null"
-      class="shrink-0 rounded-md bg-white/20 px-2.5 py-1 font-semibold hover:bg-white/30 disabled:cursor-wait disabled:opacity-60"
-      @click="runAction(action)"
-    >
-      {{ action.label }}
-    </button>
-  </div>
+  <!-- The notice shows through useToast(); this element only anchors the component. -->
+  <span hidden />
 </template>

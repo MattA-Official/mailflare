@@ -10,6 +10,7 @@ import { removePassword, setPassword } from '~/utils/settings/account/passkey-se
 import { useSecurityStatus } from '~/utils/settings/account/security-status'
 
 const { t } = useLanguage()
+const toast = useToast()
 const { status, error: loadFailed, refresh: refreshSecurityStatus } = useSecurityStatus()
 
 const state = reactive({ currentPassword: '', newPassword: '', confirmPassword: '' })
@@ -23,7 +24,6 @@ function passwordSchema(current: boolean) {
 }
 const changeSchema = computed(() => passwordSchema(true))
 const newPasswordSchema = computed(() => passwordSchema(false))
-const message = ref<string | null>(null)
 const error = ref<string | null>(null)
 const busy = ref(false)
 const pending = ref<'set' | 'remove' | null>(null)
@@ -42,13 +42,12 @@ function failure(err: unknown) {
 }
 
 async function change() {
-  message.value = null
   error.value = null
   busy.value = true
   try {
     await updatePassword(state.currentPassword, state.newPassword)
     Object.assign(state, { currentPassword: '', newPassword: '', confirmPassword: '' })
-    message.value = t('settings.password.changed')
+    toast.add({ title: t('settings.password.changed'), color: 'success' })
     await refreshSecurityStatus()
   } catch (err) {
     error.value = failure(err)
@@ -71,7 +70,7 @@ async function authorized(token: string) {
     return
   }
   await removePassword(token)
-  message.value = t('passkey.passwordRemoved')
+  toast.add({ title: t('passkey.passwordRemoved'), color: 'success' })
   await refreshSecurityStatus()
   pending.value = null
 }
@@ -87,7 +86,7 @@ async function choosePasswordPolicy(choice: PasskeyPolicyChoice) {
   error.value = null
   try {
     await setPassword(state.newPassword, passwordProof.value, choice === 'password-and-passkey')
-    message.value = t('passkey.passwordSet')
+    toast.add({ title: t('passkey.passwordSet'), color: 'success' })
     Object.assign(state, { newPassword: '', confirmPassword: '' })
     await refreshSecurityStatus()
   } catch (err) {
@@ -148,9 +147,6 @@ async function choosePasswordPolicy(choice: PasskeyPolicyChoice) {
       <UButton type="submit" icon="i-lucide-key-round" :disabled="busy" :label="t('passkey.setPassword')" />
     </UForm>
 
-    <p v-if="message" role="status" class="text-sm text-muted">
-      {{ message }}
-    </p>
     <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />
 
     <UModal v-model:open="confirmRemove" :title="t('passkey.removePasswordTitle')" :description="t('passkey.removePasswordDescription')">

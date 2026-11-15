@@ -4,6 +4,7 @@ import { getManagedAccountAvatarUrl, saveManagedAccount, uploadManagedAccountAva
 import { useManagedAccountDraft } from '~/utils/admin/system/use-managed-account'
 
 const { t } = useLanguage()
+const toast = useToast()
 const route = useRoute()
 const id = computed(() => String(route.params.id))
 const { draft: account, data, error: loadError } = useManagedAccountDraft(id)
@@ -20,7 +21,7 @@ async function saveDetails() {
   try {
     await saveManagedAccount(account.value)
     data.value = { ...account.value }
-    message.value = t('account.updated')
+    toast.add({ title: t('account.updated'), color: 'success' })
   } catch (error) {
     message.value = error instanceof Error ? error.message : t('account.updateFailed')
   } finally {
@@ -100,8 +101,6 @@ async function uploadAvatar(event: Event) {
         <UButton v-if="account.editable" type="submit" :loading="saving" :disabled="!account.name.trim()" :label="saving ? t('common.saving') : t('account.saveDetails')" />
       </form>
     </UCard>
-    <p v-if="message" role="status" class="text-sm text-muted">
-      {{ message }}
-    </p>
+    <UAlert v-if="message" role="alert" color="error" variant="subtle" :title="message" />
   </div>
 </template>

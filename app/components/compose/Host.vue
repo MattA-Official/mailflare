@@ -1,10 +1,17 @@
 <script setup lang="ts">
-// Mounted once in the dashboard layout: the send toast, the floating composer and, on mail pages, the
-// phone Compose button. Ported from legacy/src/components/compose/floating-composer.tsx.
+// Mounted once in the dashboard layout: the send toast (a Nuxt UI toast), the floating composer and,
+// on mail pages, the phone Compose button. Ported from legacy/src/components/compose/floating-composer.tsx.
+import { COMPOSE_NOTICE_TOAST_ID } from '~/utils/compose/notice-toast'
+
 const { open, draftId, initialTo, notice, openComposer, closeComposer } = useCompose()
 const { t } = useLanguage()
 const route = useRoute()
 const router = useRouter()
+const toast = useToast()
+// The send toast follows the notice: replaced in place by ComposeNoticeToast, removed here when it ends.
+watch(() => notice.value?.id, (id) => {
+  if (id === undefined) toast.remove(COMPOSE_NOTICE_TOAST_ID)
+})
 // Not on /compose, which is already a composer.
 const showButton = computed(() => (route.meta.nav ?? 'mail') === 'mail' && !route.path.startsWith('/compose'))
 
