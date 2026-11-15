@@ -89,8 +89,14 @@ const totals = computed(() => data.value?.totals)
     </UTable>
     <div v-if="data" class="flex items-center justify-end gap-3 text-sm text-toned">
       <span>{{ t('aiUsage.pageOf', { page: data.page, total: data.totalPages, size: data.pageSize }) }}</span>
-      <UButton color="neutral" variant="outline" size="sm" :disabled="loadingPage || data.page <= 1" :label="t('aiUsage.previous')" @click="load(data.page - 1, 'aiUsage.pageFailed')" />
-      <UButton color="neutral" variant="outline" size="sm" :disabled="loadingPage || data.page >= data.totalPages" :label="t('aiUsage.next')" @click="load(data.page + 1, 'aiUsage.pageFailed')" />
+      <UPagination
+        :page="data.page"
+        :total="data.totalPages * data.pageSize"
+        :items-per-page="data.pageSize"
+        :disabled="loadingPage"
+        size="sm"
+        @update:page="page => load(page, 'aiUsage.pageFailed')"
+      />
     </div>
     <p class="text-xs text-muted">
       {{ t('aiUsage.note') }}
