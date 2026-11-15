@@ -1,5 +1,6 @@
 <script setup lang="ts">
 // Ported from legacy/src/app/(admin)/accounts/[id]/password/page.tsx.
+import * as z from 'zod'
 import type { SecurityStatus } from '~/types/settings/account'
 import { loadSecurityStatus } from '~/utils/settings/account/passkey-settings'
 import { createRecoveryLink, saveManagedAccount } from '~/utils/admin/system/accounts'
@@ -10,7 +11,8 @@ const route = useRoute()
 const id = computed(() => String(route.params.id))
 const { data: account, error: loadError } = useManagedAccount(id)
 
-const password = ref('')
+const state = reactive({ password: '' })
+const schema = computed(() => z.object({ password: z.string().trim().min(8, t('auth.passwordTooShort')).max(128) }))
 const saving = ref(false)
 const message = ref<string | null>(null)
 const recoveryOpen = ref(false)
@@ -34,7 +36,7 @@ const stepUp = computed(() => ({
 }))
 
 function requestReset() {
-  if (account.value && password.value.trim().length >= 8) pendingReset.value = true
+  if (account.value) pendingReset.value = true
 }
 
 async function resetPassword(token: string) {
@@ -42,8 +44,8 @@ async function resetPassword(token: string) {
   saving.value = true
   message.value = null
   try {
-    await saveManagedAccount({ ...account.value, newPassword: password.value }, token)
-    password.value = ''
+    await saveManagedAccount({ ...account.value, newPassword: state.password }, token)
+    state.password = ''
     message.value = t('account.password.resetDone')
   } catch (error) {
     message.value = error instanceof Error ? error.message : t('account.password.resetFailed')
@@ -82,12 +84,12 @@ async function copyLink() {
       <p v-else-if="account && !account.passwordSet" class="text-sm text-muted">
         {{ t('account.recovery.usesPasskeys') }}
       </p>
-      <form v-else class="space-y-5" @submit.prevent="requestReset">
-        <UFormField :label="t('account.password.new')" :help="t('account.password.hint')" required>
-          <UInput v-model="password" type="password" autocomplete="new-password" minlength="8" maxlength="128" required :disabled="!account || saving" :placeholder="t('account.password.placeholder')" />
+      <UForm v-else :schema="schema" :state="state" class="space-y-5" @submit="requestReset">
+        <UFormField :label="t('account.password.new')" :help="t('account.password.hint')" name="password" required>
+          <UInput v-model="state.password" type="password" autocomplete="new-password" maxlength="128" required :disabled="!account || saving" :placeholder="t('account.password.placeholder')" />
         </UFormField>
-        <UButton type="submit" :loading="saving" :disabled="!account || password.trim().length < 8" :label="saving ? t('account.password.resetting') : t('account.password.reset')" />
-      </form>
+        <UButton type="submit" :loading="saving" :disabled="!account" :label="saving ? t('account.password.resetting') : t('account.password.reset')" />
+      </UForm>
     </UCard>
     <p v-if="message" role="status" class="text-sm text-muted">
       {{ message }}

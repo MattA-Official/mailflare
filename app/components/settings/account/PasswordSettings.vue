@@ -1,6 +1,7 @@
 <script setup lang="ts">
 // Password controls that understand passkey-only accounts: set one, change it, or remove it once
 // another sign-in method exists. Ported from legacy/src/components/settings/password-settings.tsx.
+import * as z from 'zod'
 import { authErrorText } from '#lib/auth/error-messages'
 import { ClientRequestError } from '#lib/http/client-error'
 import type { PasskeyPolicyChoice } from '~/types/settings/account'
@@ -11,9 +12,17 @@ import { useSecurityStatus } from '~/utils/settings/account/security-status'
 const { t } = useLanguage()
 const { status, error: loadFailed, refresh: refreshSecurityStatus } = useSecurityStatus()
 
-const currentPassword = ref('')
-const newPassword = ref('')
-const confirmPassword = ref('')
+const state = reactive({ currentPassword: '', newPassword: '', confirmPassword: '' })
+// Both forms check the new password the same way; changing one also needs the current password.
+function passwordSchema(current: boolean) {
+  return z.object({
+    currentPassword: current ? z.string().min(1) : z.string(),
+    newPassword: z.string().min(8, t('auth.passwordTooShort')),
+    confirmPassword: z.string(),
+  }).refine(value => value.newPassword === value.confirmPassword, { message: t('settings.password.mismatch'), path: ['confirmPassword'] })
+}
+const changeSchema = computed(() => passwordSchema(true))
+const newPasswordSchema = computed(() => passwordSchema(false))
 const message = ref<string | null>(null)
 const error = ref<string | null>(null)
 const busy = ref(false)
@@ -35,16 +44,10 @@ function failure(err: unknown) {
 async function change() {
   message.value = null
   error.value = null
-  if (newPassword.value !== confirmPassword.value) {
-    error.value = t('settings.password.mismatch')
-    return
-  }
   busy.value = true
   try {
-    await updatePassword(currentPassword.value, newPassword.value)
-    currentPassword.value = ''
-    newPassword.value = ''
-    confirmPassword.value = ''
+    await updatePassword(state.currentPassword, state.newPassword)
+    Object.assign(state, { currentPassword: '', newPassword: '', confirmPassword: '' })
     message.value = t('settings.password.changed')
     await refreshSecurityStatus()
   } catch (err) {
@@ -56,10 +59,6 @@ async function change() {
 
 function requestSet() {
   error.value = null
-  if (newPassword.value !== confirmPassword.value) {
-    error.value = t('settings.password.mismatch')
-    return
-  }
   pending.value = 'set'
 }
 
@@ -81,17 +80,15 @@ async function choosePasswordPolicy(choice: PasskeyPolicyChoice) {
   if (!passwordProof.value || busy.value) return
   if (choice === 'passkey-only') {
     passwordProof.value = null
-    newPassword.value = ''
-    confirmPassword.value = ''
+    Object.assign(state, { newPassword: '', confirmPassword: '' })
     return
   }
   busy.value = true
   error.value = null
   try {
-    await setPassword(newPassword.value, passwordProof.value, choice === 'password-and-passkey')
+    await setPassword(state.newPassword, passwordProof.value, choice === 'password-and-passkey')
     message.value = t('passkey.passwordSet')
-    newPassword.value = ''
-    confirmPassword.value = ''
+    Object.assign(state, { newPassword: '', confirmPassword: '' })
     await refreshSecurityStatus()
   } catch (err) {
     error.value = failure(err)
@@ -108,15 +105,15 @@ async function choosePasswordPolicy(choice: PasskeyPolicyChoice) {
     {{ loadFailed ? t('settings.password.failed') : t('mfa.loading') }}
   </p>
   <div v-else class="space-y-4">
-    <form v-if="status.passwordSet" class="space-y-4" @submit.prevent="change">
+    <UForm v-if="status.passwordSet" :schema="changeSchema" :state="state" class="space-y-4" @submit="change">
       <UFormField :label="t('settings.password.current')" name="currentPassword">
-        <UInput id="currentPassword" v-model="currentPassword" type="password" autocomplete="current-password" required />
+        <UInput id="currentPassword" v-model="state.currentPassword" type="password" autocomplete="current-password" required />
       </UFormField>
       <UFormField :label="t('settings.password.new')" name="newPassword">
-        <UInput id="newPassword" v-model="newPassword" type="password" autocomplete="new-password" :minlength="8" required />
+        <UInput id="newPassword" v-model="state.newPassword" type="password" autocomplete="new-password" required />
       </UFormField>
       <UFormField :label="t('settings.password.confirm')" name="confirmPassword">
-        <UInput id="confirmPassword" v-model="confirmPassword" type="password" autocomplete="new-password" :minlength="8" required />
+        <UInput id="confirmPassword" v-model="state.confirmPassword" type="password" autocomplete="new-password" required />
       </UFormField>
       <div class="flex flex-wrap items-center gap-3">
         <UButton type="submit" :disabled="busy" :label="busy ? t('settings.password.changing') : t('settings.password.change')" />
@@ -136,20 +133,20 @@ async function choosePasswordPolicy(choice: PasskeyPolicyChoice) {
       <p v-else-if="!status.requireSecondFactor" class="text-xs leading-5 text-muted">
         {{ t('passkey.removePasswordRecommended') }}
       </p>
-    </form>
+    </UForm>
 
-    <form v-else class="space-y-4" @submit.prevent="requestSet">
+    <UForm v-else :schema="newPasswordSchema" :state="state" class="space-y-4" @submit="requestSet">
       <p class="text-sm text-muted">
         {{ t('passkey.noPassword') }}
       </p>
-      <UFormField :label="t('settings.password.new')" name="setPassword">
-        <UInput id="setPassword" v-model="newPassword" type="password" autocomplete="new-password" :minlength="8" required />
+      <UFormField :label="t('settings.password.new')" name="newPassword">
+        <UInput id="setPassword" v-model="state.newPassword" type="password" autocomplete="new-password" required />
       </UFormField>
-      <UFormField :label="t('settings.password.confirm')" name="setPasswordConfirm">
-        <UInput id="setPasswordConfirm" v-model="confirmPassword" type="password" autocomplete="new-password" :minlength="8" required />
+      <UFormField :label="t('settings.password.confirm')" name="confirmPassword">
+        <UInput id="setPasswordConfirm" v-model="state.confirmPassword" type="password" autocomplete="new-password" required />
       </UFormField>
       <UButton type="submit" icon="i-lucide-key-round" :disabled="busy" :label="t('passkey.setPassword')" />
-    </form>
+    </UForm>
 
     <p v-if="message" role="status" class="text-sm text-muted">
       {{ message }}
