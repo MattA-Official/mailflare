@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import { parseTime } from '@internationalized/date'
 // Side panel for creating or editing a booking event type.
 // Ported from legacy/src/app/(calendar)/booking/booking-editor.tsx.
 import { folderColorKeys } from '#lib/folders/color-keys'
@@ -109,6 +110,19 @@ function addHost() {
   update({ hostIds: [...form.value.hostIds, match.host.id] })
   hostQuery.value = ''
   hostError.value = ''
+}
+
+// Booking hours are stored as "HH:mm"; UInputTime works with @internationalized/date's Time.
+function toTime(value: string) {
+  try {
+    return value ? parseTime(value) : undefined
+  }
+  catch {
+    return undefined
+  }
+}
+function fromTime(value: unknown) {
+  return value && typeof value === 'object' && 'hour' in value && 'minute' in value ? `${String(value.hour).padStart(2, '0')}:${String(value.minute).padStart(2, '0')}` : ''
 }
 </script>
 
@@ -249,10 +263,10 @@ function addHost() {
             <div class="mt-2 space-y-2">
               <div v-for="(range, index) in form.timeRanges" :key="index" class="flex items-end gap-2">
                 <UFormField :label="t('calendar.from')" class="min-w-0 flex-1" size="xs">
-                  <UInput type="time" :step="900" :model-value="range.startTime" @update:model-value="setRange(index, 'startTime', String($event))" />
+                  <UInputTime :model-value="toTime(range.startTime)" @update:model-value="setRange(index, 'startTime', fromTime($event))" />
                 </UFormField>
                 <UFormField :label="t('calendar.to')" class="min-w-0 flex-1" size="xs">
-                  <UInput type="time" :step="900" :model-value="range.endTime" @update:model-value="setRange(index, 'endTime', String($event))" />
+                  <UInputTime :model-value="toTime(range.endTime)" @update:model-value="setRange(index, 'endTime', fromTime($event))" />
                 </UFormField>
                 <UButton
                   icon="i-lucide-trash-2"

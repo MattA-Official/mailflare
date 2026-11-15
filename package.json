@@ -26,6 +26,7 @@
     "@ai-sdk/anthropic": "4.0.102",
     "@ai-sdk/openai": "^4.0.115",
     "@ai-sdk/openai-compatible": "^3.0.90",
+    "@internationalized/date": "^3.12.4",
     "@modelcontextprotocol/server": "^2.4.0",
     "@nuxt/ui": "^4.12.0",
     "@nuxthub/core": "^0.10.12",

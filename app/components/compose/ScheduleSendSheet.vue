@@ -73,15 +73,14 @@ const row = {
         <UButton v-if="showTemplates" v-bind="row" icon="i-lucide-file-text" trailing-icon="i-lucide-chevron-right" :label="t('template.menu')" @click="page = 'templates'" />
       </div>
       <div v-else-if="page === 'date'" class="px-2">
-        <input
+        <AppDateTimeInput
           v-model="draftDate"
-          type="datetime-local"
           :min="minimum"
-          :aria-label="pickLabel"
-          :aria-invalid="pastDate"
+          :label="pickLabel"
+          :invalid="pastDate"
           :aria-describedby="pastDate ? 'schedule-past-time' : undefined"
-          class="h-12 w-full rounded-xl border border-default bg-default px-3 text-base outline-none focus:border-primary"
-        >
+          size="xl"
+        />
         <p v-if="pastDate" id="schedule-past-time" role="alert" class="mt-2 text-sm text-error">{{ t('schedule.pastTime') }}</p>
         <UButton block size="xl" class="mt-4" :disabled="!parsedDate || pastDate" :label="t('schedule.heading')" @click="choose(parsedDate)" />
       </div>
