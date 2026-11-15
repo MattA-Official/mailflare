@@ -311,8 +311,9 @@ Tick in the PR that lands it. Add rows for anything discovered.
 - (Workstream 2) Auth pages use `layout: false` and their own two-panel `AuthShell`, as upstream did,
   rather than the shared `auth` layout. `/setup`'s server-side branching (register, onboarding or
   redirect) is a page middleware over `/api/setup/status` and `/api/auth/me`.
-- (Workstream 2) The Turnstile site key is runtime config `public.turnstileSiteKey`
-  (`NUXT_PUBLIC_TURNSTILE_SITE_KEY` on the Worker) in place of `NEXT_PUBLIC_TURNSTILE_SITE_KEY`.
+- (Workstream 2) The Turnstile site key is runtime config `public.turnstile.siteKey`
+  (`NUXT_PUBLIC_TURNSTILE_SITE_KEY` on the Worker) in place of `NEXT_PUBLIC_TURNSTILE_SITE_KEY`. The
+  widget is rendered by `@nuxtjs/turnstile` (wrapped by `AuthTurnstile`) rather than a hand-loaded script.
 - `/api/setup/status` answers `hasAdminAccount: false, hasPrimaryDomain: false` on an empty database
   instead of a 500, so the client-rendered `/login` can send a fresh install to `/setup` as upstream's
   server page did.

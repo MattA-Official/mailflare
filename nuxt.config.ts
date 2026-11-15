@@ -16,7 +16,7 @@ const r = (path: string) => fileURLToPath(new URL(path, import.meta.url))
 export default defineNuxtConfig({
   compatibilityDate: '2026-11-01',
   future: { compatibilityVersion: 4 },
-  modules: ['@nuxthub/core', '@nuxt/ui', '@nuxt/eslint'],
+  modules: ['@nuxthub/core', '@nuxt/ui', '@nuxt/eslint', '@nuxtjs/turnstile'],
   css: ['~/assets/css/main.css'],
   // A signed-in app: rendered in the browser. The Worker serves the shell and the API.
   ssr: false,
@@ -30,9 +30,13 @@ export default defineNuxtConfig({
     public: {
       // Cloudflare Turnstile on sign-in, setup and password reset; off when empty (upstream's
       // NEXT_PUBLIC_TURNSTILE_SITE_KEY). The server checks tokens only when TURNSTILE_SECRET_KEY is set.
-      turnstileSiteKey: '',
+      turnstile: { siteKey: '' },
     },
   },
+  // @nuxtjs/turnstile loads the widget's script and renders it (AuthTurnstile wraps it). The server
+  // verifies tokens itself, so the module's validate endpoint stays off. Its dev-only test site key
+  // is cleared so the widget appears only where a real key is configured, as before.
+  turnstile: { siteKey: '', addValidateEndpoint: false },
   // Upstream's security headers (CSP, HSTS, COOP, frame and referrer policy) on every response, as its
   // next.config.ts set them. Nitro also writes them to .output/public/_headers for static assets.
   // Routes that send their own headers (attachments, Drive, JMAP) keep theirs.
