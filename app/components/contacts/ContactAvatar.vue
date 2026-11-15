@@ -1,7 +1,6 @@
 <script setup lang="ts">
 // A contact's picture, or a coloured initial while there is none or it fails to load.
 // Ported from legacy/src/components/contacts/contact-avatar.tsx.
-import { twMerge } from 'tailwind-merge'
 import { getAvatarColorStyle } from '#lib/avatar-colors'
 import { CONTACT_AVATAR_CHANGED_EVENT } from '#lib/contacts/avatar-client'
 import type { ContactAvatarChangedDetail } from '#lib/contacts/avatar-client-types'
@@ -52,13 +51,16 @@ function onError() {
 </script>
 
 <template>
-  <span
+  <UAvatar
     v-bind="{ ...attrs, class: undefined }"
-    :class="twMerge('relative flex size-9 shrink-0 items-center justify-center overflow-hidden rounded-full text-sm font-semibold', attrs.class as string | undefined)"
+    :src="avatarUrl && !imageFailed ? avatarUrl : undefined"
+    alt=""
+    :text="getContactAvatarInitial(name, address)"
+    size="lg"
     :style="getAvatarColorStyle(normalizeEmailAddress(address) || name)"
+    :class="attrs.class"
+    :ui="{ root: 'text-sm', fallback: 'text-inherit font-semibold' }"
     aria-hidden="true"
-  >
-    {{ getContactAvatarInitial(name, address) }}
-    <img v-if="avatarUrl && !imageFailed" :src="avatarUrl" alt="" class="absolute inset-0 size-full object-cover" @error="onError">
-  </span>
+    @error="onError"
+  />
 </template>
