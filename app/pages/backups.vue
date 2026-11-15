@@ -173,10 +173,9 @@ async function deleteBackup(backup: BackupItem) {
         </p>
       </template>
       <div v-if="settings" class="space-y-5">
-        <div class="flex items-center justify-between gap-4">
-          <label for="automatic-backup-switch" class="text-sm font-medium">{{ t('backups.enableAutomatic') }}</label>
-          <USwitch id="automatic-backup-switch" :model-value="settings.enabled" :disabled="pending.autoSave" @update:model-value="enabled => settings && autoSave({ ...settings, enabled })" />
-        </div>
+        <UFormField :label="t('backups.enableAutomatic')" orientation="horizontal" class="items-center">
+          <USwitch :model-value="settings.enabled" :disabled="pending.autoSave" @update:model-value="enabled => settings && autoSave({ ...settings, enabled })" />
+        </UFormField>
         <template v-if="settings.enabled">
           <div class="grid gap-4">
             <div class="flex items-center justify-between gap-4">

@@ -38,9 +38,7 @@ async function migrate() {
   <UCard>
     <template #header>
       <div class="flex items-center gap-4">
-        <div class="flex size-10 items-center justify-center rounded-full bg-primary/10 text-primary">
-          <UIcon name="i-lucide-database" class="size-5" />
-        </div>
+        <UAvatar icon="i-lucide-database" color="primary" size="xl" />
         <div>
           <h2 class="text-base font-semibold text-highlighted">
             {{ t('update.title') }}

@@ -152,9 +152,7 @@ const revokeOpen = computed({ get: () => confirmRevoke.value !== null, set: (v) 
       <UCard v-else :ui="{ body: 'p-0 sm:p-0' }">
         <ul class="divide-y divide-default">
           <li v-for="key in keys" :key="key.id" class="flex items-start gap-4 px-5 py-4">
-            <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-              <UIcon name="i-lucide-key-round" class="size-5" />
-            </span>
+            <UAvatar icon="i-lucide-key-round" color="primary" size="xl" />
             <span class="min-w-0 flex-1 space-y-2">
               <span class="flex min-w-0 flex-wrap items-center gap-2">
                 <strong class="truncate text-sm font-semibold text-highlighted">{{ key.name }}</strong>

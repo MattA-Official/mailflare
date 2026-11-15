@@ -63,9 +63,7 @@ async function copy(value: string) {
     <ul v-else class="divide-y divide-default overflow-hidden rounded-lg border border-default bg-default">
       <li v-for="app in apps" :key="app.id">
         <NuxtLink :to="`/apps/${app.id}`" class="flex items-center gap-4 px-5 py-4 hover:bg-elevated/50">
-          <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <UIcon name="i-lucide-app-window" class="size-5" />
-          </span>
+          <UAvatar icon="i-lucide-app-window" color="primary" size="xl" />
           <span class="min-w-0 flex-1 space-y-1">
             <span class="flex min-w-0 flex-wrap items-center gap-2">
               <strong class="truncate text-sm font-semibold text-highlighted">{{ app.name }}</strong>

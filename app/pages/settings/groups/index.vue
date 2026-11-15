@@ -22,9 +22,7 @@ const { data, status, error } = useAsyncData('my-groups', fetchMyGroups)
     <ul v-else class="divide-y divide-default overflow-hidden rounded-lg border border-default bg-default">
       <li v-for="group in data.groups" :key="group.id">
         <NuxtLink :to="`/settings/groups/${group.id}`" class="flex items-center gap-4 px-5 py-4 hover:bg-elevated/50">
-          <span class="flex size-10 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary">
-            <UIcon name="i-lucide-network" class="size-5" />
-          </span>
+          <UAvatar icon="i-lucide-network" color="primary" size="xl" />
           <span class="min-w-0 flex-1 space-y-0.5">
             <span class="flex min-w-0 items-center gap-2">
               <strong class="truncate text-sm font-semibold text-highlighted">{{ group.name }}</strong>
