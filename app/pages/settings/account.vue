@@ -29,6 +29,7 @@ const error = computed(() => loadError.value ? loadError.value.message || t('set
           </p>
         </div>
         <SettingsAccountProfileForm :account-name="user.name" :initial-reset-email="user.resetEmail ?? ''" />
+        <DirectoryMyProfileCard />
         <UCard>
           <div class="space-y-4">
             <div>
