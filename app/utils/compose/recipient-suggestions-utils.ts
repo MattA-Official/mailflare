@@ -15,7 +15,8 @@ type ContactSuggestionsResponse = { contacts?: ContactSuggestion[], error?: stri
 export const CONTACT_SUGGESTIONS_LIMIT = 8
 
 export async function fetchContactSuggestions(mailboxId: string, query: string): Promise<ContactSuggestion[]> {
-  const params = new URLSearchParams({ mailboxId, q: query, limit: String(CONTACT_SUGGESTIONS_LIMIT) })
+  // `sort=suggest` ranks saved people, then people you have written to, then recent senders; blocked ones are left out.
+  const params = new URLSearchParams({ mailboxId, q: query, limit: String(CONTACT_SUGGESTIONS_LIMIT), sort: 'suggest' })
   const response = await authFetch(`/api/contacts?${params.toString()}`)
   if (!response.ok) return []
   const data = (await response.json()) as ContactSuggestionsResponse
@@ -24,7 +25,7 @@ export async function fetchContactSuggestions(mailboxId: string, query: string):
 
 /**
  * Suggestions worth showing for the current draft. Blocked contacts and addresses already in the
- * chips never appear; the list stays in server order, which is alphabetical.
+ * chips never appear; the list stays in server order, which is ranked.
  */
 export function filterContactSuggestions(suggestions: ContactSuggestion[], selected: string[]): ContactSuggestion[] {
   const picked = new Set(selected.map(entry => getEmailAddress(entry).toLowerCase()))

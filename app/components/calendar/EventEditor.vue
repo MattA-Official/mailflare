@@ -31,7 +31,7 @@ const startsAt = ref('')
 const endsAt = ref('')
 const allDay = ref(false)
 const durationOptionsOpen = ref(false)
-const guests = ref('')
+const guests = ref<string[]>([])
 const location = ref('')
 const description = ref('')
 const pending = ref<'save' | 'delete' | null>(null)
@@ -84,7 +84,7 @@ function openNew(day: Date, startAt?: Date, endAt?: Date, wholeDays = false) {
   repeat.value = 'none'
   repeatDays.value = [...DEFAULT_REPEAT_DAYS]
   reminderMinutes.value = null
-  guests.value = ''
+  guests.value = []
   location.value = ''
   description.value = ''
   startsAt.value = wholeDays ? atMidnight(formatLocalDateTime(start)) : formatLocalDateTime(start)
@@ -109,7 +109,7 @@ function openEdit(event: CalendarEvent) {
   durationOptionsOpen.value = false
   let attendees: string[] = []
   try { attendees = JSON.parse(event.attendees || '[]') as string[] } catch { /* Unreadable guest lists start empty. */ }
-  guests.value = attendees.join(', ')
+  guests.value = attendees.map(entry => entry.trim()).filter(Boolean)
   open.value = true
 }
 
@@ -176,7 +176,7 @@ async function save() {
         allDay: allDay.value,
         effectiveFrom: effectiveFrom?.toISOString(),
         moveOccurrenceToPast: movingToPast,
-        attendees: guests.value.split(','),
+        attendees: guests.value,
         timeZone: getUserTimeZone(),
         description: description.value,
         location: location.value,
@@ -299,7 +299,7 @@ function showDurations(event: FocusEvent) {
 
         <div class="grid grid-cols-[24px_minmax(0,1fr)] items-center gap-3">
           <UIcon name="i-lucide-users-round" class="size-5 text-muted" />
-          <UInput v-model="guests" :placeholder="t('calendar.addGuests')" :aria-label="t('calendar.guestsLabel')" variant="ghost" />
+          <CalendarGuestInput v-model="guests" :mailbox-id="mailbox?.id" :placeholder="t('calendar.addGuests')" :aria-label="t('calendar.guestsLabel')" />
           <p v-if="guestReplies" class="col-start-2 mt-1 px-2 text-xs text-muted">
             {{ t('calendar.guestResponses', { list: guestReplies }) }}
           </p>

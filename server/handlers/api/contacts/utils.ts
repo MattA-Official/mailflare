@@ -1,4 +1,4 @@
-import { and, asc, eq, or, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, ne, or, sql } from "drizzle-orm";
 import type { getDb } from "#db";
 import { contacts } from "#db/schema";
 import { escapeLike, insensitiveLike } from "#db/sql";
@@ -25,8 +25,44 @@ export async function getContactByEmail(db: Db, userId: string, email: string) {
 	return contact ?? null;
 }
 
-export async function listContacts(db: Db, input: { userId: string; query: string; limit: number }) {
+export type ContactsFilter = "saved" | "other";
+export type ContactsSort = "name" | "suggest";
+
+export function parseContactsFilter(value: string | null): ContactsFilter | null {
+	return value === "saved" || value === "other" ? value : null;
+}
+
+/** Fork-only: the position after which the next page starts, opaque to clients. */
+type ContactsCursor = { key: string; email: string };
+
+export function encodeContactsCursor(contact: { displayName: string | null; email: string }): string {
+	const cursor: ContactsCursor = { key: (contact.displayName ?? contact.email).toLowerCase(), email: contact.email };
+	return JSON.stringify(cursor);
+}
+
+export function decodeContactsCursor(value: string | null): ContactsCursor | null {
+	if (!value) return null;
+	try {
+		const parsed = JSON.parse(value) as Partial<ContactsCursor>;
+		return typeof parsed.key === "string" && typeof parsed.email === "string" ? { key: parsed.key, email: parsed.email } : null;
+	} catch {
+		return null;
+	}
+}
+
+export async function listContacts(
+	db: Db,
+	input: {
+		userId: string;
+		query: string;
+		limit: number;
+		filter?: ContactsFilter | null;
+		sort?: ContactsSort;
+		cursor?: ContactsCursor | null;
+	},
+) {
 	const pattern = `%${escapeLike(input.query)}%`;
+	const sortKey = sql<string>`lower(coalesce(${contacts.displayName}, ${contacts.email}))`;
 	const conditions = [eq(contacts.userId, input.userId)];
 	if (input.query) {
 		conditions.push(
@@ -36,15 +72,51 @@ export async function listContacts(db: Db, input: { userId: string; query: strin
 			)!,
 		);
 	}
+	// Fork-only: Saved is what the person added by hand; Other is every sender and recipient collected automatically.
+	if (input.filter === "saved") conditions.push(eq(contacts.source, "manual"));
+	if (input.filter === "other") conditions.push(ne(contacts.source, "manual"));
+
+	if (input.sort === "suggest") {
+		// Fork-only: compose suggestions. Blocked senders never fill a slot; saved people come first, then people
+		// you have written to, then anyone else. Within each, a match at the start of the name or address or of
+		// any word in the name beats one in the middle, and recent correspondents beat old ones.
+		conditions.push(eq(contacts.blocked, false));
+		const prefix = `${escapeLike(input.query)}%`;
+		const wordPrefix = `% ${escapeLike(input.query)}%`;
+		const startsWith = input.query
+			? sql<number>`case when ${or(
+				insensitiveLike(contacts.email, prefix),
+				insensitiveLike(contacts.displayName, prefix),
+				insensitiveLike(contacts.displayName, wordPrefix),
+			)} then 0 else 1 end`
+			: sql<number>`0`;
+		return db
+			.select()
+			.from(contacts)
+			.where(and(...conditions))
+			.orderBy(
+				asc(sql`case ${contacts.source} when 'manual' then 0 when 'outbound' then 1 else 2 end`),
+				asc(startsWith),
+				desc(sql`coalesce(${contacts.lastSeenAt}, ${contacts.createdAt})`),
+				asc(sortKey),
+			)
+			.limit(input.limit);
+	}
+
+	if (input.cursor) {
+		conditions.push(
+			or(
+				gt(sortKey, input.cursor.key),
+				and(eq(sortKey, input.cursor.key), gt(contacts.email, input.cursor.email)),
+			)!,
+		);
+	}
 	return db
 		.select()
 		.from(contacts)
 		.where(and(...conditions))
 		// Name-less contacts sort by address; lower() keeps ordering consistent across dialects.
-		.orderBy(
-			asc(sql`lower(coalesce(${contacts.displayName}, ${contacts.email}))`),
-			asc(contacts.email),
-		)
+		.orderBy(asc(sortKey), asc(contacts.email))
 		.limit(input.limit);
 }
 
