@@ -14,7 +14,7 @@ declare module '#app' {
   interface PageMeta {
     auth?: AuthMeta
     /** Which sidebar the dashboard layout shows. */
-    nav?: 'mail' | 'admin' | 'settings' | 'calendar' | 'drive'
+    nav?: 'mail' | 'admin' | 'settings' | 'calendar' | 'drive' | 'apps'
   }
 }
 

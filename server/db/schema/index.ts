@@ -1620,3 +1620,30 @@ export const groupSubgroups = sqliteTable("group_subgroups", {
 	addedByUserId: text("added_by_user_id").references(() => users.id, { onDelete: "set null" }),
 	createdAt: timestamp("created_at").notNull().$defaultFn(() => new Date()),
 }, (t) => [primaryKey({ columns: [t.parentGroupId, t.childGroupId] }), index("group_subgroups_child_idx").on(t.childGroupId)]);
+
+// Fork-only: directory profile fields (contacts plan, phase 2). Kept apart from `users` so sign-in and session
+// queries never read it, and every read in #lib/directory falls back when the table is not there yet.
+export const userProfiles = sqliteTable("user_profiles", {
+	userId: text("user_id").primaryKey().references(() => users.id, { onDelete: "cascade" }),
+	title: text("title"),
+	department: text("department"),
+	phone: text("phone"),
+	location: text("location"),
+	pronouns: text("pronouns"),
+	about: text("about"),
+	/** The person's manager. The server refuses a value that would make a loop. */
+	reportsToUserId: text("reports_to_user_id").references((): AnySQLiteColumn => users.id, { onDelete: "set null" }),
+	/** Left out of the directory and the org chart (for example a test or service account). Only admins set it. */
+	hidden: bool("hidden").notNull().default(false),
+	updatedAt: timestamp("updated_at").notNull().$defaultFn(() => new Date()),
+}, (t) => [index("user_profiles_reports_to_idx").on(t.reportsToUserId)]);
+
+// Fork-only: instance-wide directory settings, one row with id "default".
+export const directorySettings = sqliteTable("directory_settings", {
+	id: text("id").primaryKey(),
+	/** Whether people may set their own title, department and manager; admins always can. */
+	selfEditOrg: bool("self_edit_org").notNull().default(true),
+	/** The person drawn at the top of the reporting-lines chart; null puts everyone without a manager at the top. */
+	orgRootUserId: text("org_root_user_id").references(() => users.id, { onDelete: "set null" }),
+	updatedAt: timestamp("updated_at").notNull().$defaultFn(() => new Date()),
+});
