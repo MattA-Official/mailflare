@@ -35,7 +35,7 @@ const attachments = computed(() => Array.isArray(result.value?.attachments) ? re
       <p>{{ display.description }}</p>
       <ul v-if="emails.length" class="space-y-1.5">
         <li v-for="email in emails" :key="email.id" class="break-words">
-          <ULink :to="agentEmailLinkHref(email)" class="font-medium text-primary hover:underline">{{ email.subject || '(No subject)' }}</ULink>
+          <ULink :to="agentEmailLinkHref(email)" class="font-medium text-primary hover:underline">{{ email.subject || t('list.noSubject') }}</ULink>
           <span v-if="email.from" class="text-dimmed"> · {{ email.from }}</span>
           <p v-if="email.snippet" class="line-clamp-2 text-dimmed">{{ email.snippet }}</p>
         </li>

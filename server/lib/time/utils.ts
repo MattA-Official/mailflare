@@ -76,7 +76,10 @@ export function getRequestTimeZone(request: Request, preferredTimeZone?: string 
 /** The interface language the language provider keeps on `<html lang>`; the browser default when unset or on the server. */
 export function getDisplayLocale(): string | undefined {
 	if (typeof document === "undefined") return undefined;
-	return document.documentElement.lang || undefined;
+	const lang = document.documentElement.lang || undefined;
+	// Plain "en" formats US-style; English readers elsewhere get their own dates and clock, as Nuxt UI's pickers do.
+	if (lang === "en" && typeof navigator !== "undefined" && navigator.language.startsWith("en-")) return navigator.language;
+	return lang;
 }
 
 export function formatUserDate(value: Date | string, options: Intl.DateTimeFormatOptions): string {
