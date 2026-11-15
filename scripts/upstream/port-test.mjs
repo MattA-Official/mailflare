@@ -34,6 +34,8 @@ const rules = [
 	[/(["'])@\/db(["'/])/g, "$1#db$2"],
 	[/(["'])@\/app\/api\//g, "$1#handlers/api/"],
 	[/"drizzle\/migrations"/g, '"server/db/migrations/sqlite"'],
+	// Drizzle 1.0 has one SQLite dialect class (upstream is on 0.x)
+	[/\bSQLiteSyncDialect\b/g, "SQLiteDialect"],
 	[/join\(root, "worker-utils\.ts"\)/g, 'join(root, "server/worker/utils.ts")'],
 	// the helper resolves aliases; upstream's tsconfig and next/* shims do not exist here
 	[/^\s*tsconfig: join\(root, "tsconfig\.json"\),\n/gm, ""],

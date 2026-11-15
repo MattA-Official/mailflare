@@ -24,8 +24,8 @@ await build({
 			export { idSetToList, importFlags, parseReceivedAt, resolveDraftsMailbox } from "./server/lib/jmap/email-import-utils.ts";
 			export { filterToSql } from "./server/lib/jmap/email-query.ts";
 			export { encodeMailboxRef } from "./server/lib/jmap/ids.ts";
-			import { SQLiteSyncDialect } from "drizzle-orm/sqlite-core";
-			const dialect = new SQLiteSyncDialect();
+			import { SQLiteDialect } from "drizzle-orm/sqlite-core";
+			const dialect = new SQLiteDialect();
 			export const render = (fragment) => dialect.sqlToQuery(fragment);
 		`,
 		resolveDir: root,

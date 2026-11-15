@@ -79,7 +79,7 @@ function conditionToSql(condition: FilterCondition, accessible: Set<string>): SQ
 	if (condition.inMailboxOtherThan) {
 		for (const id of condition.inMailboxOtherThan) {
 			const ref = decodeMailboxRef(id);
-			if (ref && accessible.has(ref.mailboxId)) parts.push(not(mailboxRefCondition(ref)));
+			if (ref && accessible.has(ref.mailboxId)) parts.push(not(mailboxRefCondition(ref))!);
 		}
 	}
 	if (condition.before) parts.push(lt(messages.createdAt, new Date(condition.before)));
@@ -113,7 +113,7 @@ function conditionToSql(condition: FilterCondition, accessible: Set<string>): SQ
 		const hasOne = exists(
 			sql`(SELECT 1 FROM ${messageAttachments} WHERE ${messageAttachments.messageId} = ${messages.id} AND ${messageAttachments.disposition} = 'attachment')`,
 		);
-		parts.push(condition.hasAttachment ? hasOne : not(hasOne));
+		parts.push(condition.hasAttachment ? hasOne : not(hasOne)!);
 	}
 	if (condition.minSize !== undefined) parts.push(gte(sql`length(coalesce(${messages.textBody}, '')) + length(coalesce(${messages.htmlBody}, ''))`, condition.minSize));
 	if (condition.maxSize !== undefined) parts.push(lt(sql`length(coalesce(${messages.textBody}, '')) + length(coalesce(${messages.htmlBody}, ''))`, condition.maxSize));
