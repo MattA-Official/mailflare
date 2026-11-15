@@ -1,6 +1,6 @@
 // Pure helpers behind the calendar, booking and public booking pages (app/utils/calendar).
 import { describe, expect, it } from 'vitest'
-import { dateKey, eventPosition, expandCalendarEvents, groupUpcomingEvents, resizeEventTimes, takeUpcomingGroups } from '../../app/utils/calendar/calendar'
+import { dateKey, eventPosition, expandCalendarEvents, groupUpcomingEvents, resizeEventTimes, slotMinutesForPosition, slotSelectionTimes, takeUpcomingGroups } from '../../app/utils/calendar/calendar'
 import { bookingFormWithName, matchBookingHost, nextBookingTimeRange, parseBookingHostIds, visibleBookingEvents } from '../../app/utils/calendar/booking'
 import { calendarDays, localDateIn, moveMonth, readBookingPageSelection } from '../../app/utils/calendar/public-booking'
 import type { BookingEvent, CalendarEvent } from '../../app/types/calendar'
@@ -29,6 +29,19 @@ describe('calendar grid', () => {
     expect(eventPosition(event(), new Date('2026-11-03T00:00:00Z'))).toBeNull()
     const resized = resizeEventTimes(event(), new Date('2026-11-02T00:00:00Z'), 'end', 10 * 36 + 2)
     expect(resized.endsAt.toISOString()).toBe('2026-11-02T10:00:00.000Z')
+  })
+
+  it('turns a drag on the hour grid into a range of whole 15-minute slots, in either direction', () => {
+    const day = new Date('2026-11-02T00:00:00Z')
+    expect(slotMinutesForPosition(9 * 36 + 8)).toBe(9 * 60)
+    expect(slotMinutesForPosition(-20)).toBe(0)
+    expect(slotMinutesForPosition(25 * 36)).toBe(24 * 60 - 15)
+    const down = slotSelectionTimes(day, 9 * 60, 10 * 60 + 15)
+    expect([down.startsAt.toISOString(), down.endsAt.toISOString()]).toEqual(['2026-11-02T09:00:00.000Z', '2026-11-02T10:30:00.000Z'])
+    const up = slotSelectionTimes(day, 10 * 60 + 15, 9 * 60)
+    expect([up.startsAt.toISOString(), up.endsAt.toISOString()]).toEqual(['2026-11-02T09:00:00.000Z', '2026-11-02T10:30:00.000Z'])
+    const last = slotSelectionTimes(day, 24 * 60 - 15, 24 * 60 - 15)
+    expect(last.endsAt.toISOString()).toBe('2026-11-03T00:00:00.000Z')
   })
 
   it('groups upcoming events by day and takes them in batches', () => {

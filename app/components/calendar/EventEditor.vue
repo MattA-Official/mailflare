@@ -65,8 +65,9 @@ function senderAddress() {
   return mailbox?.senderAddresses?.[0] ?? (mailbox ? `${mailbox.localPart}@${mailbox.hostname}` : '')
 }
 
-function openNew(day: Date, startAt?: Date) {
+function openNew(day: Date, startAt?: Date, endAt?: Date) {
   const start = startAt ? new Date(startAt) : defaultCalendarStart(day)
+  const end = endAt && endAt > start ? new Date(endAt) : new Date(start.getTime() + 60 * 60_000)
   editing.value = null
   title.value = ''
   color.value = DEFAULT_FOLDER_COLOR
@@ -77,7 +78,7 @@ function openNew(day: Date, startAt?: Date) {
   location.value = ''
   description.value = ''
   startsAt.value = formatLocalDateTime(start)
-  endsAt.value = formatLocalDateTime(new Date(start.getTime() + 60 * 60_000))
+  endsAt.value = formatLocalDateTime(end)
   durationOptionsOpen.value = false
   open.value = true
 }
