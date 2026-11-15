@@ -34,10 +34,10 @@ watch([searchTerm, () => props.mailboxId], ([value, mailboxId], _previous, onCle
 })
 
 const names = computed(() => new Map(suggestions.value.map(suggestion => [suggestion.email, suggestion.displayName])))
-// Guests already on the list are kept as items so their tags stay; new matches follow.
+// Matches not already on the guest list; the tags themselves come from the model.
 const items = computed(() => {
   const picked = new Set(model.value.map(entry => getEmailAddress(entry).toLowerCase()))
-  return [...model.value, ...suggestions.value.map(suggestion => suggestion.email).filter(email => !picked.has(email.toLowerCase()))]
+  return suggestions.value.map(suggestion => suggestion.email).filter(email => !picked.has(email.toLowerCase()))
 })
 
 // Typed or pasted text may hold several addresses; each valid one becomes a guest, as a bare address

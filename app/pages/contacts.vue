@@ -39,11 +39,16 @@ watch(input, (value, _previous, onCleanup) => {
 const emptyPage = (): ContactsPage => ({ contacts: [], nextCursor: null })
 
 // One key for the page, so the current list stays on screen while a search, tab or mailbox switch loads.
+// Fetching waits for the mailbox: on a fresh page load it arrives after setup, and useAsyncData's own
+// `watch` option missed that first change, leaving the list empty until the next search or tab switch.
 const { data: firstPage, status, error, refresh } = useAsyncData(
   'contacts-page',
   () => mailboxId.value ? fetchContacts(mailboxId.value, query.value, filter.value) : Promise.resolve(emptyPage()),
-  { watch: [mailboxId, query, filter], default: emptyPage },
+  { default: emptyPage, immediate: false },
 )
+watch([mailboxId, query, filter], () => {
+  if (mailboxId.value) void refresh()
+}, { immediate: true })
 
 // Later pages are appended by "Show more" and dropped whenever the first page reloads.
 watch(firstPage, (page) => {
