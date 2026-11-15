@@ -16,7 +16,7 @@ const r = (path: string) => fileURLToPath(new URL(path, import.meta.url))
 export default defineNuxtConfig({
   compatibilityDate: '2026-11-01',
   future: { compatibilityVersion: 4 },
-  modules: ['@nuxthub/core', '@nuxt/ui', '@nuxt/eslint', '@nuxtjs/turnstile'],
+  modules: ['@nuxthub/core', '@nuxt/ui', '@nuxt/eslint', '@nuxtjs/turnstile', '@nuxt/a11y'],
   css: ['~/assets/css/main.css'],
   // A signed-in app: rendered in the browser. The Worker serves the shell and the API.
   ssr: false,

@@ -37,8 +37,11 @@ watch(() => [countsLoaded.value, allCounts.value.folders.inbox.unread] as const,
 <template>
   <UDashboardGroup unit="rem" storage="local" storage-key="mailflare-sidebar">
     <AppSkipLink target="main-content" />
+    <!-- A landmark, so the sidebar's header, links and account menu are not loose page content. -->
     <UDashboardSidebar
       id="main"
+      role="navigation"
+      :aria-label="headerLabel"
       collapsible
       resizable
       :min-size="13"
