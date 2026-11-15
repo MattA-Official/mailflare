@@ -29,10 +29,17 @@ function toggle() {
   <section class="flex flex-col gap-px">
     <USeparator v-if="collapsed && label" class="my-2" />
     <div v-if="!collapsed && label" class="mt-2 flex h-8 items-center gap-1">
-      <button type="button" :aria-expanded="open" class="flex min-w-0 flex-1 items-center gap-2 px-2.5 text-xs font-semibold uppercase tracking-wide text-muted hover:text-default" @click="toggle">
-        <UIcon name="i-lucide-chevron-right" class="size-3.5 shrink-0 transition-transform" :class="open && 'rotate-90'" />
-        <span class="truncate">{{ label }}</span>
-      </button>
+      <UButton
+        color="neutral"
+        variant="link"
+        size="xs"
+        icon="i-lucide-chevron-right"
+        :label="label"
+        :aria-expanded="open"
+        class="min-w-0 flex-1 px-2.5 font-semibold uppercase tracking-wide"
+        :ui="{ leadingIcon: ['size-3.5 transition-transform', open && 'rotate-90'] }"
+        @click="toggle"
+      />
       <slot name="actions" />
     </div>
     <template v-if="collapsed || !label || open">

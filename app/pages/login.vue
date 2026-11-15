@@ -256,12 +256,12 @@ const codeLabel = computed(() => (methods.value.includes('recovery') ? t('auth.c
       <UButton type="submit" block size="xl" :loading="loading" :label="loading ? t('auth.signingIn') : t('auth.signIn')" />
       <USeparator :label="t('passkey.or')" />
       <UButton block size="xl" variant="outline" color="neutral" icon="i-lucide-key-round" :disabled="loading" :label="t('passkey.signIn')" @click="onPasskey" />
-      <details class="text-center">
-        <summary class="cursor-pointer list-none text-xs font-medium text-muted underline underline-offset-2 hover:text-default [&::-webkit-details-marker]:hidden">
-          {{ t('passkey.cantUse') }}
-        </summary>
-        <p class="mt-2 rounded-xl bg-elevated px-4 py-3 text-left text-xs leading-5 text-muted">{{ t('passkey.lostAllHint') }}</p>
-      </details>
+      <UCollapsible class="text-center">
+        <UButton color="neutral" variant="link" size="xs" :label="t('passkey.cantUse')" class="underline underline-offset-2" />
+        <template #content>
+          <UAlert color="neutral" variant="soft" :description="t('passkey.lostAllHint')" class="mt-2 text-left" />
+        </template>
+      </UCollapsible>
     </form>
   </AuthShell>
 </template>
