@@ -140,9 +140,9 @@ export async function fetchMessageCounts(mailboxId?: string | null, force = fals
     const params = new URLSearchParams()
     if (mailboxId) params.set('mailboxId', mailboxId)
     const query = params.toString()
-    const response = await authFetch(`/api/messages/counts${query ? `?${query}` : ''}`)
-    const data = (await response.json()) as { counts?: MessageCounts }
-    const counts = data.counts
+    // api() throws on an error response, so a failed request is never cached as real counts.
+    const data = await api<{ counts?: MessageCounts }>(`/api/messages/counts${query ? `?${query}` : ''}`)
+    const counts = data?.counts
     if (counts && requestGeneration === messageCacheGeneration && countsGeneration === messageCountsGeneration) {
       messageCountsCache.set(key, counts)
     }
@@ -164,10 +164,10 @@ export async function fetchMessageList(params: URLSearchParams, force = false): 
   if (!force && messageListCache.has(key)) return messageListCache.get(key) ?? {}
   if (!force && messageListRequests.has(key)) return messageListRequests.get(key) ?? {}
   const requestGeneration = messageCacheGeneration
-  const request = authFetch(`/api/messages?${key}`)
-    .then(response => response.json())
+  // api() throws on an error response, so a failed request is never cached as an empty folder.
+  const request = api<MessageListResponse>(`/api/messages?${key}`)
     .then((data) => {
-      const response = data as MessageListResponse
+      const response = data ?? {}
       if (requestGeneration === messageCacheGeneration) messageListCache.set(key, response)
       return response
     })
