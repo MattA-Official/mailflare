@@ -101,7 +101,7 @@ function openEdit(event: CalendarEvent) {
   open.value = true
 }
 
-defineExpose({ openNew, openEdit })
+defineExpose({ openNew, openEdit, remove })
 
 function toggleRepeatDay(day: number) {
   repeatDays.value = repeatDays.value.includes(day) ? repeatDays.value.filter(value => value !== day) : [...repeatDays.value, day].sort((a, b) => a - b)
@@ -164,8 +164,8 @@ async function save() {
   }
 }
 
-async function remove() {
-  const event = editing.value
+// Also called from the event popover, with the editor closed.
+async function remove(event: CalendarEvent | null = editing.value) {
   if (!event) return
   const recurring = event.repeat !== 'none'
   if (!(await confirmDestructive(recurring ? t('calendar.deleteFuture') : t('calendar.deleteEvent')))) return

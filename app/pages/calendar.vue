@@ -35,7 +35,7 @@ const dragPreview = shallowRef<EventDragPreview | null>(null)
 const pendingId = ref<string | null>(null)
 const mailbox = shallowRef<CalendarMailbox | null>(null)
 const editorOpen = ref(false)
-const editor = useTemplateRef<{ openNew: (day: Date, startAt?: Date, endAt?: Date) => void, openEdit: (event: CalendarEvent) => void }>('editor')
+const editor = useTemplateRef<{ openNew: (day: Date, startAt?: Date, endAt?: Date) => void, openEdit: (event: CalendarEvent) => void, remove: (event?: CalendarEvent | null) => Promise<void> }>('editor')
 // The highlighted range on the hour grid: shown while dragging out a new event and while its editor is open.
 const slotSelection = shallowRef<{ day: Date, startsAt: Date, endsAt: Date } | null>(null)
 let dragOffsetPixels = 0
@@ -271,6 +271,29 @@ function openNewEvent(day = visibleDate.value, startAt?: Date, endAt?: Date) {
   editor.value?.openNew(day, startAt, endAt)
 }
 
+// The element last clicked, so a click on an event can open its popover beside it.
+let clickedElement: HTMLElement | null = null
+const popoverEvent = shallowRef<CalendarEvent | null>(null)
+const popoverReference = shallowRef<HTMLElement | null>(null)
+const popoverOpen = ref(false)
+
+function rememberClick(mouseEvent: MouseEvent) {
+  clickedElement = (mouseEvent.target as Element | null)?.closest('button') ?? null
+}
+
+// A click on an event shows its details first; links from elsewhere (?event=) go straight to the editor.
+function selectEvent(event: CalendarEvent) {
+  const reference = clickedElement
+  clickedElement = null
+  if (isPendingInvite(event) || !reference?.isConnected) {
+    editEvent(event)
+    return
+  }
+  popoverEvent.value = event
+  popoverReference.value = reference
+  popoverOpen.value = true
+}
+
 function editEvent(event: CalendarEvent) {
   if (isPendingInvite(event)) {
     pendingInvite.value = event
@@ -278,6 +301,10 @@ function editEvent(event: CalendarEvent) {
   }
   if (editor.value) editor.value.openEdit(event)
   else nextTick(() => editor.value?.openEdit(event))
+}
+
+function deleteEvent(event: CalendarEvent) {
+  void editor.value?.remove(event)
 }
 
 function onSaved() {
@@ -452,9 +479,9 @@ function previewClass(event: CalendarEvent) {
 </script>
 
 <template>
-  <div class="contents">
+  <div class="contents" @click.capture="rememberClick">
     <!-- display: contents keeps both panels direct flex children of the dashboard group. -->
-  <CalendarUpcomingPanel :events="events" @select="editEvent" />
+  <CalendarUpcomingPanel :events="events" @select="selectEvent" />
 
   <UDashboardPanel id="calendar" :ui="{ body: 'p-0 sm:p-0 overscroll-contain' }">
     <template #header>
@@ -502,7 +529,7 @@ function previewClass(event: CalendarEvent) {
           :compact="isPhone"
           @select-day="openNewEvent($event)"
           @open-day="openDay"
-          @edit="editEvent"
+          @edit="selectEvent"
         />
         <div v-else :class="view === 'week' ? 'min-w-190' : 'min-w-90'">
           <div class="sticky top-0 z-30 grid h-14 border-b border-default bg-default" :style="{ gridTemplateColumns: gridColumns }">
@@ -561,7 +588,7 @@ function previewClass(event: CalendarEvent) {
                 :current-time="currentTime"
                 :busy="busy"
                 :active-event-id="activeEventId"
-                @edit="editEvent"
+                @edit="selectEvent"
                 @drag-start="onDragStart"
                 @drag-end="clearDrag"
                 @resize-start="onResizeStart"
@@ -597,6 +624,7 @@ function previewClass(event: CalendarEvent) {
   </UDashboardPanel>
 
   <CalendarEventEditor ref="editor" v-model:open="editorOpen" :mailbox="mailbox" @saved="onSaved" />
+  <CalendarEventPopover v-model:open="popoverOpen" :event="popoverEvent" :reference="popoverReference" @edit="editEvent" @delete="deleteEvent" />
   <CalendarSubscribeDialog v-model:open="subscribeOpen" />
   <CalendarInviteResponseDialog :event="pendingInvite" @close="pendingInvite = null" @answered="onSaved" />
   </div>
