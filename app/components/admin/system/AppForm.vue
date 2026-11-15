@@ -38,13 +38,13 @@ function onKey(role: AppFormDraft['roles'][number], key: string) {
 <template>
   <div class="space-y-5">
     <UFormField :label="t('oidc.apps.name')" required>
-      <UInput v-model="draft.name" :maxlength="80" :placeholder="t('oidc.apps.namePlaceholder')" class="w-full" />
+      <UInput v-model="draft.name" :maxlength="80" :placeholder="t('oidc.apps.namePlaceholder')" />
     </UFormField>
     <UFormField :label="t('oidc.apps.homepage')" :help="t('oidc.apps.homepageHint')">
-      <UInput v-model="draft.homepageUrl" type="url" placeholder="https://admin.example.com" class="w-full" />
+      <UInput v-model="draft.homepageUrl" type="url" placeholder="https://admin.example.com" />
     </UFormField>
     <UFormField :label="t('oidc.apps.redirectUris')" :help="t('oidc.apps.redirectUrisHint')" required>
-      <UTextarea v-model="draft.redirectUris" :rows="3" autoresize placeholder="https://admin.example.com/auth/callback" class="w-full font-mono text-xs" />
+      <UTextarea v-model="draft.redirectUris" :rows="3" autoresize placeholder="https://admin.example.com/auth/callback" class="font-mono text-xs" />
     </UFormField>
 
     <fieldset class="space-y-3">
@@ -56,16 +56,16 @@ function onKey(role: AppFormDraft['roles'][number], key: string) {
       </p>
       <div v-for="(role, index) in draft.roles" :key="index" class="grid gap-2 rounded-lg border border-default p-3 sm:grid-cols-[1fr_1fr_auto]">
         <UFormField :label="t('oidc.apps.roleLabel')">
-          <UInput :model-value="role.label" :maxlength="60" placeholder="Owner" class="w-full" @update:model-value="value => onLabel(role, String(value))" />
+          <UInput :model-value="role.label" :maxlength="60" placeholder="Owner" @update:model-value="value => onLabel(role, String(value))" />
         </UFormField>
         <UFormField :label="t('oidc.apps.roleKey')">
-          <UInput :model-value="role.key" :maxlength="40" placeholder="owner" class="w-full font-mono" @update:model-value="value => onKey(role, String(value))" />
+          <UInput :model-value="role.key" :maxlength="40" placeholder="owner" class="font-mono" @update:model-value="value => onKey(role, String(value))" />
         </UFormField>
         <div class="flex items-end">
           <UButton color="neutral" variant="ghost" icon="i-lucide-x" :aria-label="t('oidc.apps.removeRole')" :disabled="draft.roles.length <= 1" @click="removeRole(index)" />
         </div>
         <UFormField :label="t('oidc.apps.roleDescription')" class="sm:col-span-3">
-          <UInput v-model="role.description" :maxlength="200" class="w-full" />
+          <UInput v-model="role.description" :maxlength="200" />
         </UFormField>
       </div>
       <UButton color="neutral" variant="outline" size="sm" icon="i-lucide-plus" :label="t('oidc.apps.addRole')" :disabled="draft.roles.length >= 20" @click="addRole" />

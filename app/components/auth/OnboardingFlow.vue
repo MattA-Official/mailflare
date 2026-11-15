@@ -138,7 +138,7 @@ const sendingHint = computed(() => {
           </template>
         </p>
         <UFormField :label="t('onboarding.domain')" name="domain">
-          <UInput v-model="hostname" name="domain" placeholder="example.com" autocomplete="off" size="xl" class="w-full" @blur="inspectDomain" />
+          <UInput v-model="hostname" name="domain" placeholder="example.com" autocomplete="off" size="xl" @blur="inspectDomain" />
         </UFormField>
         <USwitch
           v-model="skipDns"
@@ -168,7 +168,7 @@ const sendingHint = computed(() => {
 
       <form v-else class="space-y-5" @submit.prevent="addMailbox">
         <UFormField :label="t('onboarding.mailboxAddress')" name="localPart">
-          <UInput v-model="localPart" name="localPart" size="xl" class="w-full" :ui="{ trailing: 'pe-3' }">
+          <UInput v-model="localPart" name="localPart" size="xl" :ui="{ trailing: 'pe-3' }">
             <template #trailing>
               <span class="max-w-40 truncate text-sm font-medium text-muted">@{{ hostname }}</span>
             </template>

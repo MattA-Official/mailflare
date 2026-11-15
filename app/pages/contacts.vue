@@ -84,7 +84,6 @@ function sendEmail(contact: ContactListItem) {
         icon="i-lucide-search"
         :placeholder="t('contacts.search')"
         :aria-label="t('contacts.search')"
-        class="w-full"
       />
 
       <section>

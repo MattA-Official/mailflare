@@ -17,7 +17,7 @@ const canConfirm = computed(() => !props.requireText || typed.value.trim().toLow
 </script>
 
 <template>
-  <UModal :title="title" :description="description" :close="false" :ui="{ footer: 'justify-end' }" @update:open="open => !open && emit('close', false)">
+  <UModal :title="title" :description="description" :close="false" @update:open="open => !open && emit('close', false)">
     <template v-if="details?.length || requireText" #body>
       <ul v-if="details?.length" class="mb-3 space-y-1 rounded-md bg-elevated px-3 py-2 font-mono text-xs">
         <li v-for="line in details" :key="line">
@@ -25,7 +25,7 @@ const canConfirm = computed(() => !props.requireText || typed.value.trim().toLow
         </li>
       </ul>
       <form v-if="requireText" @submit.prevent="canConfirm && emit('close', true)">
-        <UInput v-model="typed" :placeholder="requireText" autofocus class="w-full" autocomplete="off" spellcheck="false" />
+        <UInput v-model="typed" :placeholder="requireText" autofocus autocomplete="off" spellcheck="false" />
       </form>
     </template>
     <template #footer>

@@ -96,10 +96,10 @@ async function remove(mailboxId: string) {
           <form class="mt-4 space-y-4" @submit.prevent="add">
             <div class="grid gap-4 sm:grid-cols-2">
               <UFormField :label="t('account.mailboxes.inboxName')" required>
-                <UInput v-model="localPart" :placeholder="t('account.mailboxes.inboxPlaceholder')" :disabled="!account || saving" :maxlength="64" required class="w-full" />
+                <UInput v-model="localPart" :placeholder="t('account.mailboxes.inboxPlaceholder')" :disabled="!account || saving" :maxlength="64" required />
               </UFormField>
               <UFormField :label="t('account.mailboxes.domain')" required>
-                <USelect v-model="domainId" :items="domainItems" :placeholder="t('account.mailboxes.noDomains')" :disabled="!account || domains.length === 0 || saving" class="w-full" />
+                <USelect v-model="domainId" :items="domainItems" :placeholder="t('account.mailboxes.noDomains')" :disabled="!account || domains.length === 0 || saving" />
               </UFormField>
             </div>
             <p v-if="domainId" class="break-all text-sm text-muted">

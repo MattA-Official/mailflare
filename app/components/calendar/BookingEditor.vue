@@ -152,10 +152,10 @@ function addHost() {
         </div>
         <div v-if="activeSection === 'event'" class="mt-5 space-y-4">
           <UFormField :label="t('booking.editor.slug')" :help="`/c/${username || t('booking.editor.yourName')}/${form.slug || t('booking.editor.eventSlug')}`">
-            <UInput :model-value="form.slug" :placeholder="t('booking.editor.slugPlaceholder')" :maxlength="80" class="w-full" @update:model-value="update({ slug: slugifyBookingName(String($event)) })" />
+            <UInput :model-value="form.slug" :placeholder="t('booking.editor.slugPlaceholder')" :maxlength="80" @update:model-value="update({ slug: slugifyBookingName(String($event)) })" />
           </UFormField>
           <UFormField :label="t('calendar.description')">
-            <UTextarea :model-value="form.description" :placeholder="t('booking.editor.descriptionPlaceholder')" :maxlength="2000" :rows="4" class="w-full" @update:model-value="update({ description: String($event) })" />
+            <UTextarea :model-value="form.description" :placeholder="t('booking.editor.descriptionPlaceholder')" :maxlength="2000" :rows="4" @update:model-value="update({ description: String($event) })" />
           </UFormField>
           <fieldset>
             <legend class="text-sm font-medium text-default">
@@ -187,7 +187,7 @@ function addHost() {
           <UIcon name="i-lucide-chevron-down" class="size-5 text-muted transition-transform" :class="activeSection === 'duration' && 'rotate-180'" />
         </button>
         <div v-if="activeSection === 'duration'" class="mt-4 space-y-3">
-          <USelect v-model="durationChoice" :items="durationItems" :aria-label="t('booking.editor.meetingLength')" class="w-full" />
+          <USelect v-model="durationChoice" :items="durationItems" :aria-label="t('booking.editor.meetingLength')" />
           <UInputNumber
             v-if="durationChoice === 'custom'"
             :model-value="form.durationMinutes"
@@ -195,7 +195,6 @@ function addHost() {
             :min="5"
             :max="480"
             :step="5"
-            class="w-full"
             @update:model-value="update({ durationMinutes: Number($event) })"
           />
         </div>
@@ -215,7 +214,7 @@ function addHost() {
           :aria-label="t('booking.editor.location')"
           :placeholder="t('booking.editor.locationPlaceholder')"
           :maxlength="240"
-          class="mt-4 w-full"
+          class="mt-4"
           @update:model-value="update({ location: String($event) })"
         />
         <button v-else type="button" class="mt-2 flex w-full items-center gap-2 text-left text-sm text-muted" @click="toggle('location')">
@@ -250,10 +249,10 @@ function addHost() {
             <div class="mt-2 space-y-2">
               <div v-for="(range, index) in form.timeRanges" :key="index" class="flex items-end gap-2">
                 <UFormField :label="t('calendar.from')" class="min-w-0 flex-1" size="xs">
-                  <UInput type="time" :step="900" :model-value="range.startTime" class="w-full" @update:model-value="setRange(index, 'startTime', String($event))" />
+                  <UInput type="time" :step="900" :model-value="range.startTime" @update:model-value="setRange(index, 'startTime', String($event))" />
                 </UFormField>
                 <UFormField :label="t('calendar.to')" class="min-w-0 flex-1" size="xs">
-                  <UInput type="time" :step="900" :model-value="range.endTime" class="w-full" @update:model-value="setRange(index, 'endTime', String($event))" />
+                  <UInput type="time" :step="900" :model-value="range.endTime" @update:model-value="setRange(index, 'endTime', String($event))" />
                 </UFormField>
                 <UButton
                   icon="i-lucide-trash-2"
@@ -343,7 +342,7 @@ function addHost() {
             {{ t('booking.editor.confirmationHint') }}
           </p>
           <UFormField :label="t('booking.editor.confirmationSubject')">
-            <UInput :model-value="form.confirmationSubject" :placeholder="DEFAULT_CONFIRMATION_SUBJECT" :maxlength="CONFIRMATION_SUBJECT_MAX" class="w-full" @update:model-value="update({ confirmationSubject: String($event) })" />
+            <UInput :model-value="form.confirmationSubject" :placeholder="DEFAULT_CONFIRMATION_SUBJECT" :maxlength="CONFIRMATION_SUBJECT_MAX" @update:model-value="update({ confirmationSubject: String($event) })" />
           </UFormField>
           <UFormField :label="t('booking.editor.confirmationBody')">
             <UTextarea
@@ -352,7 +351,6 @@ function addHost() {
               :placeholder="DEFAULT_CONFIRMATION_BODY"
               :maxlength="CONFIRMATION_BODY_MAX"
               :rows="10"
-              class="w-full"
               :ui="{ base: 'resize-y' }"
               @update:model-value="update({ confirmationBody: String($event) })"
             />

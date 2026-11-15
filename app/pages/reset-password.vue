@@ -48,10 +48,10 @@ async function onSubmit() {
   >
     <form v-if="!done" class="space-y-5" @submit.prevent="onSubmit">
       <UFormField :label="t('auth.reset.newPassword')" name="password" required>
-        <UInput v-model="password" name="password" type="password" autocomplete="new-password" minlength="8" required autofocus size="xl" class="w-full" />
+        <UInput v-model="password" name="password" type="password" autocomplete="new-password" minlength="8" required autofocus size="xl" />
       </UFormField>
       <UFormField :label="t('auth.reset.confirm')" name="confirm" required>
-        <UInput v-model="confirm" name="confirm" type="password" autocomplete="new-password" minlength="8" required size="xl" class="w-full" />
+        <UInput v-model="confirm" name="confirm" type="password" autocomplete="new-password" minlength="8" required size="xl" />
       </UFormField>
       <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />
       <UButton type="submit" block size="xl" :loading="loading" :label="loading ? t('common.saving') : t('auth.reset.setNew')" />

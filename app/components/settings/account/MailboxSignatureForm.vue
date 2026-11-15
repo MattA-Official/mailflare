@@ -51,7 +51,6 @@ async function submit() {
         :placeholder="t('settings.signature.placeholder')"
         :rows="6"
         :disabled="!canManage || saving"
-        class="w-full"
       />
     </UFormField>
     <div v-if="isHtmlSignature(signature)" class="space-y-2">

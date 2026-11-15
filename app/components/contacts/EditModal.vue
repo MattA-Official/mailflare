@@ -70,7 +70,7 @@ async function submit() {
           @avatar-change="hasAvatar => emit('saved', { ...contact!, hasAvatar })"
         />
         <UFormField :label="t('contact.name')">
-          <UInput v-model="displayName" :disabled="saving" :autofocus="editing" class="w-full" />
+          <UInput v-model="displayName" :disabled="saving" :autofocus="editing" />
         </UFormField>
         <UFormField :label="t('contact.email')">
           <UInput
@@ -80,7 +80,6 @@ async function submit() {
             :disabled="saving || editing"
             :autofocus="!editing"
             :required="!editing"
-            class="w-full"
           />
         </UFormField>
         <p v-if="error" role="alert" class="text-sm text-error">
@@ -89,10 +88,8 @@ async function submit() {
       </form>
     </template>
     <template #footer>
-      <div class="flex w-full justify-end gap-2">
-        <UButton color="neutral" variant="outline" :label="t('common.cancel')" @click="open = false" />
-        <UButton type="submit" form="contact-edit-form" :disabled="!canSave" :loading="saving" :label="saving ? t('common.saving') : t('common.save')" />
-      </div>
+      <UButton color="neutral" variant="outline" :label="t('common.cancel')" @click="open = false" />
+      <UButton type="submit" form="contact-edit-form" :disabled="!canSave" :loading="saving" :label="saving ? t('common.saving') : t('common.save')" />
     </template>
   </UModal>
 </template>

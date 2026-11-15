@@ -164,7 +164,7 @@ const canStart = computed(() => !!selectedMailbox.value && files.value.length > 
       <UCheckbox v-model="options.skipTrash" :disabled="running" :label="t('importPage.takeoutSkipTrash')" />
     </div>
     <UFormField v-if="options.folders" :label="t('importPage.takeoutIgnoreLabels')" :help="t('importPage.takeoutIgnoreHint')" name="ignoreLabels">
-      <UInput v-model="options.ignoreLabels" :disabled="running" placeholder="[Superhuman]/, Notes" class="w-full" />
+      <UInput v-model="options.ignoreLabels" :disabled="running" placeholder="[Superhuman]/, Notes" />
     </UFormField>
     <UAlert color="neutral" variant="soft" :description="t('importPage.takeoutKeepOpen')" />
     <div class="flex flex-wrap gap-2">

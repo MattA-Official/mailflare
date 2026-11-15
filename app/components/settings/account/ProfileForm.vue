@@ -100,11 +100,10 @@ async function submitRecovery() {
             :placeholder="selectedMailbox.localPart"
             :required="isPrimary"
             :disabled="!canManage || savingProfile"
-            class="w-full"
           />
         </UFormField>
         <UFormField :label="t('settings.profile.currentEmail')" name="accountEmail">
-          <UInput id="accountEmail" :model-value="address" type="email" autocomplete="email" readonly aria-readonly="true" variant="soft" class="w-full" />
+          <UInput id="accountEmail" :model-value="address" type="email" autocomplete="email" readonly aria-readonly="true" variant="soft" />
         </UFormField>
         <div class="flex items-center gap-3">
           <UButton
@@ -130,7 +129,7 @@ async function submitRecovery() {
           </p>
         </div>
         <UFormField :label="t('settings.profile.emailAddress')" name="resetEmail">
-          <UInput id="resetEmail" v-model="resetEmail" type="email" autocomplete="email" placeholder="recovery@example.com" class="w-full" />
+          <UInput id="resetEmail" v-model="resetEmail" type="email" autocomplete="email" placeholder="recovery@example.com" />
         </UFormField>
         <div class="flex items-center gap-3">
           <UButton

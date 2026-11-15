@@ -110,13 +110,13 @@ async function choosePasswordPolicy(choice: PasskeyPolicyChoice) {
   <div v-else class="space-y-4">
     <form v-if="status.passwordSet" class="space-y-4" @submit.prevent="change">
       <UFormField :label="t('settings.password.current')" name="currentPassword">
-        <UInput id="currentPassword" v-model="currentPassword" type="password" autocomplete="current-password" required class="w-full" />
+        <UInput id="currentPassword" v-model="currentPassword" type="password" autocomplete="current-password" required />
       </UFormField>
       <UFormField :label="t('settings.password.new')" name="newPassword">
-        <UInput id="newPassword" v-model="newPassword" type="password" autocomplete="new-password" :minlength="8" required class="w-full" />
+        <UInput id="newPassword" v-model="newPassword" type="password" autocomplete="new-password" :minlength="8" required />
       </UFormField>
       <UFormField :label="t('settings.password.confirm')" name="confirmPassword">
-        <UInput id="confirmPassword" v-model="confirmPassword" type="password" autocomplete="new-password" :minlength="8" required class="w-full" />
+        <UInput id="confirmPassword" v-model="confirmPassword" type="password" autocomplete="new-password" :minlength="8" required />
       </UFormField>
       <div class="flex flex-wrap items-center gap-3">
         <UButton type="submit" :disabled="busy" :label="busy ? t('settings.password.changing') : t('settings.password.change')" />
@@ -143,10 +143,10 @@ async function choosePasswordPolicy(choice: PasskeyPolicyChoice) {
         {{ t('passkey.noPassword') }}
       </p>
       <UFormField :label="t('settings.password.new')" name="setPassword">
-        <UInput id="setPassword" v-model="newPassword" type="password" autocomplete="new-password" :minlength="8" required class="w-full" />
+        <UInput id="setPassword" v-model="newPassword" type="password" autocomplete="new-password" :minlength="8" required />
       </UFormField>
       <UFormField :label="t('settings.password.confirm')" name="setPasswordConfirm">
-        <UInput id="setPasswordConfirm" v-model="confirmPassword" type="password" autocomplete="new-password" :minlength="8" required class="w-full" />
+        <UInput id="setPasswordConfirm" v-model="confirmPassword" type="password" autocomplete="new-password" :minlength="8" required />
       </UFormField>
       <UButton type="submit" icon="i-lucide-key-round" :disabled="busy" :label="t('passkey.setPassword')" />
     </form>
@@ -165,10 +165,8 @@ async function choosePasswordPolicy(choice: PasskeyPolicyChoice) {
         </p>
       </template>
       <template #footer>
-        <div class="flex w-full justify-end gap-2">
-          <UButton color="neutral" variant="outline" :label="t('common.cancel')" @click="confirmRemove = false" />
-          <UButton color="error" :label="t('passkey.removePassword')" @click="confirmRemove = false; pending = 'remove'" />
-        </div>
+        <UButton color="neutral" variant="outline" :label="t('common.cancel')" @click="confirmRemove = false" />
+        <UButton color="error" :label="t('passkey.removePassword')" @click="confirmRemove = false; pending = 'remove'" />
       </template>
     </UModal>
 

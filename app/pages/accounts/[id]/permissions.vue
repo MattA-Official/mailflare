@@ -106,7 +106,7 @@ const features = computed(() => [
           :model-value="account?.role ?? 'user'"
           :items="roleItems"
           :disabled="!account || saving || !account.canChangeRole"
-          class="w-full sm:w-64"
+          class="sm:w-64"
           @update:model-value="value => account && (account.role = value === 'admin' ? 'admin' : 'user')"
         />
       </UFormField>
@@ -197,7 +197,7 @@ const features = computed(() => [
           </p>
         </div>
         <div class="flex flex-col gap-3 sm:flex-row">
-          <USelect v-model="transferTargetId" :items="candidateItems" :placeholder="t('account.permissions.selectAccount')" :aria-label="t('account.permissions.selectNext')" class="w-full sm:max-w-sm" />
+          <USelect v-model="transferTargetId" :items="candidateItems" :placeholder="t('account.permissions.selectAccount')" :aria-label="t('account.permissions.selectNext')" class="sm:max-w-sm" />
           <UButton color="neutral" variant="outline" :disabled="!transferTarget" :label="t('account.permissions.transferTitle')" @click="transferOpen = true" />
         </div>
       </div>
@@ -218,10 +218,8 @@ const features = computed(() => [
         </div>
       </template>
       <template #footer>
-        <div class="flex w-full justify-end gap-2">
-          <UButton color="neutral" variant="outline" :disabled="transferring" :label="t('common.cancel')" @click="transferOpen = false" />
-          <UButton :loading="transferring" :disabled="!transferTarget" :label="transferring ? t('account.permissions.transferring') : t('account.permissions.confirmTransfer')" @click="confirmTransfer" />
-        </div>
+        <UButton color="neutral" variant="outline" :disabled="transferring" :label="t('common.cancel')" @click="transferOpen = false" />
+        <UButton :loading="transferring" :disabled="!transferTarget" :label="transferring ? t('account.permissions.transferring') : t('account.permissions.confirmTransfer')" @click="confirmTransfer" />
       </template>
     </UModal>
   </div>

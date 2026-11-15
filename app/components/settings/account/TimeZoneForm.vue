@@ -57,7 +57,6 @@ async function submit() {
         list="account-time-zone-options"
         :placeholder="t('settings.timeZone.placeholder', { zone: deviceTimeZone })"
         autocomplete="off"
-        class="w-full"
       />
       <datalist id="account-time-zone-options">
         <option v-for="zone in zones" :key="zone" :value="zone" />

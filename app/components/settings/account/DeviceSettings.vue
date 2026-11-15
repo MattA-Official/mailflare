@@ -66,10 +66,8 @@ const confirmOpen = computed({ get: () => confirming.value !== null, set: (v) =>
 
     <UModal v-model:open="confirmOpen" :title="t('devices.signOut')" :description="confirming ? t('devices.signOutConfirm', { name: confirming.name }) : undefined">
       <template #footer>
-        <div class="flex w-full justify-end gap-2">
-          <UButton color="neutral" variant="outline" :label="t('common.cancel')" @click="confirming = null" />
-          <UButton color="error" :label="t('devices.signOut')" @click="confirming && remove(confirming)" />
-        </div>
+        <UButton color="neutral" variant="outline" :label="t('common.cancel')" @click="confirming = null" />
+        <UButton color="error" :label="t('devices.signOut')" @click="confirming && remove(confirming)" />
       </template>
     </UModal>
   </div>

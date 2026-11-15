@@ -171,19 +171,15 @@ async function copy(value: string) {
 
     <UModal v-model:open="rotateOpen" :dismissible="!rotating" :title="t('oidc.apps.rotateSecret')" :description="t('oidc.apps.rotateConfirm')">
       <template #footer>
-        <div class="flex w-full justify-end gap-2">
-          <UButton color="neutral" variant="outline" :disabled="rotating" :label="t('common.cancel')" @click="rotateOpen = false" />
-          <UButton :loading="rotating" :label="t('oidc.apps.rotateSecret')" @click="rotate" />
-        </div>
+        <UButton color="neutral" variant="outline" :disabled="rotating" :label="t('common.cancel')" @click="rotateOpen = false" />
+        <UButton :loading="rotating" :label="t('oidc.apps.rotateSecret')" @click="rotate" />
       </template>
     </UModal>
 
     <UModal v-model:open="deleteOpen" :dismissible="!deleting" :title="t('oidc.apps.delete')" :description="data ? t('oidc.apps.deleteConfirm', { name: data.app.name }) : ''">
       <template #footer>
-        <div class="flex w-full justify-end gap-2">
-          <UButton color="neutral" variant="outline" :disabled="deleting" :label="t('common.cancel')" @click="deleteOpen = false" />
-          <UButton color="error" :loading="deleting" :label="t('oidc.apps.delete')" @click="remove" />
-        </div>
+        <UButton color="neutral" variant="outline" :disabled="deleting" :label="t('common.cancel')" @click="deleteOpen = false" />
+        <UButton color="error" :loading="deleting" :label="t('oidc.apps.delete')" @click="remove" />
       </template>
     </UModal>
   </AdminSystemPage>

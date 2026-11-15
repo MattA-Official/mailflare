@@ -164,17 +164,17 @@ async function submit() {
       </template>
       <form class="space-y-5" @submit.prevent="submit">
         <UFormField :label="t('agentAdmin.providerLabel')" :hint="form.provider === 'cloudflare' && !cloudflareAvailable ? t('agentAdmin.needsBinding') : undefined" :ui="{ hint: 'text-warning' }">
-          <USelect :model-value="form.provider" :items="providerItems" :disabled="!loaded" class="w-full" @update:model-value="value => setProvider(value as AgentProviderKind)" />
+          <USelect :model-value="form.provider" :items="providerItems" :disabled="!loaded" @update:model-value="value => setProvider(value as AgentProviderKind)" />
         </UFormField>
         <template v-if="form.provider === 'compatible'">
           <UFormField :label="t('agentAdmin.template')">
-            <USelect :model-value="form.preset" :items="presetItems" class="w-full" @update:model-value="value => setPreset(value as AgentProviderPreset)" />
+            <USelect :model-value="form.preset" :items="presetItems" @update:model-value="value => setPreset(value as AgentProviderPreset)" />
           </UFormField>
           <UFormField :label="t('agentAdmin.baseUrl')" required>
-            <UInput :model-value="form.baseUrl" type="url" :readonly="form.preset !== 'custom'" placeholder="https://provider.example/v1" required class="w-full" @update:model-value="value => form = { ...form, baseUrl: String(value), model: '' }" />
+            <UInput :model-value="form.baseUrl" type="url" :readonly="form.preset !== 'custom'" placeholder="https://provider.example/v1" required @update:model-value="value => form = { ...form, baseUrl: String(value), model: '' }" />
           </UFormField>
           <UFormField :label="t('agentAdmin.apiKey')" :help="canUseSavedKey ? t('agentAdmin.keySaved') : t('agentAdmin.keyNote')">
-            <UInput v-model="form.apiKey" type="password" autocomplete="new-password" :placeholder="canUseSavedKey ? t('agentAdmin.savedKeyPlaceholder') : t('agentAdmin.enterKeyPlaceholder')" class="w-full" />
+            <UInput v-model="form.apiKey" type="password" autocomplete="new-password" :placeholder="canUseSavedKey ? t('agentAdmin.savedKeyPlaceholder') : t('agentAdmin.enterKeyPlaceholder')" />
           </UFormField>
         </template>
 
@@ -204,7 +204,7 @@ async function submit() {
             {{ modelError }}
           </p>
           <UFormField :label="t('agentAdmin.orEnterIds')" :help="t('agentAdmin.toolCalling')" class="pt-2" :ui="{ label: 'text-xs text-muted' }">
-            <UInput v-model="form.model" :placeholder="form.provider === 'cloudflare' ? DEFAULT_CLOUDFLARE_MODEL : 'provider/model-id, provider/another-model'" required class="w-full" />
+            <UInput v-model="form.model" :placeholder="form.provider === 'cloudflare' ? DEFAULT_CLOUDFLARE_MODEL : 'provider/model-id, provider/another-model'" required />
           </UFormField>
         </div>
 

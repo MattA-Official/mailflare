@@ -91,10 +91,10 @@ async function remove() {
       <UCard v-if="canManage">
         <form class="space-y-4" @submit.prevent="save">
           <UFormField :label="t('groups.name')" required>
-            <UInput v-model="name" class="w-full" />
+            <UInput v-model="name" />
           </UFormField>
           <UFormField :label="t('groups.descriptionLabel')" :hint="t('groups.optional')">
-            <UTextarea v-model="description" :rows="2" class="w-full" />
+            <UTextarea v-model="description" :rows="2" />
           </UFormField>
           <div class="flex items-center gap-3">
             <UButton type="submit" :loading="saving" :disabled="!name.trim()" :label="saving ? t('common.saving') : t('common.save')" />
@@ -178,10 +178,8 @@ async function remove() {
 
     <UModal v-model:open="deleteOpen" :dismissible="!deleting" :title="t('groups.delete')" :description="data ? t('groups.deleteConfirm', { name: data.group.name }) : ''">
       <template #footer>
-        <div class="flex w-full justify-end gap-2">
-          <UButton color="neutral" variant="outline" :disabled="deleting" :label="t('common.cancel')" @click="deleteOpen = false" />
-          <UButton color="error" :loading="deleting" :label="t('groups.delete')" @click="remove" />
-        </div>
+        <UButton color="neutral" variant="outline" :disabled="deleting" :label="t('common.cancel')" @click="deleteOpen = false" />
+        <UButton color="error" :loading="deleting" :label="t('groups.delete')" @click="remove" />
       </template>
     </UModal>
   </AdminSystemPage>

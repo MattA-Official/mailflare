@@ -200,7 +200,6 @@ function onTimesFocusOut(event: FocusEvent) {
           :aria-label="t('calendar.eventName')"
           variant="ghost"
           size="xl"
-          class="w-full"
           :ui="{ base: 'text-xl font-medium' }"
           autofocus
         />
@@ -210,10 +209,10 @@ function onTimesFocusOut(event: FocusEvent) {
           <div class="min-w-0" @focusout="onTimesFocusOut">
             <div class="grid gap-2 sm:grid-cols-2">
               <UFormField :label="t('calendar.from')">
-                <UInput v-model="startsAt" type="datetime-local" :aria-label="t('calendar.fromLabel')" class="w-full" @focus="durationOptionsOpen = true" />
+                <UInput v-model="startsAt" type="datetime-local" :aria-label="t('calendar.fromLabel')" @focus="durationOptionsOpen = true" />
               </UFormField>
               <UFormField :label="t('calendar.to')">
-                <UInput v-model="endsAt" type="datetime-local" :aria-label="t('calendar.toLabel')" class="w-full" @focus="durationOptionsOpen = true" />
+                <UInput v-model="endsAt" type="datetime-local" :aria-label="t('calendar.toLabel')" @focus="durationOptionsOpen = true" />
               </UFormField>
             </div>
             <div v-if="durationOptionsOpen" class="flex flex-wrap gap-1 pt-1" :aria-label="t('calendar.setDuration')">
@@ -234,13 +233,13 @@ function onTimesFocusOut(event: FocusEvent) {
 
         <div class="grid grid-cols-[24px_minmax(0,1fr)] items-center gap-3">
           <UIcon name="i-lucide-bell" class="size-5 text-muted" />
-          <USelect v-model="reminderValue" :items="reminderItems" :aria-label="t('calendar.reminder')" variant="ghost" class="w-full" />
+          <USelect v-model="reminderValue" :items="reminderItems" :aria-label="t('calendar.reminder')" variant="ghost" />
         </div>
 
         <div class="grid grid-cols-[24px_minmax(0,1fr)] items-start gap-3">
           <UIcon name="i-lucide-repeat-2" class="mt-2 size-5 text-muted" />
           <div class="min-w-0">
-            <USelect v-model="repeat" :items="repeatItems" :aria-label="t('calendar.repeat')" variant="ghost" class="w-full" />
+            <USelect v-model="repeat" :items="repeatItems" :aria-label="t('calendar.repeat')" variant="ghost" />
             <div v-if="repeat === 'weekdays'" role="group" :aria-label="t('calendar.repeatOnWeekdays')" class="flex flex-wrap gap-1.5 px-2 pt-1">
               <UButton
                 v-for="day in WEEKDAY_OPTIONS"
@@ -260,7 +259,7 @@ function onTimesFocusOut(event: FocusEvent) {
 
         <div class="grid grid-cols-[24px_minmax(0,1fr)] items-center gap-3">
           <UIcon name="i-lucide-users-round" class="size-5 text-muted" />
-          <UInput v-model="guests" :placeholder="t('calendar.addGuests')" :aria-label="t('calendar.guestsLabel')" variant="ghost" class="w-full" />
+          <UInput v-model="guests" :placeholder="t('calendar.addGuests')" :aria-label="t('calendar.guestsLabel')" variant="ghost" />
           <p v-if="guestReplies" class="col-start-2 mt-1 px-2 text-xs text-muted">
             {{ t('calendar.guestResponses', { list: guestReplies }) }}
           </p>
@@ -268,12 +267,12 @@ function onTimesFocusOut(event: FocusEvent) {
 
         <div class="grid grid-cols-[24px_minmax(0,1fr)] items-center gap-3">
           <UIcon name="i-lucide-map-pin" class="size-5 text-muted" />
-          <UInput v-model="location" :placeholder="t('calendar.addLocation')" :aria-label="t('calendar.location')" variant="ghost" class="w-full" />
+          <UInput v-model="location" :placeholder="t('calendar.addLocation')" :aria-label="t('calendar.location')" variant="ghost" />
         </div>
 
         <div class="grid grid-cols-[24px_minmax(0,1fr)] items-start gap-3">
           <UIcon name="i-lucide-align-left" class="mt-2 size-5 text-muted" />
-          <UTextarea v-model="description" :placeholder="t('calendar.addDescription')" :aria-label="t('calendar.description')" variant="ghost" autoresize :rows="1" class="w-full" />
+          <UTextarea v-model="description" :placeholder="t('calendar.addDescription')" :aria-label="t('calendar.description')" variant="ghost" autoresize :rows="1" />
         </div>
 
         <div class="grid grid-cols-[24px_minmax(0,1fr)] items-center gap-3">

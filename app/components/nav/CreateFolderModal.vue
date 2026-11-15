@@ -46,7 +46,7 @@ async function submit() {
     <template #body>
       <form id="create-folder" class="space-y-4" @submit.prevent="submit">
         <UFormField :label="t('navigation.folderName')" name="name">
-          <UInput v-model="name" :placeholder="t('navigation.folderExample')" autofocus class="w-full" />
+          <UInput v-model="name" :placeholder="t('navigation.folderExample')" autofocus />
         </UFormField>
         <UFormField :label="t('navigation.color')" name="color">
           <div class="flex flex-wrap gap-2" role="radiogroup" :aria-label="t('navigation.folderColor')">

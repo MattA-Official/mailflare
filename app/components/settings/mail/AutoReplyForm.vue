@@ -69,7 +69,6 @@ async function submit() {
           v-model="settings.subject"
           :placeholder="t('settings.autoReply.subjectPlaceholder')"
           :disabled="!canManage || saving"
-          class="w-full"
         />
       </UFormField>
       <UFormField :label="t('settings.autoReply.message')" name="body">
@@ -78,7 +77,6 @@ async function submit() {
           :placeholder="t('settings.autoReply.messagePlaceholder')"
           :rows="7"
           :disabled="!canManage || saving"
-          class="w-full"
         />
       </UFormField>
     </template>

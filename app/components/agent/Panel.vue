@@ -579,10 +579,10 @@ const modelItems = computed(() => availableModels.value.map(model => ({ label: m
       <p v-if="!canManage">{{ t('agent.panel.needPermission') }}</p>
       <template v-if="settings">
         <UFormField :label="t('agent.panel.reviewer')">
-          <USelect v-model="settings.reviewerUserId as string" :items="reviewerItems" class="w-full" :disabled="!canManage" />
+          <USelect v-model="settings.reviewerUserId as string" :items="reviewerItems" :disabled="!canManage" />
         </UFormField>
         <UFormField :label="t('agent.panel.model')">
-          <USelect v-model="settings.modelId as string" :items="modelItems" class="w-full" :disabled="!canManage || !availableModels.length" :placeholder="availableModels.length ? undefined : t('agent.panel.noModels')" />
+          <USelect v-model="settings.modelId as string" :items="modelItems" :disabled="!canManage || !availableModels.length" :placeholder="availableModels.length ? undefined : t('agent.panel.noModels')" />
         </UFormField>
         <div class="flex items-center justify-between gap-3">
           <span>{{ t('agent.panel.autoDraft') }}</span>
@@ -590,10 +590,10 @@ const modelItems = computed(() => availableModels.value.map(model => ({ label: m
         </div>
         <p v-if="autoReplyEnabled" class="text-warning">{{ t('agent.panel.disableOoo') }}</p>
         <UFormField :label="t('agent.panel.instructions')">
-          <UTextarea v-model="settings.instructions" :rows="6" class="w-full" :disabled="!canManage" />
+          <UTextarea v-model="settings.instructions" :rows="6" :disabled="!canManage" />
         </UFormField>
         <UFormField :label="t('agent.panel.dailyLimit')">
-          <UInputNumber v-model="settings.dailyLimit" :min="1" :max="100" class="w-full" :disabled="!canManage" />
+          <UInputNumber v-model="settings.dailyLimit" :min="1" :max="100" :disabled="!canManage" />
         </UFormField>
         <UButton size="sm" :disabled="!canManage || busy" :label="t('agent.panel.save')" @click="saveSettings" />
       </template>

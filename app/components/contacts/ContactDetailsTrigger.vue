@@ -86,10 +86,10 @@ async function save() {
             @avatar-change="(hasAvatar) => { if (contact) contact = { ...contact, hasAvatar } }"
           />
           <UFormField :label="t('contact.name')" name="displayName">
-            <UInput v-model="displayName" class="w-full" :disabled="loading || saving" />
+            <UInput v-model="displayName" :disabled="loading || saving" />
           </UFormField>
           <UFormField :label="t('contact.email')" name="email">
-            <UInput :model-value="contact?.email ?? address" class="w-full" disabled />
+            <UInput :model-value="contact?.email ?? address" disabled />
           </UFormField>
           <div class="grid gap-3 rounded-lg bg-muted p-3 text-sm sm:grid-cols-2">
             <div>

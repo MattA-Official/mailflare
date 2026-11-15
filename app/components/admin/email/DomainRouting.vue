@@ -128,18 +128,18 @@ const toggle = (rule: DomainRule) => run(() => updateDomainRule(rule.id, { ...ru
         <form class="space-y-4" @submit.prevent="save">
           <div class="grid grid-cols-1 items-end gap-4 sm:grid-cols-2">
             <UFormField :label="t('common.name')">
-              <UInput v-model="form.name" :placeholder="t('routing.optionalLabel')" class="w-full" />
+              <UInput v-model="form.name" :placeholder="t('routing.optionalLabel')" />
             </UFormField>
             <UFormField :label="t('routing.action')">
-              <USelect v-model="form.action" :items="actionItems" class="w-full" />
+              <USelect v-model="form.action" :items="actionItems" />
             </UFormField>
           </div>
           <div class="grid grid-cols-1 items-end gap-4 sm:grid-cols-2">
             <UFormField :label="t('routing.matchOn')">
-              <USelect v-model="form.matchField" :items="fieldItems" class="w-full" />
+              <USelect v-model="form.matchField" :items="fieldItems" />
             </UFormField>
             <UFormField :label="t('routing.condition')">
-              <USelect v-model="form.matchOperator" :items="operatorItems" class="w-full" />
+              <USelect v-model="form.matchOperator" :items="operatorItems" />
             </UFormField>
           </div>
           <div class="grid grid-cols-1 items-end gap-4 sm:grid-cols-2">
@@ -149,7 +149,7 @@ const toggle = (rule: DomainRule) => run(() => updateDomainRule(rule.id, { ...ru
                   <UIcon name="i-lucide-info" class="size-4 text-muted" />
                 </UTooltip>
               </template>
-              <UInput v-model="form.matchValue" required :placeholder="t('routing.matchAllPlaceholder')" class="w-full" />
+              <UInput v-model="form.matchValue" required :placeholder="t('routing.matchAllPlaceholder')" />
             </UFormField>
             <UFormField :label="t('routing.priority')">
               <template #hint>
@@ -157,7 +157,7 @@ const toggle = (rule: DomainRule) => run(() => updateDomainRule(rule.id, { ...ru
                   <UIcon name="i-lucide-info" class="size-4 text-muted" />
                 </UTooltip>
               </template>
-              <UInputNumber v-model="form.priority" :min="0" :max="1000" class="w-full" />
+              <UInputNumber v-model="form.priority" :min="0" :max="1000" />
             </UFormField>
           </div>
 
@@ -167,12 +167,11 @@ const toggle = (rule: DomainRule) => run(() => updateDomainRule(rule.id, { ...ru
                 :model-value="form.mailboxId ?? undefined"
                 :items="mailboxItems"
                 :placeholder="t('routing.selectMailbox')"
-                class="w-full"
                 @update:model-value="value => form.mailboxId = (value as string) || null"
               />
             </UFormField>
             <UFormField v-if="form.action === 'forward'" :label="t('routing.forwardTo')">
-              <UInput :model-value="form.forwardTo ?? ''" type="email" required class="w-full" @update:model-value="value => form.forwardTo = String(value)" />
+              <UInput :model-value="form.forwardTo ?? ''" type="email" required @update:model-value="value => form.forwardTo = String(value)" />
             </UFormField>
           </div>
 
@@ -189,7 +188,7 @@ const toggle = (rule: DomainRule) => run(() => updateDomainRule(rule.id, { ...ru
           </div>
 
           <UFormField v-if="form.action === 'reject'" :label="t('routing.rejectReason')">
-            <UInput :model-value="form.rejectReason ?? ''" :placeholder="t('routing.rejectPlaceholder')" class="w-full" @update:model-value="value => form.rejectReason = String(value)" />
+            <UInput :model-value="form.rejectReason ?? ''" :placeholder="t('routing.rejectPlaceholder')" @update:model-value="value => form.rejectReason = String(value)" />
           </UFormField>
 
           <p v-if="formError" role="alert" class="text-sm text-error">

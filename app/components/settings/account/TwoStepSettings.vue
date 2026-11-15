@@ -162,7 +162,7 @@ const codesOpen = computed({ get: () => codes.value !== null, set: (v) => { if (
               <code class="mt-2 block break-all rounded-md bg-elevated/50 p-2 font-mono text-default">{{ secret }}</code>
             </details>
             <UFormField :label="t('mfa.sixDigitCode')" name="mfa-code">
-              <UInput id="mfa-code" v-model="code" inputmode="numeric" autocomplete="one-time-code" placeholder="123 456" required autofocus class="w-full" />
+              <UInput id="mfa-code" v-model="code" inputmode="numeric" autocomplete="one-time-code" placeholder="123 456" required autofocus />
             </UFormField>
             <p v-if="error" role="alert" class="text-sm text-error">
               {{ error }}
