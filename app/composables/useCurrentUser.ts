@@ -31,16 +31,20 @@ export interface SessionInfo {
 }
 
 const MAX_AGE_MS = 5 * 60 * 1000
-let cached: { info: SessionInfo, at: number } | null = null
-let inflight: Promise<SessionInfo | null> | null = null
-let generation = 0
-const currentUser = ref<CurrentUser | null>(null)
+const useCurrentUserState = () => useState<CurrentUser | null>('current-user', () => null)
+// The cached /api/auth/me answer and the request in flight, kept per app rather than per module.
+const session = () => appScoped('current-user', () => ({
+  cached: null as { info: SessionInfo, at: number } | null,
+  inflight: null as Promise<SessionInfo | null> | null,
+  generation: 0,
+}))
 
 export function clearCurrentUserCache() {
-  generation += 1
-  cached = null
-  inflight = null
-  currentUser.value = null
+  const state = session()
+  state.generation += 1
+  state.cached = null
+  state.inflight = null
+  useCurrentUserState().value = null
 }
 
 if (import.meta.client) window.addEventListener(AUTH_SESSION_CHANGED_EVENT, clearCurrentUserCache)
@@ -56,6 +60,7 @@ async function requestSessionInfo(): Promise<SessionInfo> {
 
 /** The cached answer if it is still fresh, without a request. */
 export function peekSessionInfo(): SessionInfo | null {
+  const { cached } = session()
   return cached && Date.now() - cached.at < MAX_AGE_MS ? cached.info : null
 }
 
@@ -63,26 +68,29 @@ export function peekSessionInfo(): SessionInfo | null {
 export function fetchSessionInfo({ fresh = false } = {}): Promise<SessionInfo | null> {
   const hit = fresh ? null : peekSessionInfo()
   if (hit) return Promise.resolve(hit)
-  if (!inflight) {
-    const startedAt = generation
+  const state = session()
+  const currentUser = useCurrentUserState()
+  if (!state.inflight) {
+    const startedAt = state.generation
     const request = requestSessionInfo()
       .then((info) => {
-        if (startedAt !== generation) return null
-        cached = info.status === 200 ? { info, at: Date.now() } : null
+        if (startedAt !== state.generation) return null
+        state.cached = info.status === 200 ? { info, at: Date.now() } : null
         currentUser.value = info.user ?? null
         return info
       })
       .catch(() => null)
       .finally(() => {
-        if (inflight === request) inflight = null
+        if (state.inflight === request) state.inflight = null
       })
-    inflight = request
+    state.inflight = request
   }
-  return inflight
+  return state.inflight
 }
 
 /** The signed-in user, or null while unknown or signed out. */
 export function useCurrentUser() {
+  const currentUser = useCurrentUserState()
   if (import.meta.client && !currentUser.value) void fetchSessionInfo()
   return readonly(currentUser)
 }

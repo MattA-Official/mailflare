@@ -1,12 +1,13 @@
 // Translations use upstream's catalogues and translator unchanged (flat dotted keys, `{var}`
 // interpolation, `.one`/`.other` plural variants), which the server shares for emails and push.
+import type { ShallowRef } from 'vue'
 import { locales } from '#lib/i18n/locales'
 import { DEFAULT_LOCALE, LOCALE_COOKIE, createTranslator, getDirection, loadMessages, resolveLocale, serializeLocaleCookie, type Translator } from '#lib/i18n/utils'
 import type { Locale, Messages } from '#lib/i18n/types'
 
-const locale = ref<Locale>(DEFAULT_LOCALE)
-const messages = shallowRef<Partial<Messages> | undefined>()
-const translator = computed<Translator>(() => createTranslator(locale.value, messages.value))
+const useLocaleState = () => useState<Locale>('locale', () => DEFAULT_LOCALE)
+// The catalogue is large and never edited, so it is not made deeply reactive.
+const useMessagesState = (): ShallowRef<Partial<Messages> | undefined> => useState('locale-messages', () => shallowRef<Partial<Messages> | undefined>())
 
 function readLocaleCookie(): Locale {
   const match = document.cookie.match(new RegExp(`(?:^|;\\s*)${LOCALE_COOKIE}=([^;]+)`))
@@ -14,6 +15,8 @@ function readLocaleCookie(): Locale {
 }
 
 async function applyLocale(next: Locale) {
+  const locale = useLocaleState()
+  const messages = useMessagesState()
   try {
     messages.value = next === DEFAULT_LOCALE ? undefined : await loadMessages(next)
     locale.value = next
@@ -31,6 +34,9 @@ export function initLanguage() {
 }
 
 export function useLanguage() {
+  const locale = useLocaleState()
+  const messages = useMessagesState()
+  const translator = computed<Translator>(() => createTranslator(locale.value, messages.value))
   return {
     locale: readonly(locale),
     locales,
