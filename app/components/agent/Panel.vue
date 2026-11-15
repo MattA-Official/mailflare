@@ -11,8 +11,8 @@ import type {
 import { getUserTimeZone } from '#lib/time/utils'
 import {
   activeAgentTool, activeAgentToolLabel, appendAgentReasoning, consumeAgentStream, editQueuedAgentMessage, enqueueAgentMessage, groupAgentMessages,
-  isAgentScrollAtBottom, markAgentDraftSent, normalizeAgentHistory, readAgentConversationId, removeQueuedAgentMessage, resizeAgentInput,
-  saveAgentConversationId, shouldSubmitAgentInput, steerQueuedAgentMessage, uniqueAgentDraftActions,
+  isAgentScrollAtBottom, markAgentDraftSent, normalizeAgentHistory, readAgentConversationId, removeQueuedAgentMessage,
+  saveAgentConversationId, steerQueuedAgentMessage, uniqueAgentDraftActions,
 } from '~/utils/agent/agent-utils'
 
 const props = defineProps<{ open: boolean, fullSize: boolean }>()
@@ -66,7 +66,6 @@ const menuItems = computed(() => [
   }],
 ])
 const chatScroll = useTemplateRef<HTMLDivElement>('chatScroll')
-const inputRef = useTemplateRef<HTMLTextAreaElement>('inputRef')
 
 // Plain variables for state the async send loop reads after awaits, like upstream's refs.
 let controller: AbortController | null = null
@@ -193,8 +192,6 @@ watch([mailboxId, () => props.open], async ([id, open]) => {
   }
 }, { immediate: true })
 onBeforeUnmount(() => controller?.abort())
-
-watch([input, view], () => nextTick(() => resizeAgentInput(inputRef.value)), { immediate: true })
 
 watch([messages, busy, loadingConversation, view, () => props.fullSize], () => nextTick(() => {
   const container = chatScroll.value
@@ -361,12 +358,6 @@ function submitMessage(text: string) {
     return
   }
   void send(text.trim())
-}
-
-function onInputKeydown(event: KeyboardEvent) {
-  if (!shouldSubmitAgentInput(event)) return
-  event.preventDefault()
-  submitMessage(input.value)
 }
 
 function steer(id: string) {
@@ -551,8 +542,8 @@ const modelItems = computed(() => availableModels.value.map(model => ({ label: m
         @steer="steer"
       />
       <div v-if="busy" role="status" aria-live="polite" class="mx-auto w-full max-w-3xl space-y-1 px-5 py-2 text-sm text-muted">
-        <div v-if="activeTool" class="flex items-center gap-2"><UIcon name="i-lucide-loader-circle" class="size-3.5 shrink-0 animate-spin" aria-hidden="true" /><span>{{ activeAgentToolLabel(activeTool.toolName, t) }}</span></div>
-        <div class="flex items-center gap-2"><UIcon name="i-lucide-loader-circle" class="size-3.5 shrink-0 animate-spin" aria-hidden="true" /><span>{{ t('agent.panel.working') }}</span></div>
+        <UChatShimmer v-if="activeTool" as="p" :text="activeAgentToolLabel(activeTool.toolName, t)" />
+        <UChatShimmer as="p" :text="t('agent.panel.working')" />
       </div>
       <div v-if="openEmailId" class="mx-auto flex w-full max-w-3xl px-4 pb-1.5">
         <span class="inline-flex max-w-full items-center gap-1.5 rounded-full bg-elevated py-1 pl-3 pr-1 text-xs text-muted">
@@ -561,22 +552,35 @@ const modelItems = computed(() => availableModels.value.map(model => ({ label: m
           <UButton icon="i-lucide-x" color="neutral" variant="ghost" size="xs" class="rounded-full" :aria-label="t('agent.panel.removeCurrentEmail')" :title="t('agent.panel.removeCurrentEmail')" @click="dismissedMessageId = openEmailId" />
         </span>
       </div>
-      <form class="relative mx-auto w-full max-w-3xl px-3 pb-2" @submit.prevent="submitMessage(input)">
-        <textarea
-          ref="inputRef"
+      <div class="mx-auto w-full max-w-3xl px-3 pb-2">
+        <UChatPrompt
           v-model="input"
-          rows="1"
           name="message"
-          class="block w-full resize-none rounded-3xl bg-primary/5 px-4 py-3 pr-14 text-sm leading-5 text-highlighted outline-none placeholder:text-dimmed focus-visible:ring-2 focus-visible:ring-primary/30 disabled:opacity-50"
+          variant="naked"
+          :maxrows="4"
           :placeholder="t('agent.panel.promptPlaceholder')"
           :disabled="inputDisabled"
-          @keydown="onInputKeydown"
-        />
-        <div class="absolute bottom-3.5 right-5 flex justify-end gap-2">
-          <UButton v-if="busy" icon="i-lucide-pause" color="neutral" variant="soft" size="sm" class="rounded-full" :aria-label="t('agent.panel.stop')" :title="t('agent.panel.stop')" @click="controller?.abort()" />
-          <UButton v-else type="submit" icon="i-lucide-send" color="neutral" variant="ghost" size="sm" :disabled="!input.trim() || inputDisabled" :aria-label="t('agent.panel.send')" :title="t('agent.panel.send')" />
-        </div>
-      </form>
+          class="rounded-3xl bg-primary/5 ps-4"
+          :ui="{ trailing: 'items-end' }"
+          @submit="submitMessage(input)"
+        >
+          <template #trailing>
+            <UChatPromptSubmit
+              :status="busy ? 'streaming' : 'ready'"
+              icon="i-lucide-send"
+              streaming-icon="i-lucide-pause"
+              color="neutral"
+              variant="ghost"
+              size="sm"
+              class="rounded-full"
+              :disabled="!busy && (!input.trim() || inputDisabled)"
+              :aria-label="busy ? t('agent.panel.stop') : t('agent.panel.send')"
+              :title="busy ? t('agent.panel.stop') : t('agent.panel.send')"
+              @stop="controller?.abort()"
+            />
+          </template>
+        </UChatPrompt>
+      </div>
     </template>
 
     <div v-else class="min-h-0 flex-1 space-y-4 overflow-y-auto overscroll-contain p-4 text-sm">
