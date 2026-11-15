@@ -489,6 +489,13 @@ Tick in the PR that lands it. Add rows for anything discovered.
   back button to Mailboxes (the address line above the cards is gone; the Shared and Primary badges
   stay), Settings → Account and a group's settings page use `AppPage`, and Compose centres its form.
   Page-level load errors on these pages are a `UAlert`.
+- (fork) Contacts phase 1 (plan: https://claude.ai/artifact/KhbuMAYNE4FuxL1xwWSnmd). The Contacts page has
+  Saved (`source = manual`) and Other tabs, pages with "Show more", and opens `ContactsDetailPanel` per
+  contact; row buttons became a menu. `GET /api/contacts` takes optional `filter=saved|other`,
+  `sort=suggest` (ranked, blocked left out; used by compose and the calendar guest field) and `cursor`, and
+  adds `nextCursor`. `DELETE /api/contacts/block` unblocks. `DELETE /api/contacts` keeps a blocked or
+  image-allowed row as an Other entry unless `forget=1`. The Gravatar lookup is removed (Matt's decision),
+  so `server/lib/contacts/gravatar.ts` and `ContactInput.lookupAvatar` are gone.
 
 ## Following upstream
 
