@@ -6,12 +6,11 @@ import { requireUser } from "#lib/auth/cookies";
 import { deleteAvatarImages } from "#lib/avatar-images";
 import { getEnv } from "#lib/cloudflare";
 import { normalizeEmailAddress } from "#lib/email/address";
-import { importGravatarAvatar } from "#lib/contacts/gravatar";
 import { getMailboxAccessLevel } from "#lib/mailboxes/access";
 import { getPersonalIdentityForAddress, syncPersonalIdentity } from "#lib/profile/sync";
 import { parseAddress } from "#lib/utils";
 import type { ContactRequestInput } from "./types";
-import { getContactByEmail, listContacts, parseContactsLimit, saveManualContact, toContactDetails } from "./utils";
+import { decodeContactsCursor, encodeContactsCursor, getContactByEmail, listContacts, parseContactsFilter, parseContactsLimit, saveManualContact, toContactDetails } from "./utils";
 
 export async function GET(request: Request) {
 	const env = getEnv();
@@ -32,13 +31,21 @@ export async function GET(request: Request) {
 	// No address means a listing: the search box on the Contacts page and the
 	// composer's suggestions both read this shape.
 	if (!email) {
+		// Fork-only: `filter`, `sort=suggest` and `cursor` are optional; without them the response is upstream's.
+		const sort = url.searchParams.get("sort") === "suggest" ? "suggest" as const : "name" as const;
+		const limit = parseContactsLimit(url.searchParams.get("limit"));
 		const rows = await listContacts(db, {
 			userId: access.mailbox.userId,
 			query: (url.searchParams.get("q") ?? "").trim(),
-			limit: parseContactsLimit(url.searchParams.get("limit")),
+			limit,
+			filter: parseContactsFilter(url.searchParams.get("filter")),
+			sort,
+			cursor: decodeContactsCursor(url.searchParams.get("cursor")),
 		});
+		const last = rows.at(-1);
 		return NextResponse.json({
 			contacts: rows.map((contact) => toContactDetails(contact)),
+			nextCursor: sort === "name" && last && rows.length === limit ? encodeContactsCursor(last) : null,
 		});
 	}
 
@@ -92,19 +99,11 @@ export async function POST(request: Request) {
 			avatarKey: account.avatarKey,
 		});
 	}
-	const existing = await getContactByEmail(db, access.mailbox.userId, email);
 	const saved = await saveManualContact(db, {
 		userId: access.mailbox.userId,
 		email,
 		displayName,
 	});
-	if (!existing && saved) {
-		const avatarKey = await importGravatarAvatar(env, access.mailbox.userId, email);
-		if (avatarKey) {
-			await db.update(contacts).set({ avatarKey }).where(eq(contacts.id, saved.id));
-			return NextResponse.json({ contact: { ...toContactDetails(saved), hasAvatar: true } });
-		}
-	}
 	return NextResponse.json({ contact: toContactDetails(saved) });
 }
 
@@ -159,6 +158,13 @@ export async function DELETE(request: Request) {
 	}
 
 	const existing = await getContactByEmail(db, access.mailbox.userId, email);
+	// Fork-only: the row also carries the block and the image consent. Unless the caller asks to forget them,
+	// removing a saved contact keeps the row as an automatically collected one so neither is lost.
+	const forget = url.searchParams.get("forget") === "1";
+	if (existing && !forget && (existing.blocked || existing.remoteContentAllowed)) {
+		await db.update(contacts).set({ source: "inbound" }).where(eq(contacts.id, existing.id));
+		return NextResponse.json({ ok: true, kept: true });
+	}
 	if (existing?.avatarKey) {
 		await deleteAvatarImages(env.BUCKET, existing.avatarKey);
 	}

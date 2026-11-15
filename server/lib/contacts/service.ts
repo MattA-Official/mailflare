@@ -5,7 +5,6 @@ import { getFirstEmailAddressEntry, normalizeEmailAddress } from "#lib/email/add
 import type { BlockContactInput, ContactCard, ContactDisplayName, ContactInput, MessageContactNames } from "#lib/contacts/types";
 import type { ContactSource } from "#lib/email/address-types";
 import { getContactId, getContactNameFromAddress, getPartyDisplayName } from "#lib/contacts/utils";
-import { importGravatarAvatar } from "#lib/contacts/gravatar";
 
 export async function upsertContactFromAddress(env: CloudflareEnv, input: ContactInput) {
 	const email = normalizeEmailAddress(input.address);
@@ -46,16 +45,9 @@ export async function upsertContactFromAddress(env: CloudflareEnv, input: Contac
 		source: input.source,
 		lastSeenAt: now,
 	}).onConflictDoNothing(); // Two messages from a new sender can be processed at once.
-	const avatarKey = input.lookupAvatar === false ? null : await importGravatarAvatar(env, input.userId, email);
-	if (avatarKey) {
-		await db.update(contacts).set({ avatarKey }).where(eq(contacts.id, id));
-	}
-
 	const [created] = await db.select().from(contacts).where(eq(contacts.id, id)).limit(1);
 	return created ?? null;
 }
-
-const MAX_AVATAR_LOOKUPS = 20;
 
 export async function upsertContactsFromAddresses(
 	env: CloudflareEnv,
@@ -111,18 +103,6 @@ export async function upsertContactsFromAddresses(
 	}
 	for (let index = 0; index < updateQueries.length; index += 10) {
 		await Promise.all(updateQueries.slice(index, index + 10));
-	}
-
-	const newEmails = insertRows.slice(0, MAX_AVATAR_LOOKUPS).map((row) => row.email);
-	for (let index = 0; index < newEmails.length; index += 4) {
-		const batch = newEmails.slice(index, index + 4);
-		const avatars = await Promise.all(batch.map(async (email) => ({
-			email,
-			avatarKey: await importGravatarAvatar(env, userId, email),
-		})));
-		await Promise.all(avatars.flatMap(({ email, avatarKey }) => avatarKey
-			? [db.update(contacts).set({ avatarKey }).where(eq(contacts.id, getContactId(userId, email)))]
-			: []));
 	}
 }
 
@@ -214,10 +194,6 @@ export async function blockContact(env: CloudflareEnv, input: BlockContactInput)
 			blocked: true,
 			lastSeenAt: new Date(),
 		}).onConflictDoUpdate({ target: contacts.id, set: { blocked: true } });
-		const avatarKey = await importGravatarAvatar(env, input.userId, email);
-		if (avatarKey) {
-			await db.update(contacts).set({ avatarKey }).where(eq(contacts.id, contactId));
-		}
 	}
 
 	const [existingRule] = await db
@@ -249,6 +225,20 @@ export async function blockContact(env: CloudflareEnv, input: BlockContactInput)
 	}
 
 	return { email, blocked: true };
+}
+
+/**
+ * Fork-only: undoes blockContact for one mailbox. Clears the flag and removes the trash rule that blocking
+ * created; a rule the person wrote by hand for the same address is left alone.
+ */
+export async function unblockContact(env: CloudflareEnv, input: Omit<BlockContactInput, "domainId">) {
+	const email = normalizeEmailAddress(input.address);
+	if (!email) throw new Error("Contact email is required");
+
+	const db = getDb(env);
+	await db.update(contacts).set({ blocked: false }).where(and(eq(contacts.userId, input.userId), eq(contacts.email, email)));
+	await db.delete(routingRules).where(eq(routingRules.id, `block:${input.mailboxId}:${email}`));
+	return { email, blocked: false };
 }
 
 function getNextDisplayName(existingName: string | null, source: string, nextName: string | null, incomingSource: string): string | null {

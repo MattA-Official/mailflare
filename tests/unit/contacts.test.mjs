@@ -21,6 +21,8 @@ await build({
 				CONTACTS_LIST_MAX_LIMIT,
 				listContacts,
 				saveManualContact,
+				encodeContactsCursor,
+				decodeContactsCursor,
 			} from "./server/handlers/api/contacts/utils.ts";
 			export { filterContactSuggestions, formatContactSuggestion } from "./app/utils/compose/recipient-suggestions-utils.ts";
 			export { mergeRecipients } from "./app/utils/compose/recipient-utils.ts";
@@ -45,6 +47,8 @@ const {
 	CONTACTS_LIST_MAX_LIMIT,
 	listContacts,
 	saveManualContact,
+	encodeContactsCursor,
+	decodeContactsCursor,
 	filterContactSuggestions,
 	formatContactSuggestion,
 	mergeRecipients,
@@ -177,4 +181,53 @@ test("saveManualContact creates then renames without duplicating the address", a
 
 	const rows = await listContacts(db, { userId: "owner", query: "", limit: 100 });
 	assert.equal(rows.length, 1);
+});
+
+// Fork-only: Saved and Other tabs, paging and compose ranking.
+test("listContacts splits saved contacts from automatically collected ones", async (t) => {
+	const db = await contactsFixture(t, CONTACT_ROWS);
+	const saved = await listContacts(db, { userId: "owner", query: "", limit: 100, filter: "saved" });
+	assert.deepEqual(saved.map((row) => row.email), ["zoe@example.com"]);
+	const other = await listContacts(db, { userId: "owner", query: "", limit: 100, filter: "other" });
+	assert.deepEqual(other.map((row) => row.email), ["ada@example.com", "ben@example.com", "noname@example.com"]);
+});
+
+test("listContacts pages with a cursor without skipping or repeating anyone", async (t) => {
+	const db = await contactsFixture(t, CONTACT_ROWS);
+	const seen = [];
+	let cursor = null;
+	do {
+		const page = await listContacts(db, { userId: "owner", query: "", limit: 2, cursor });
+		seen.push(...page.map((row) => row.email));
+		cursor = page.length === 2 ? decodeContactsCursor(encodeContactsCursor(page.at(-1))) : null;
+	} while (cursor);
+	assert.deepEqual(seen, ["ada@example.com", "ben@example.com", "noname@example.com", "zoe@example.com"]);
+});
+
+test("a malformed cursor is ignored rather than failing the request", () => {
+	assert.equal(decodeContactsCursor("not json"), null);
+	assert.equal(decodeContactsCursor('{"key":1}'), null);
+	assert.equal(decodeContactsCursor(null), null);
+});
+
+test("suggestions rank saved people, then people written to, then recent senders, and skip blocked ones", async (t) => {
+	const db = await contactsFixture(t, [
+		["s1", "owner", "joanna.old@example.com", "Joanna Old", "inbound", 0, 1000, 1],
+		["s2", "owner", "jo.recent@example.com", "Jo Recent", "inbound", 0, 5000, 1],
+		["s3", "owner", "jo.sent@example.com", "Jo Sent", "outbound", 0, 10, 1],
+		["s4", "owner", "mary.jones@example.com", "Mary Jones", "manual", 0, 10, 1],
+		["s5", "owner", "jo.blocked@example.com", "Jo Blocked", "manual", 1, 9000, 1],
+		["s6", "owner", "banjo@example.com", "Banjo", "manual", 0, 9000, 1],
+	]);
+	const rows = await listContacts(db, { userId: "owner", query: "jo", limit: 8, sort: "suggest" });
+	assert.deepEqual(rows.map((row) => row.email), [
+		// Saved: a word in the name starting with "jo" beats "jo" in the middle of a word.
+		"mary.jones@example.com",
+		"banjo@example.com",
+		// Written to.
+		"jo.sent@example.com",
+		// Heard from, most recent first.
+		"jo.recent@example.com",
+		"joanna.old@example.com",
+	]);
 });
