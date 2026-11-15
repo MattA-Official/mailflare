@@ -10,6 +10,7 @@ import {
   currentTimePosition, dateKey, dropStartForPosition, EVENT_COLOR_CLASSES, eventPosition, expandCalendarEvents,
   formatEventRange, formatHour, isPendingInvite, monthGridDates, PAST_EVENT_COLOR_CLASSES, rescheduleCalendarOccurrence, resizeEventTimes, slotMinutesForPosition, slotSelectionTimes, startOfDay, startOfWeek,
 } from '~/utils/calendar/calendar'
+import { useMediaQuery, useSwipe } from '@vueuse/core'
 import { loadSelectedMailbox } from '~/utils/calendar/mailbox'
 
 definePageMeta({ layout: 'dashboard', nav: 'calendar', auth: { feature: 'calendar' } })
@@ -40,6 +41,7 @@ const slotSelection = shallowRef<{ day: Date, startsAt: Date, endsAt: Date } | n
 let dragOffsetPixels = 0
 let resizeSession: EventResizeSession | null = null
 
+const isPhone = useMediaQuery('(max-width: 767px)')
 const now = computed(() => new Date(currentTime.value))
 const today = computed(() => startOfDay(now.value))
 const weekStart = computed(() => startOfWeek(visibleDate.value))
@@ -82,10 +84,11 @@ const previewPosition = computed(() => dragPreview.value && previewEvent.value ?
 let clock: ReturnType<typeof setInterval> | undefined
 onMounted(() => {
   clock = setInterval(() => { currentTime.value = Date.now() }, 60_000)
-  try {
-    const saved = localStorage.getItem(VIEW_STORAGE_KEY)
-    if (saved === 'month' || saved === 'week' || saved === 'day') view.value = saved
-  } catch { /* Storage can be blocked; the default view is fine. */ }
+  let saved: string | null = null
+  try { saved = localStorage.getItem(VIEW_STORAGE_KEY) } catch { /* Storage can be blocked; the default view is fine. */ }
+  if (saved === 'month' || saved === 'week' || saved === 'day') view.value = saved
+  // A week is wider than a phone, so phones open on a day unless a view was chosen before.
+  else if (isPhone.value) view.value = 'day'
   loadSelectedMailbox().then((value) => { mailbox.value = value }).catch(() => {})
 })
 onBeforeUnmount(() => clearInterval(clock))
@@ -103,6 +106,18 @@ function scrollToWorkingHours() {
   scroller.scrollTop = Math.max(0, top)
 }
 onMounted(() => nextTick(scrollToWorkingHours))
+
+// Swiping sideways moves to the previous or next day, week or month, except where the grid is wider
+// than the screen and a sideways swipe scrolls it (the week view on a phone).
+useSwipe(grid, {
+  threshold: 60,
+  onSwipeEnd(_event, direction) {
+    if (slotDrag?.active || Date.now() - slotDragEndedAt < 500 || resizeSession || draggedEvent.value) return
+    if (view.value === 'week' && isPhone.value) return
+    if (direction === 'left') step(1)
+    else if (direction === 'right') step(-1)
+  },
+})
 watch(view, () => nextTick(scrollToWorkingHours), { flush: 'post' })
 
 // Dragging on empty grid creates an event for the range dragged over. A mouse or pen drags straight
@@ -110,6 +125,8 @@ watch(view, () => nextTick(scrollToWorkingHours), { flush: 'post' })
 const LONG_PRESS_MS = 400
 interface SlotDrag { day: Date, column: HTMLElement, pointerId: number, anchor: number, current: number, startY: number, active: boolean, timer?: ReturnType<typeof setTimeout> }
 let slotDrag: SlotDrag | null = null
+// A finger lifted from a selection also ends a touch gesture, which must not count as a swipe.
+let slotDragEndedAt = 0
 let suppressSlotClick = false
 
 function showSlotSelection(drag: SlotDrag) {
@@ -165,6 +182,7 @@ function onSlotPointerUp(pointerEvent: PointerEvent) {
   // A tap before the long press falls through to the click handler.
   if (!drag.active) return
   suppressSlotClick = true
+  slotDragEndedAt = Date.now()
   const times = slotSelectionTimes(drag.day, drag.anchor, drag.current)
   // A press without a drag keeps the usual hour-long event.
   const endsAt = drag.anchor === drag.current ? new Date(times.startsAt.getTime() + 60 * 60_000) : times.endsAt
@@ -481,6 +499,7 @@ function previewClass(event: CalendarEvent) {
           :today="today"
           :events="events"
           :current-time="currentTime"
+          :compact="isPhone"
           @select-day="openNewEvent($event)"
           @open-day="openDay"
           @edit="editEvent"

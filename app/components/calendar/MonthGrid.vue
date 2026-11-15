@@ -14,6 +14,8 @@ const props = defineProps<{
   today: Date
   events: CalendarEvent[]
   currentTime: number
+  /** Phones: the grid fits the screen, days show coloured dots, and tapping a day opens it. */
+  compact?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -38,6 +40,12 @@ const cells = computed(() => {
   })
 })
 
+const MAX_DOTS = 4
+
+function dotStyle(event: CalendarEvent) {
+  return isPendingInvite(event) ? undefined : { backgroundColor: normalizeCalendarColor(event.color) }
+}
+
 function eventClass(event: CalendarEvent) {
   if (isPendingInvite(event)) return PENDING_EVENT_CLASSES
   const color = normalizeCalendarColor(event.color)
@@ -46,27 +54,46 @@ function eventClass(event: CalendarEvent) {
 </script>
 
 <template>
-  <div class="flex min-h-full min-w-160 flex-col">
+  <div class="flex min-h-full flex-col" :class="!compact && 'min-w-160'">
     <div class="sticky top-0 z-30 grid grid-cols-7 border-b border-default bg-default">
-      <span v-for="weekday in WEEKDAYS" :key="weekday" class="px-2 py-2 text-xs font-medium text-muted">{{ t(`calendar.weekdayShort.${weekday}` as TranslationKey) }}</span>
+      <span v-for="weekday in WEEKDAYS" :key="weekday" class="py-2 text-xs font-medium text-muted" :class="compact ? 'text-center' : 'px-2'">{{ t(`calendar.weekdayShort.${weekday}` as TranslationKey) }}</span>
     </div>
     <div class="grid flex-1 grid-cols-7 grid-rows-6">
-      <div v-for="cell in cells" :key="cell.key" class="relative min-h-28 border-b border-l border-default p-1">
+      <div v-for="cell in cells" :key="cell.key" class="relative border-b border-l border-default" :class="compact ? 'min-h-16 p-0.5' : 'min-h-28 p-1'">
         <button
+          v-if="compact"
+          type="button"
+          :aria-label="formatUserDate(cell.day, { dateStyle: 'full' })"
+          class="absolute inset-0 z-20 cursor-pointer"
+          @click="emit('openDay', cell.day)"
+        />
+        <button
+          v-else
           type="button"
           :aria-label="t('calendar.addEventOn', { date: formatUserDate(cell.day, { dateStyle: 'short' }) })"
           class="absolute inset-0 z-0 cursor-pointer"
           @click="emit('selectDay', cell.day)"
         />
-        <button
-          type="button"
+        <component
+          :is="compact ? 'span' : 'button'"
+          :type="compact ? undefined : 'button'"
           class="relative z-10 mx-auto mb-1 flex size-7 items-center justify-center rounded-full text-sm font-medium"
           :class="cell.today ? 'bg-primary text-inverted' : cell.outside ? 'text-dimmed hover:bg-elevated' : 'text-highlighted hover:bg-elevated'"
-          @click="emit('openDay', cell.day)"
+          @click="compact || emit('openDay', cell.day)"
         >
           {{ formatUserDate(cell.day, { day: 'numeric' }) }}
-        </button>
-        <div class="relative z-10 space-y-0.5">
+        </component>
+        <div v-if="compact" aria-hidden="true" class="flex flex-wrap justify-center gap-0.5 px-0.5">
+          <span
+            v-for="event in cell.list.slice(0, MAX_DOTS)"
+            :key="`${event.id}-${event.startsAt}`"
+            class="size-1.5 rounded-full"
+            :class="isPendingInvite(event) && 'border border-primary'"
+            :style="dotStyle(event)"
+          />
+          <span v-if="cell.list.length > MAX_DOTS" class="text-[9px] leading-1.5 text-muted">+</span>
+        </div>
+        <div v-else class="relative z-10 space-y-0.5">
           <button
             v-for="event in cell.list.slice(0, MAX_VISIBLE)"
             :key="`${event.id}-${event.startsAt}`"
