@@ -287,6 +287,15 @@ export function dropStartForPosition(day: Date, pixelsFromTop: number): Date {
   return dateFromZonedFields(fields, getUserTimeZone())
 }
 
+/** An event's times moved by whole days, keeping its wall-clock start and its length. */
+export function shiftEventByDays(event: Pick<CalendarEvent, 'startsAt' | 'endsAt'>, days: number): CalendarEventTimes {
+  const start = new Date(event.startsAt)
+  const fields = zonedDateFields(start, getUserTimeZone())
+  fields.setUTCDate(fields.getUTCDate() + days)
+  const startsAt = dateFromZonedFields(fields, getUserTimeZone())
+  return { startsAt, endsAt: new Date(startsAt.getTime() + new Date(event.endsAt).getTime() - start.getTime()) }
+}
+
 /** The 15-minute slot (minutes after midnight) that a point on the hour grid falls in. */
 export function slotMinutesForPosition(pixelsFromTop: number): number {
   return Math.max(0, Math.min(24 * 60 - 15, Math.floor(pixelsFromTop * 60 / CALENDAR_HOUR_HEIGHT / 15) * 15))

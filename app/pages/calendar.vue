@@ -7,9 +7,9 @@ import { parseCalendarRepeatDays } from '#lib/calendar/recurrence'
 import type { ShortcutDefinition } from '~/types/shortcuts'
 import type { CalendarEvent, CalendarMailbox, CalendarView, EventDragPreview, EventResizeEdge, EventResizeSession } from '~/types/calendar'
 import {
-  addDays, addMonths, calendarAnchorDay, CALENDAR_END_HOUR, CALENDAR_HOUR_HEIGHT, CALENDAR_START_HOUR,
+  addDays, addMonths, calendarAnchorDay, defaultCalendarStart, CALENDAR_END_HOUR, CALENDAR_HOUR_HEIGHT, CALENDAR_START_HOUR,
   currentTimePosition, dateKey, dropStartForPosition, EVENT_COLOR_CLASSES, eventPosition, expandCalendarEvents,
-  formatEventRange, formatHour, isPendingInvite, monthGridDates, PAST_EVENT_COLOR_CLASSES, rescheduleCalendarOccurrence, resizeEventTimes, slotMinutesForPosition, slotSelectionTimes, startOfDay, startOfWeek,
+  formatEventRange, formatHour, isPendingInvite, monthGridDates, PAST_EVENT_COLOR_CLASSES, rescheduleCalendarOccurrence, resizeEventTimes, shiftEventByDays, slotMinutesForPosition, slotSelectionTimes, startOfDay, startOfWeek,
 } from '~/utils/calendar/calendar'
 import { useMediaQuery, useSwipe } from '@vueuse/core'
 import { loadSelectedMailbox } from '~/utils/calendar/mailbox'
@@ -480,6 +480,19 @@ function step(direction: 1 | -1) {
     : addDays(visibleDate.value, direction * (view.value === 'week' ? 7 : 1))
 }
 
+function onMoveDays(event: CalendarEvent, days: number) {
+  const times = shiftEventByDays(event, days)
+  void saveEventTimes(event, times.startsAt, times.endsAt)
+}
+
+// Days dragged across in the month view: an event from the usual start on the first day to an hour
+// after that time on the last.
+function onSelectDays(first: Date, last: Date) {
+  const startsAt = defaultCalendarStart(first)
+  const endsAt = new Date(defaultCalendarStart(last).getTime() + 60 * 60_000)
+  openNewEvent(first, startsAt, endsAt)
+}
+
 function openDay(day: Date) {
   visibleDate.value = day
   view.value = 'day'
@@ -545,7 +558,10 @@ function previewClass(event: CalendarEvent) {
           :events="events"
           :current-time="currentTime"
           :compact="isPhone"
+          :busy="busy"
           @select-day="openNewEvent($event)"
+          @select-days="onSelectDays"
+          @move="onMoveDays"
           @open-day="openDay"
           @edit="selectEvent"
         />
