@@ -2,9 +2,10 @@
 // Public page for booking one meeting: pick a day, a time, then enter details.
 // Served at /c/<username>/<slug> and /book/<userId>/<eventId>.
 // Ported from legacy/src/app/book/[userId]/[eventId]/page.tsx.
+import { parseDate, type DateValue } from '@internationalized/date'
 import { getDisplayLocale, getUserTimeZone } from '#lib/time/utils'
 import type { BookingSlot, PublicBookingEvent } from '~/types/calendar'
-import { bookingTimeZones, calendarDays, formatCalendarDate, localDateIn, moveMonth, readBookingPageSelection, submitPublicBooking, writeBookingPageSelection } from '~/utils/calendar/public-booking'
+import { bookingTimeZones, formatCalendarDate, localDateIn, readBookingPageSelection, submitPublicBooking, writeBookingPageSelection } from '~/utils/calendar/public-booking'
 
 const props = defineProps<{ username?: string, userId?: string, identifier: string }>()
 const { t } = useLanguage()
@@ -49,7 +50,24 @@ const firstMonth = computed(() => availableDates.value[0]?.slice(0, 7))
 const lastMonth = computed(() => availableDates.value.at(-1)?.slice(0, 7))
 const timeZoneItems = computed(() => event.value ? bookingTimeZones(event.value.timeZone, timeZone.value).map(zone => ({ label: zone.replaceAll('_', ' '), value: zone })) : [])
 const daySlots = computed(() => slotsByDate.value.get(selectedDate.value) ?? [])
-const weekdayHeads = computed(() => t('public.weekdayHeads').split('|'))
+
+// UCalendar works in zone-free dates; the booking's own time zone decides which day "today" and each slot fall on.
+const calendarValue = computed(() => selectedDate.value ? parseDate(selectedDate.value) : undefined)
+const calendarMonth = computed({
+  get: () => parseDate(`${visibleMonth.value}-01`),
+  set: (value: DateValue) => { month.value = value.toString().slice(0, 7) },
+})
+const calendarRange = computed(() => {
+  const first = parseDate(`${firstMonth.value ?? visibleMonth.value}-01`)
+  const last = parseDate(`${lastMonth.value ?? visibleMonth.value}-01`)
+  return { min: first, max: last.add({ months: 1 }).subtract({ days: 1 }) }
+})
+function hasSlots(day: DateValue) {
+  return slotsByDate.value.has(day.toString())
+}
+function isDayClosed(day: DateValue) {
+  return !hasSlots(day) && day.toString() !== todayDate.value
+}
 
 function formatIn(value: string, options: Intl.DateTimeFormatOptions) {
   return new Intl.DateTimeFormat(getDisplayLocale(), { ...options, timeZone: timeZone.value }).format(new Date(value))
@@ -109,10 +127,6 @@ function changeTimeZone(zone: string) {
   writeBookingPageSelection(nextToday, null, zone)
 }
 
-function dayLabel(date: string) {
-  const count = slotsByDate.value.get(date)?.length
-  return `${formatCalendarDate(date, { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}${date === todayDate.value ? t('public.today') : ''}${count ? t('public.availableTimes', { count }) : t('public.noTimesDay')}`
-}
 
 async function book() {
   const slot = selectedSlot.value
@@ -247,42 +261,25 @@ async function book() {
 
         <template v-else>
           <section class="min-w-0 border-b border-default lg:min-h-0 lg:overflow-y-auto">
-            <div class="mx-auto my-2 flex max-w-[440px] items-center justify-between gap-3 px-5 md:mt-8">
-              <h3 class="flex-1 text-lg font-semibold text-highlighted">
-                {{ formatCalendarDate(`${visibleMonth}-01`, { month: 'long', year: 'numeric' }) }}
-              </h3>
-              <UButton icon="i-lucide-chevron-left" color="neutral" variant="outline" :aria-label="t('public.prevMonth')" :disabled="!firstMonth || moveMonth(visibleMonth, -1) < firstMonth" @click="month = moveMonth(visibleMonth, -1)" />
-              <UButton icon="i-lucide-chevron-right" color="neutral" variant="outline" :aria-label="t('public.nextMonth')" :disabled="!lastMonth || moveMonth(visibleMonth, 1) > lastMonth" @click="month = moveMonth(visibleMonth, 1)" />
-            </div>
-            <div class="mx-auto mt-6 grid max-w-[440px] grid-cols-7 text-center text-sm text-muted max-sm:px-5">
-              <span v-for="head in weekdayHeads" :key="head">{{ head }}</span>
-            </div>
-            <div class="mx-auto mt-2 mb-6 grid max-w-[440px] grid-cols-7 max-sm:px-5">
-              <div v-for="(date, index) in calendarDays(visibleMonth)" :key="date || `blank-${index}`" class="aspect-square min-w-0">
-                <button
-                  v-if="date"
-                  type="button"
-                  :disabled="!slotsByDate.has(date) && date !== todayDate"
-                  :aria-label="dayLabel(date)"
-                  :aria-current="date === todayDate ? 'date' : undefined"
-                  :aria-pressed="selectedDate === date"
-                  class="flex size-full items-center justify-center rounded-lg text-base"
-                  :class="selectedDate === date ? 'bg-primary text-inverted' : slotsByDate.has(date) || date === todayDate ? 'text-primary hover:bg-primary/10' : 'cursor-not-allowed text-dimmed'"
-                  @click="chooseDate(date)"
-                >
-                  <span
-                    class="relative flex size-10 items-center justify-center rounded-full"
-                    :class="[
-                      selectedDate === date ? 'font-semibold' : slotsByDate.has(date) ? 'bg-primary/10 font-medium' : '',
-                      date === todayDate && selectedDate !== date ? 'ring-2 ring-primary/40 ring-offset-2 ring-offset-default' : '',
-                    ]"
-                  >
-                    {{ Number(date.slice(-2)) }}
-                    <span v-if="date === todayDate && selectedDate === date" aria-hidden="true" class="absolute bottom-1 size-1 rounded-full bg-inverted" />
-                  </span>
-                </button>
-              </div>
-            </div>
+            <UCalendar
+              v-model:placeholder="calendarMonth"
+              :model-value="calendarValue"
+              :week-starts-on="1"
+              :year-controls="false"
+              :min-value="calendarRange.min"
+              :max-value="calendarRange.max"
+              :is-date-disabled="isDayClosed"
+              size="xl"
+              class="mx-auto mt-6 mb-6 max-w-[440px] px-5 md:mt-8"
+              @update:model-value="value => value && !Array.isArray(value) && chooseDate(value.toString())"
+            >
+              <template #day="{ day }">
+                <span
+                  class="flex size-full items-center justify-center rounded-full"
+                  :class="{ 'bg-primary/10 font-semibold text-primary': hasSlots(day) && day.toString() !== selectedDate }"
+                >{{ day.day }}</span>
+              </template>
+            </UCalendar>
             <div class="mx-auto my-4 flex w-full max-w-[440px] min-w-0 items-center gap-2 pr-2 pl-3 text-sm text-toned max-sm:px-5">
               <UIcon name="i-lucide-globe-2" class="size-4 shrink-0" />
               <label for="booking-time-zone" class="shrink-0 whitespace-nowrap">{{ t('public.timeZone') }}</label>
