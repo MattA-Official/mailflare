@@ -14,6 +14,7 @@ import { getAttachmentForUser, listMessageAttachments } from "#lib/email/attachm
 import { sendEmail } from "#lib/email/send";
 import { getRequestTimeZone } from "#lib/time/utils";
 import type { InviteRouteParams } from "./types";
+import { setAllDayEvent } from "#lib/calendar/all-day";
 
 type CurrentUser = NonNullable<Awaited<ReturnType<typeof getCurrentUser>>>;
 
@@ -102,6 +103,7 @@ export async function POST(request: Request, { params }: InviteRouteParams) {
 		};
 		// The colour is chosen only when the row is created, so one the user changed is kept.
 		await db.insert(calendarEvents).values({ id, userId: user.id, mailboxId: message.mailboxId, color: response === "tentative" ? "#7c3aed" : "#2563eb", ...values }).onConflictDoUpdate({ target: calendarEvents.id, set: values });
+		await setAllDayEvent(db, id, invite.allDay);
 		eventId = id;
 	}
 

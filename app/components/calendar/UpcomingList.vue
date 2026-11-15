@@ -3,7 +3,7 @@
 // Ported from legacy/src/app/(calendar)/upcoming-sidebar.tsx.
 import { normalizeCalendarColor } from '#lib/calendar/colors'
 import type { CalendarEvent } from '~/types/calendar'
-import { addDays, expandCalendarEvents, formatEventRange, groupUpcomingEvents, startOfDay, takeUpcomingGroups, UPCOMING_BATCH_SIZE } from '~/utils/calendar/calendar'
+import { addDays, expandCalendarEvents, formatEventRange, groupUpcomingEvents, isAllDay, startOfDay, takeUpcomingGroups, UPCOMING_BATCH_SIZE } from '~/utils/calendar/calendar'
 
 const props = defineProps<{
   /** Events the page already loaded. Without them the list loads the next 90 days itself. */
@@ -91,7 +91,7 @@ watchEffect((onCleanup) => {
             <span class="mt-0.5 size-4 shrink-0 rounded-full border-2 border-default ring-1 ring-default" :style="{ backgroundColor: normalizeCalendarColor(event.color) }" />
             <span class="min-w-0">
               <span class="block truncate text-sm text-default group-hover:text-highlighted">{{ event.title }}</span>
-              <span class="block text-xs text-muted">{{ formatEventRange(event) }}</span>
+              <span class="block text-xs text-muted">{{ isAllDay(event) ? t('calendar.allDay') : formatEventRange(event) }}</span>
             </span>
           </button>
         </div>

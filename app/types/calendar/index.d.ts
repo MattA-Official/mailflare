@@ -25,6 +25,8 @@ export interface CalendarEvent {
   inviteMessageId?: string | null
   /** JSON map of guest address to accepted, tentative or declined. */
   attendeeResponses?: string | null
+  /** (fork) 1 for an all-day event, midnight to midnight. Read it with isAllDay(). */
+  allDay?: unknown
 }
 
 export type CalendarView = 'month' | 'week' | 'day'

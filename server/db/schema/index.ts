@@ -669,6 +669,15 @@ export const calendarEvents = sqliteTable(
 	],
 );
 
+/**
+ * (fork) Events that are all-day: midnight to midnight in their time zone. A table of its own rather
+ * than a column on calendar_events, because Drizzle names every column in an insert, so a new column
+ * would break every event write until the migration is applied. See #lib/calendar/all-day.
+ */
+export const calendarEventAllDay = sqliteTable("calendar_event_all_day", {
+	eventId: text("event_id").primaryKey().references(() => calendarEvents.id, { onDelete: "cascade" }),
+});
+
 export const bookingEvents = sqliteTable(
 	"booking_events",
 	{

@@ -3,7 +3,7 @@
 // Ported from legacy/src/app/(calendar)/calendar/invite-response-dialog.tsx.
 import type { CalendarEvent } from '~/types/calendar'
 import { authFetch } from '~/utils/auth-client'
-import { formatEventRange } from '~/utils/calendar/calendar'
+import { formatAllDayRange, formatEventRange, isAllDay } from '~/utils/calendar/calendar'
 
 type Answer = 'accepted' | 'tentative' | 'declined'
 
@@ -48,7 +48,7 @@ async function respond(answer: Answer) {
   >
     <template v-if="event" #body>
       <div class="space-y-1 text-sm text-default">
-        <p>{{ formatEventRange(event) }}</p>
+        <p>{{ isAllDay(event) ? `${formatAllDayRange(event)} · ${t('calendar.allDay')}` : formatEventRange(event) }}</p>
         <p v-if="event.location" class="break-words text-muted">
           {{ event.location }}
         </p>

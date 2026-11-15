@@ -52,6 +52,30 @@ function recurringStart(first: Date, repeat: CalendarRepeat, index: number, time
 /** Pending invitations read as outlined, not filled, so they are not mistaken for confirmed events. */
 export const PENDING_EVENT_CLASSES = 'border-2 border-dashed border-primary bg-default text-primary'
 
+/**
+ * (fork) An all-day event: shown above the hour grid rather than on it. Before its migration is applied
+ * the server sends the string "all_day" for the field, so only 1 counts.
+ */
+export function isAllDay(event: Pick<CalendarEvent, 'allDay'>): boolean {
+  return event.allDay === 1 || event.allDay === true
+}
+
+/** The days an event covers, as date keys: its last day is the one before it ends. */
+export function eventDayKeys(event: Pick<CalendarEvent, 'startsAt' | 'endsAt'>): { first: string, last: string } {
+  const start = new Date(event.startsAt)
+  const end = new Date(Math.max(start.getTime(), new Date(event.endsAt).getTime() - 1))
+  return { first: dateKey(start), last: dateKey(end) }
+}
+
+/** "Thu 19 Nov", or "Thu 19 – Sat 21 Nov" across days, for all-day events. */
+export function formatAllDayRange(event: Pick<CalendarEvent, 'startsAt' | 'endsAt'>): string {
+  const { first, last } = eventDayKeys(event)
+  const start = new Date(event.startsAt)
+  if (first === last) return formatUserDate(start, { weekday: 'short', day: 'numeric', month: 'short' })
+  const end = new Date(new Date(event.endsAt).getTime() - 1)
+  return new Intl.DateTimeFormat(getDisplayLocale(), { weekday: 'short', day: 'numeric', month: 'short', timeZone: getUserTimeZone() }).formatRange(start, end)
+}
+
 export function isPendingInvite(event: { responseStatus?: string | null, inviteMessageId?: string | null }): boolean {
   return event.responseStatus === 'needs-action' && !!event.inviteMessageId
 }
