@@ -41,15 +41,16 @@ watch(mailbox, (value) => {
 
 // Settings form
 const saving = ref(false)
-const saveState = ref<{ ok: boolean, text: string } | null>(null)
+const saveError = ref<string | null>(null)
+const toast = useToast()
 async function save() {
   saving.value = true
-  saveState.value = null
+  saveError.value = null
   try {
     mailbox.value = await updateMailboxSettings(props.mailboxId, { displayName: displayName.value, useAllDomains: useAllDomains.value }) as MailboxDetail
-    saveState.value = { ok: true, text: t('mailbox.saved') }
+    toast.add({ title: t('mailbox.saved'), color: 'success' })
   } catch (error) {
-    saveState.value = { ok: false, text: errorMessage(error, t('mailbox.updateFailed')) }
+    saveError.value = errorMessage(error, t('mailbox.updateFailed'))
   } finally {
     saving.value = false
   }
@@ -248,9 +249,7 @@ async function remove() {
         <div class="rounded-lg bg-elevated/60 p-4">
           <UCheckbox v-model="useAllDomains" :disabled="loading || saving" :label="t('aliases.useAll')" :description="t('mailbox.useAllHint')" />
         </div>
-        <p v-if="saveState" class="text-sm" :class="saveState.ok ? 'text-success' : 'text-error'">
-          {{ saveState.text }}
-        </p>
+        <UAlert v-if="saveError" role="alert" color="error" variant="subtle" :title="saveError" />
         <UButton type="submit" icon="i-lucide-save" :disabled="loading || saving" :label="saving ? t('common.saving') : t('settings.mailbox.saveChanges')" />
       </form>
     </UCard>
