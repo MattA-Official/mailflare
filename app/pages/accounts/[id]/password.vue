@@ -19,7 +19,7 @@ const recoveryOpen = ref(false)
 const pendingRecovery = ref(false)
 const pendingReset = ref(false)
 const recoveryLink = ref<string | null>(null)
-const copied = ref(false)
+const { copy, copied } = useCopy()
 
 watch(loadError, (error) => {
   if (error) message.value = error.message || t('account.loadFailed')
@@ -57,13 +57,10 @@ async function resetPassword(token: string) {
 
 async function makeRecoveryLink(token: string) {
   recoveryLink.value = await createRecoveryLink(id.value, token)
-  copied.value = false
 }
 
-async function copyLink() {
-  if (!recoveryLink.value) return
-  await navigator.clipboard.writeText(recoveryLink.value)
-  copied.value = true
+function copyLink() {
+  if (recoveryLink.value) void copy(recoveryLink.value)
 }
 </script>
 

@@ -22,7 +22,9 @@ const key = ref<string | null>(null)
 const username = ref('')
 const error = ref<string | null>(null)
 const busy = ref(false)
-const copied = ref<string | null>(null)
+const { copy: copyText, copiedValue } = useCopy()
+const copiedLabel = ref<string | null>(null)
+const copied = computed(() => (copiedValue.value === null ? null : copiedLabel.value))
 const qr = ref<string | null>(null)
 const server = window.location.origin
 
@@ -55,9 +57,9 @@ async function submit() {
   }
 }
 
-async function copy(label: string, value: string) {
-  await navigator.clipboard.writeText(value)
-  copied.value = label
+function copy(label: string, value: string) {
+  copiedLabel.value = label
+  void copyText(value)
 }
 
 function toggleMailbox(id: string, on: boolean) {
@@ -86,7 +88,7 @@ const shownOnceParts = computed(() => t('emailClients.shownOnce', { link: '\u000
       </div>
       <p class="text-xs text-muted">
         <template v-for="(part, index) in shownOnceParts" :key="index">
-          <NuxtLink v-if="part === '\u0001'" to="/settings/api-keys" class="text-primary underline">{{ t('settings.nav.apiKeys') }}</NuxtLink>
+          <ULink v-if="part === '\u0001'" to="/settings/api-keys" class="text-primary underline">{{ t('settings.nav.apiKeys') }}</ULink>
           <code v-else-if="part === '\u0002'">{{ server }}/.well-known/jmap</code>
           <template v-else>{{ part }}</template>
         </template>

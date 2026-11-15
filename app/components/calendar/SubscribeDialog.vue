@@ -6,6 +6,7 @@ import { authFetch } from '~/utils/auth-client'
 const open = defineModel<boolean>('open', { default: false })
 const { t } = useLanguage()
 const toast = useToast()
+const { copy: copyText } = useCopy()
 const url = ref('')
 const pending = ref(false)
 
@@ -34,14 +35,8 @@ async function createLink() {
   }
 }
 
-async function copy() {
-  try {
-    await navigator.clipboard.writeText(url.value)
-    toast.add({ title: t('calendar.subscribe.copied'), color: 'success' })
-  }
-  catch {
-    toast.add({ title: t('calendar.subscribe.copyFailed'), color: 'error' })
-  }
+function copy() {
+  void copyText(url.value, t('calendar.subscribe.copied'))
 }
 </script>
 

@@ -16,7 +16,7 @@ const scopes = ref<AdminApiKeyScope[]>(['domains'])
 const mcpAllowed = ref(false)
 const createdMcpAllowed = ref(false)
 const newKey = ref<string | null>(null)
-const copied = ref(false)
+const { copy, copied } = useCopy()
 const creating = ref(false)
 const createError = ref<string | null>(null)
 const revokeError = ref<string | null>(null)
@@ -26,7 +26,6 @@ const confirmRevoke = ref<{ id: string, name: string } | null>(null)
 watch(createOpen, (open) => {
   if (!open) {
     newKey.value = null
-    copied.value = false
     createError.value = null
   }
 })
@@ -41,7 +40,6 @@ async function create() {
   try {
     newKey.value = await createAdminApiKey({ name: name.value.trim(), scopes: scopes.value, mcpAllowed: mcpAllowed.value })
     createdMcpAllowed.value = mcpAllowed.value
-    copied.value = false
     name.value = ''
     scopes.value = ['domains']
     await refresh()
@@ -52,10 +50,8 @@ async function create() {
   }
 }
 
-async function copyKey() {
-  if (!newKey.value) return
-  await navigator.clipboard.writeText(newKey.value)
-  copied.value = true
+function copyKey() {
+  if (newKey.value) void copy(newKey.value)
 }
 
 async function revoke() {

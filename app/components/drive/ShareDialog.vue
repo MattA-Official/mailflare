@@ -6,6 +6,7 @@ const props = defineProps<{ item: DriveItemDto | null }>()
 const emit = defineEmits<{ close: [], changed: [] }>()
 const { t } = useLanguage()
 const toast = useToast()
+const { copy } = useCopy()
 const shares = ref<DriveShareDto[]>([])
 // Fork-only: shares with a group, and the groups the owner may share with.
 type GroupShare = { id: string, groupId: string, name: string, role: DriveShareRole }
@@ -93,9 +94,8 @@ async function toggleLink() {
   if (data) linkToken.value = data.linkToken ?? null
 }
 
-async function copyLink() {
-  await navigator.clipboard.writeText(linkUrl.value)
-  toast.add({ title: t('drive.linkCopied'), color: 'success' })
+function copyLink() {
+  void copy(linkUrl.value, t('drive.linkCopied'))
 }
 </script>
 

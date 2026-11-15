@@ -576,6 +576,7 @@
 	"settings.timeZone.save": "Save time zone",
 	"common.done": "Done",
 	"common.copied": "Copied",
+	"common.copyFailed": "Could not copy to the clipboard.",
 	"common.password": "Password",
 	"common.pleaseWait": "Please wait...",
 	"common.continue": "Continue",

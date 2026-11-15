@@ -1,6 +1,7 @@
-// In-app replacements for window.confirm and window.alert, rendered by AppConfirmDialogHost in app.vue.
+// In-app replacements for window.confirm and window.alert, opened through Nuxt UI's useOverlay.
 // Imperative on purpose, so event handlers and plain helpers can `if (!(await confirmDialog(message))) return`.
 // Ported from legacy/src/components/ui/confirm-dialog.tsx.
+import type AppConfirmModal from '~/components/app/ConfirmModal.vue'
 
 export type ConfirmOptions = {
   message: string
@@ -11,29 +12,26 @@ export type ConfirmOptions = {
   requireText?: string
 }
 
-export type ConfirmRequest = {
-  kind: 'confirm' | 'alert'
-  options: ConfirmOptions
-  resolve: (confirmed: boolean) => void
-}
+type ModalProps = InstanceType<typeof AppConfirmModal>['$props']
 
-let enqueue: ((request: ConfirmRequest) => void) | null = null
-
-/** Called by the host when it mounts and unmounts. */
-export function setConfirmDialogHost(handler: ((request: ConfirmRequest) => void) | null) {
-  enqueue = handler
+/** Opens the shared confirm modal and resolves true only when the user confirms. */
+export async function openConfirmModal(props: ModalProps): Promise<boolean> {
+  // Loaded on first use, which also keeps this module importable from plain unit tests.
+  const { default: component } = await import('~/components/app/ConfirmModal.vue')
+  const modal = useOverlay().create(component, { destroyOnClose: true })
+  return (await modal.open(props).result) === true
 }
 
 function normalize(input: string | ConfirmOptions): ConfirmOptions {
   return typeof input === 'string' ? { message: input } : input
 }
 
+function toProps({ destructive, ...options }: ConfirmOptions): ModalProps {
+  return { ...options, color: destructive ? 'error' : 'primary' }
+}
+
 export function confirmDialog(input: string | ConfirmOptions): Promise<boolean> {
-  const options = normalize(input)
-  // Before the host mounts, fall back to the native dialog rather than silently confirming or cancelling.
-  if (!enqueue) return Promise.resolve(typeof window !== 'undefined' && window.confirm(options.message))
-  const add = enqueue
-  return new Promise(resolve => add({ kind: 'confirm', options, resolve }))
+  return openConfirmModal(toProps(normalize(input)))
 }
 
 export function confirmDestructive(input: string | ConfirmOptions): Promise<boolean> {
@@ -41,11 +39,5 @@ export function confirmDestructive(input: string | ConfirmOptions): Promise<bool
 }
 
 export async function alertDialog(input: string | ConfirmOptions): Promise<void> {
-  const options = normalize(input)
-  if (!enqueue) {
-    if (typeof window !== 'undefined') window.alert(options.message)
-    return
-  }
-  const add = enqueue
-  await new Promise<boolean>(resolve => add({ kind: 'alert', options, resolve }))
+  await openConfirmModal({ ...toProps(normalize(input)), alert: true })
 }

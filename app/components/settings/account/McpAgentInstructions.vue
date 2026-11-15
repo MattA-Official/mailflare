@@ -5,12 +5,11 @@ import { buildMcpAgentPrompt } from '~/utils/settings/account/mcp-agent-instruct
 
 const props = defineProps<McpAgentInstructionsProps>()
 const { t } = useLanguage()
-const copied = ref(false)
+const { copy: copyText, copied } = useCopy()
 const prompt = computed(() => buildMcpAgentPrompt(window.location.origin, { mode: props.mode, apiKey: props.apiKey }))
 
-async function copy() {
-  await navigator.clipboard.writeText(prompt.value)
-  copied.value = true
+function copy() {
+  void copyText(prompt.value)
 }
 </script>
 

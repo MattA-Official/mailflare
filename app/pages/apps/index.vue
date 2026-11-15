@@ -15,7 +15,7 @@ const draft = ref<AppFormDraft>(emptyAppDraft())
 const creating = ref(false)
 const createError = ref<string | null>(null)
 const created = ref<{ id: string, clientId: string, clientSecret: string | null } | null>(null)
-const copied = ref<string | null>(null)
+const { copy, copiedValue: copied } = useCopy()
 
 watch(createOpen, (open) => {
   if (open) return
@@ -39,10 +39,6 @@ async function create() {
   }
 }
 
-async function copy(value: string) {
-  await navigator.clipboard.writeText(value)
-  copied.value = value
-}
 </script>
 
 <template>

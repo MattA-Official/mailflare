@@ -85,7 +85,7 @@ async function remove() {
         <span>{{ t('groups.inside') }}</span>
         <template v-for="(parent, index) in data.group.parents" :key="parent.id">
           <span v-if="index" aria-hidden="true">·</span>
-          <NuxtLink :to="`/groups/${parent.id}`" class="text-highlighted hover:underline">{{ parent.name }}</NuxtLink>
+          <ULink :to="`/groups/${parent.id}`" class="text-highlighted hover:underline">{{ parent.name }}</ULink>
         </template>
       </p>
       <UCard v-if="canManage">
