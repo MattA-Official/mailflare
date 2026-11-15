@@ -41,9 +41,7 @@ async function confirm() {
     @update:open="value => !value && emit('close')"
   >
     <template v-if="error" #body>
-      <p role="alert" class="text-sm text-error">
-        {{ error }}
-      </p>
+      <UAlert role="alert" color="error" variant="subtle" :title="error" />
     </template>
     <template #footer>
       <UButton color="neutral" variant="outline" :label="t('common.cancel')" @click="emit('close')" />

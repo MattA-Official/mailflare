@@ -127,9 +127,7 @@ const shownOnceParts = computed(() => t('emailClients.shownOnce', { link: '\u000
           {{ t('emailClients.aliasLimit', { max: MAX_KEY_MAILBOXES }) }}
         </p>
       </fieldset>
-      <p v-if="error" role="alert" class="text-sm text-error">
-        {{ error }}
-      </p>
+      <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />
     </form>
   </div>
 </template>

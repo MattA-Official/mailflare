@@ -108,9 +108,7 @@ function canRemove(role: 'member' | 'manager') {
         />
         <UButton type="submit" icon="i-lucide-user-plus" :disabled="!selectedUserId || busy" :label="t('groups.addMember')" />
       </form>
-      <p v-if="error" role="alert" class="mt-2 text-sm text-error">
-        {{ error }}
-      </p>
+      <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" class="mt-2" />
     </template>
   </UCard>
 </template>

@@ -148,9 +148,7 @@ async function submit() {
         </div>
         <USwitch :model-value="assistantEnabled" :disabled="!loaded || enabledSaving" :aria-label="t('agentAdmin.enable')" @update:model-value="toggleEnabled" />
       </div>
-      <p v-if="enabledStatus" role="status" class="mt-3 text-sm text-error">
-        {{ enabledStatus }}
-      </p>
+      <UAlert v-if="enabledStatus" role="alert" color="error" variant="subtle" :title="enabledStatus" class="mt-3" />
     </UCard>
 
     <UCard>

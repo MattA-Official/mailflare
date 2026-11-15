@@ -55,9 +55,7 @@ async function save(app: AccountApp) {
       </p>
     </div>
 
-    <p v-if="error" role="alert" class="text-sm text-error">
-      {{ error.message || t('oidc.apps.loadFailed') }}
-    </p>
+    <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error.message || t('oidc.apps.loadFailed')" />
 
     <UAlert v-if="data && !data.twoFactorReady" color="warning" variant="subtle" icon="i-lucide-shield-alert" :title="t('oidc.account.notReady')" :description="t('oidc.account.notReadyHint')" />
 

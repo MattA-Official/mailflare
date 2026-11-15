@@ -135,9 +135,7 @@ const codesOpen = computed({ get: () => codes.value !== null, set: (v) => { if (
         </div>
       </div>
 
-      <p v-if="error && !scanOpen" role="alert" class="text-sm text-error">
-        {{ error }}
-      </p>
+      <UAlert v-if="error && !scanOpen" role="alert" color="error" variant="subtle" :title="error" />
 
       <SettingsAccountStepUpDialog
         v-model:open="stepUpOpen"
@@ -164,9 +162,7 @@ const codesOpen = computed({ get: () => codes.value !== null, set: (v) => { if (
             <UFormField :label="t('mfa.sixDigitCode')" name="mfa-code">
               <UInput id="mfa-code" v-model="code" inputmode="numeric" autocomplete="one-time-code" placeholder="123 456" required autofocus />
             </UFormField>
-            <p v-if="error" role="alert" class="text-sm text-error">
-              {{ error }}
-            </p>
+            <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />
             <UButton type="submit" :disabled="busy" :label="busy ? t('mfa.checking') : t('mfa.verifyAndTurnOn')" />
           </form>
         </template>

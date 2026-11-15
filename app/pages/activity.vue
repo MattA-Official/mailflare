@@ -13,9 +13,7 @@ const rows = computed(() => (data.value ?? []).map(log => ({ log, metadata: getA
 
 <template>
   <AdminSystemPage id="activity" :title="t('activity.title')" :description="t('activity.description')" wide>
-    <p v-if="error" role="alert" class="text-sm text-error">
-      {{ error.message }}
-    </p>
+    <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error.message" />
     <section role="region" tabindex="0" :aria-label="t('activity.title')" class="overflow-x-auto rounded-lg border border-default bg-default">
       <table class="w-full min-w-[760px] table-fixed text-left">
         <thead class="border-b border-default bg-elevated/50 text-xs font-semibold uppercase tracking-wide text-muted">

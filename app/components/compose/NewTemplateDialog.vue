@@ -39,7 +39,7 @@ async function save() {
         <UFormField :label="t('template.content')" name="content" required>
           <UTextarea v-model="content" :rows="8" required />
         </UFormField>
-        <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
+        <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />
         <UButton type="submit" :loading="saving" :disabled="saving || !title.trim() || !content.trim()" :label="saving ? t('template.saving') : t('template.save')" />
       </form>
     </template>

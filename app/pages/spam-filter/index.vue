@@ -58,9 +58,7 @@ async function toggleDomainAge(checked: boolean) {
 
 <template>
   <AppPage id="spam-filter" :title="t('spamFilter.title')" :description="t('spamFilter.description')">
-    <p v-if="loadError" role="alert" class="text-sm text-error">
-      {{ loadError }}
-    </p>
+    <UAlert v-if="loadError" role="alert" color="error" variant="subtle" :title="loadError" />
     <UAlert v-if="settings && !settings.available" role="status" color="warning" variant="subtle" :description="t('spamFilter.needsUpdate')" />
 
     <UCard>
@@ -98,9 +96,7 @@ async function toggleDomainAge(checked: boolean) {
           @update:model-value="toggleDomainAge"
         />
       </div>
-      <p v-if="ageStatus" role="status" class="mt-3 text-sm text-error">
-        {{ ageStatus }}
-      </p>
+      <UAlert v-if="ageStatus" role="alert" color="error" variant="subtle" :title="ageStatus" class="mt-3" />
     </UCard>
 
     <UCard>

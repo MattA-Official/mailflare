@@ -359,7 +359,7 @@ function dragIdsFor(messageId: string) {
           </UTooltip>
         </div>
       </div>
-      <p v-if="actionError" role="alert" class="shrink-0 border-b border-error/20 bg-error/10 px-6 py-2 text-sm font-medium text-error">{{ actionError }}</p>
+      <UAlert v-if="actionError" role="alert" color="error" variant="subtle" :title="actionError" class="shrink-0 rounded-none px-6 py-2" />
     </template>
 
     <template #body>

@@ -154,9 +154,7 @@ async function choosePasswordPolicy(choice: PasskeyPolicyChoice) {
     <p v-if="message" role="status" class="text-sm text-muted">
       {{ message }}
     </p>
-    <p v-if="error" role="alert" class="text-sm text-error">
-      {{ error }}
-    </p>
+    <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />
 
     <UModal v-model:open="confirmRemove" :title="t('passkey.removePasswordTitle')" :description="t('passkey.removePasswordDescription')">
       <template #body>

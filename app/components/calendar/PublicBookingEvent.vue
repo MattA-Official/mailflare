@@ -250,9 +250,7 @@ async function book() {
           <UFormField :label="t('public.notes')">
             <UTextarea v-model="notes" :maxlength="2000" :rows="4" />
           </UFormField>
-          <p v-if="error" role="alert" class="text-sm text-error">
-            {{ error }}
-          </p>
+          <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />
           <UButton type="submit" size="lg" class="rounded-full px-7" :loading="submitting" :disabled="submitting || !name.trim() || !email.trim()" :label="submitting ? t('public.booking') : t('public.schedule')" />
         </form>
 

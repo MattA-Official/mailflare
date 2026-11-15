@@ -90,9 +90,7 @@ function sendEmail(contact: ContactListItem) {
         <div v-if="loading && contacts.length === 0" class="space-y-2">
           <USkeleton v-for="n in 3" :key="n" class="h-16 w-full rounded-lg" />
         </div>
-        <p v-else-if="failed" role="alert" class="rounded-lg border border-default bg-default px-5 py-4 text-sm text-error">
-          {{ t('contacts.loadFailed') }}
-        </p>
+        <UAlert v-else-if="failed" role="alert" color="error" variant="subtle" :title="t('contacts.loadFailed')" />
         <div v-else-if="contacts.length === 0" class="flex flex-col items-center gap-2 rounded-lg border border-default bg-default px-5 py-12 text-center">
           <UIcon name="i-lucide-users-round" class="size-8 text-dimmed" />
           <p class="text-sm font-medium text-default">

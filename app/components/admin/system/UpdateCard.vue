@@ -74,9 +74,7 @@ async function migrate() {
           </p>
         </div>
       </div>
-      <p v-if="error" role="alert" class="text-sm text-error">
-        {{ error }}
-      </p>
+      <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />
     </div>
   </UCard>
 </template>

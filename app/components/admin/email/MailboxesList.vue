@@ -111,9 +111,7 @@ const columns = 'grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 md:gri
                 <USelect v-model="domainId" :items="domainItems" :placeholder="t('accounts.selectDomain')" :aria-label="t('accounts.domain')" class="w-auto max-w-[55%]" />
               </UFieldGroup>
             </UFormField>
-            <p v-if="createError" role="alert" class="text-sm text-error">
-              {{ createError }}
-            </p>
+            <UAlert v-if="createError" role="alert" color="error" variant="subtle" :title="createError" />
             <UButton type="submit" :disabled="!canCreate" :loading="pending" :label="pending ? t('accounts.creating') : t('mailboxes.createButton')" />
           </form>
         </template>

@@ -44,9 +44,7 @@ async function create() {
       <UButton icon="i-lucide-plus" :label="t('groups.new')" @click="createOpen = true" />
     </template>
 
-    <p v-if="error" role="alert" class="text-sm text-error">
-      {{ t('groups.loadFailed') }}
-    </p>
+    <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="t('groups.loadFailed')" />
     <div v-else-if="status === 'pending' && !data" class="space-y-2">
       <USkeleton v-for="index in 2" :key="index" class="h-16 w-full rounded-lg" />
     </div>
@@ -77,9 +75,7 @@ async function create() {
           <UFormField :label="t('groups.descriptionLabel')" :hint="t('groups.optional')">
             <UTextarea v-model="description" :rows="2" />
           </UFormField>
-          <p v-if="createError" role="alert" class="text-sm text-error">
-            {{ createError }}
-          </p>
+          <UAlert v-if="createError" role="alert" color="error" variant="subtle" :title="createError" />
           <UButton type="submit" :loading="creating" :disabled="!name.trim()" :label="creating ? t('groups.creating') : t('groups.create')" />
         </form>
       </template>

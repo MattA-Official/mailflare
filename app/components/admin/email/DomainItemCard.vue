@@ -195,9 +195,7 @@ const statusLabel = computed(() => props.item.status === 'active' ? t('dns.statu
         @receiving-change="changeReceivingProvider"
         @dns-changed="refreshDns"
       />
-      <p v-else-if="dnsError" class="pt-2 text-sm text-error">
-        {{ dnsError }}
-      </p>
+      <UAlert v-else-if="dnsError" role="alert" color="error" variant="subtle" :title="dnsError" class="mt-2" />
       <div v-else-if="dnsLoading" class="space-y-3 pt-2">
         <USkeleton class="h-4 w-28" />
         <USkeleton class="h-3 w-96 max-w-full" />

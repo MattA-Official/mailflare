@@ -276,9 +276,7 @@ async function deleteBackup(backup: BackupItem) {
               />
             </div>
           </div>
-          <p v-if="settingsError" role="alert" class="text-sm text-error">
-            {{ settingsError }}
-          </p>
+          <UAlert v-if="settingsError" role="alert" color="error" variant="subtle" :title="settingsError" />
           <UButton icon="i-lucide-save" :loading="pending.settings" :label="pending.settings ? t('common.saving') : t('backups.saveSettings')" @click="saveTables" />
         </div>
       </template>

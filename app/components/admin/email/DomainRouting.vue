@@ -191,9 +191,7 @@ const toggle = (rule: DomainRule) => run(() => updateDomainRule(rule.id, { ...ru
             <UInput :model-value="form.rejectReason ?? ''" :placeholder="t('routing.rejectPlaceholder')" @update:model-value="value => form.rejectReason = String(value)" />
           </UFormField>
 
-          <p v-if="formError" role="alert" class="text-sm text-error">
-            {{ formError }}
-          </p>
+          <UAlert v-if="formError" role="alert" color="error" variant="subtle" :title="formError" />
 
           <div class="flex justify-end gap-2 border-t border-default pt-4">
             <UButton color="neutral" variant="outline" :label="t('common.cancel')" @click="dialogOpen = false" />

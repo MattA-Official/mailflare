@@ -35,9 +35,7 @@ async function restore(id: string) {
       <UButton to="/mailboxes" icon="i-lucide-plus" :label="t('sharedInboxes.new')" />
     </template>
 
-    <p v-if="error" role="alert" class="text-sm text-error">
-      {{ t('sharedInboxes.loadFailed') }}
-    </p>
+    <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="t('sharedInboxes.loadFailed')" />
     <div v-else-if="status === 'pending' && !data" class="space-y-2">
       <USkeleton v-for="index in 2" :key="index" class="h-16 w-full rounded-lg" />
     </div>
@@ -78,9 +76,7 @@ async function restore(id: string) {
             <UButton color="neutral" variant="outline" :loading="restoring === inbox.id" :disabled="!!restoring" :label="t('sharedInboxes.restore')" @click="restore(inbox.id)" />
           </li>
         </ul>
-        <p v-if="restoreError" role="alert" class="text-sm text-error">
-          {{ restoreError }}
-        </p>
+        <UAlert v-if="restoreError" role="alert" color="error" variant="subtle" :title="restoreError" />
       </section>
     </template>
   </AdminSystemPage>
