@@ -7,16 +7,8 @@ definePageMeta({ layout: 'dashboard', nav: 'settings' })
 
 const { t } = useLanguage()
 
-const user = ref<AccountSettingsUser | null>(null)
-const error = ref<string | null>(null)
-
-onMounted(async () => {
-  try {
-    user.value = await loadAccountSettings()
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : t('settings.account.loadFailed')
-  }
-})
+const { data: user, error: loadError } = useAsyncData<AccountSettingsUser>('settings-account', loadAccountSettings)
+const error = computed(() => loadError.value ? loadError.value.message || t('settings.account.loadFailed') : null)
 </script>
 
 <template>

@@ -27,13 +27,10 @@ watch(() => [props.mailboxId, props.initialHasAvatar] as const, async ([mailboxI
     avatarUrl.value = `/api/mailboxes/${mailboxId}/avatar`
     return
   }
-  try {
-    const response = await authFetch('/api/auth/me', { redirectOnUnauthorized: false })
-    const data = response.ok ? (await response.json()) as { user?: { hasAvatar?: boolean } } : null
-    hasAvatar.value = !!data?.user?.hasAvatar
-  } catch {
-    hasAvatar.value = false
-  }
+  // A fresh read of the shared session request (it never rejects), so an avatar changed in another
+  // tab shows.
+  const info = await fetchSessionInfo({ fresh: true })
+  hasAvatar.value = !!info?.user?.hasAvatar
 }, { immediate: true })
 
 async function onPick(event: Event) {

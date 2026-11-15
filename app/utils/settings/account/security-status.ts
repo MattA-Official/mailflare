@@ -1,92 +1,48 @@
 // One shared /api/settings/security snapshot keeps every Security card in step after any change.
-import { onBeforeUnmount, onMounted, readonly, ref, shallowRef } from 'vue'
-// Ported from legacy/src/components/settings/security-status-store.ts.
-import { authFetch, AUTH_SESSION_CHANGED_EVENT } from '~/utils/auth-client'
+// Ported from legacy/src/components/settings/security-status-store.ts, on useAsyncData: the cards
+// share one key, so they share one request and one result. An account switch clears it through
+// clearNuxtData (plugins/session-reset.client.ts).
+import { useEventListener } from '@vueuse/core'
 import type { SecurityStatus } from '~/types/settings/account'
 
-const status = shallowRef<SecurityStatus | null>(null)
-const error = ref(false)
-const loading = ref(false)
-let inflight: Promise<void> | null = null
-let inflightGeneration = 0
-let generation = 0
-let subscribers = 0
-
-/**
- * `force` waits for an in-flight read and then starts a fresh one, so a focus refresh that
- * began before a mutation cannot be mistaken for its result.
- */
-export async function refreshSecurityStatus(force = false): Promise<void> {
-  if (inflight) {
-    if (!force) return inflight
-    // A pending request from an older account generation is not a reason to wait.
-    if (inflightGeneration === generation) await inflight
-    else inflight = null
-  }
-  loading.value = true
-  error.value = false
-  const requestGeneration = generation
-  const request = (async () => {
-    try {
-      const res = await authFetch('/api/settings/security')
-      const data = (await res.json()) as SecurityStatus
-      if (!res.ok) throw new Error('security-status')
-      // A response for the previous account must never repaint the cards.
-      if (requestGeneration === generation) status.value = data
-    } catch {
-      if (requestGeneration === generation) error.value = true
-    } finally {
-      if (requestGeneration === generation) loading.value = false
-      // Do not let an old request clear a newer one's slot.
-      if (inflightGeneration === requestGeneration) {
-        inflight = null
-        inflightGeneration = 0
-      }
-    }
-  })()
-  inflight = request
-  inflightGeneration = requestGeneration
-  return request
-}
-
-function reset() {
-  generation++
-  status.value = null
-  error.value = false
-  loading.value = false
-  inflight = null
-  inflightGeneration = 0
-}
-
-function onSessionChanged() {
-  reset()
-  void refreshSecurityStatus()
-}
-
-function onWindowActivity() {
-  void refreshSecurityStatus()
-}
-
-function listen(on: boolean) {
-  const method = on ? 'addEventListener' : 'removeEventListener'
-  window[method]('mailflare:security-changed', onWindowActivity)
-  window[method](AUTH_SESSION_CHANGED_EVENT, onSessionChanged)
-  window[method]('focus', onWindowActivity)
-  document[method]('visibilitychange', onWindowActivity)
-}
+const KEY = 'settings-security-status'
+// Set for a background read: if it fails, the cards keep what they show instead of blanking. Module
+// level because the cards share one handler.
+let keepOnFailure = false
 
 /** The shared security snapshot. Call from a component's setup. */
 export function useSecurityStatus() {
-  onMounted(() => {
-    if (subscribers++ === 0) listen(true)
-    if (!status.value && !inflight) void refreshSecurityStatus()
-  })
-  onBeforeUnmount(() => {
-    if (--subscribers === 0) {
-      listen(false)
-      // The next page must not wait for, or be repainted by, this page's read.
-      reset()
+  const { data, status: fetchStatus, error, refresh } = useAsyncData<SecurityStatus>(KEY, async () => {
+    const background = keepOnFailure
+    keepOnFailure = false
+    try {
+      return await api<SecurityStatus>('/api/settings/security')
+    } catch (cause) {
+      if (background && data.value) return data.value
+      throw cause
     }
   })
-  return { status: readonly(status), error: readonly(error), loading: readonly(loading) }
+
+  // Changes elsewhere (another tab, a dialog) and coming back to the page read it again. These join a
+  // read already in flight rather than replacing it.
+  const refreshInBackground = () => {
+    keepOnFailure = true
+    void refresh({ dedupe: 'defer' })
+  }
+  useEventListener(window, 'mailflare:security-changed', refreshInBackground)
+  useEventListener(window, 'focus', refreshInBackground)
+  useEventListener(document, 'visibilitychange', () => {
+    if (document.visibilityState === 'visible') refreshInBackground()
+  })
+
+  return {
+    status: readonly(data),
+    error: computed(() => Boolean(error.value)),
+    loading: computed(() => fetchStatus.value === 'pending'),
+    /** Read again after a change, replacing any read in flight, and wait for the result. */
+    refresh: () => {
+      keepOnFailure = false
+      return refresh()
+    },
+  }
 }

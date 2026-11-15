@@ -7,18 +7,13 @@ import type { MobileDevice } from '~/types/settings/account'
 import { loadDevices, signOutDevice } from '~/utils/settings/account/devices'
 
 const { t } = useLanguage()
-const devices = ref<MobileDevice[] | null>(null)
+const { data: devices, error: loadError } = useAsyncData<MobileDevice[] | null>('settings-devices', loadDevices, { default: () => null })
 const error = ref<string | null>(null)
+watch(loadError, (cause) => {
+  if (cause) error.value = cause.message || t('devices.loadFailed')
+})
 const busy = ref<string | null>(null)
 const confirming = ref<MobileDevice | null>(null)
-
-onMounted(async () => {
-  try {
-    devices.value = await loadDevices()
-  } catch (err) {
-    error.value = err instanceof Error ? err.message : t('devices.loadFailed')
-  }
-})
 
 async function remove(device: MobileDevice) {
   confirming.value = null

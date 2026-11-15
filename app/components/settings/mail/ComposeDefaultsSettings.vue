@@ -6,37 +6,30 @@ import type { ComposePreferences } from '#lib/compose/types'
 import { loadComposePreferences, updateComposePreferences } from '~/utils/compose/compose-preferences'
 
 const { t } = useLanguage()
-const preferences = ref<ComposePreferences>({ trackOpensDefault: false, undoSendSeconds: DEFAULT_UNDO_SEND_SECONDS })
-const loading = ref(true)
+const { data: preferences, status, error: loadError } = useAsyncData<ComposePreferences>('settings-compose-defaults', loadComposePreferences, {
+  default: () => ({ trackOpensDefault: false, undoSendSeconds: DEFAULT_UNDO_SEND_SECONDS }),
+})
+const loading = computed(() => status.value === 'pending')
 const saving = ref(false)
-const error = ref<string | null>(null)
+const saveError = ref<string | null>(null)
+const error = computed(() => saveError.value ?? (loadError.value ? t('settings.compose.failed') : null))
 
 const undoItems = computed(() => UNDO_SEND_OPTIONS.map(seconds => ({
   value: seconds as number,
   label: seconds === 0 ? t('settings.compose.undoOff') : t('settings.compose.undoSeconds', { seconds }),
 })))
 
-onMounted(async () => {
-  try {
-    preferences.value = await loadComposePreferences()
-  } catch {
-    error.value = t('settings.compose.failed')
-  } finally {
-    loading.value = false
-  }
-})
-
 async function change(patch: Partial<ComposePreferences>) {
   const previous = preferences.value
   preferences.value = { ...previous, ...patch }
   saving.value = true
-  error.value = null
+  saveError.value = null
   try {
     // Shared with the composer, so its cached defaults follow this change.
     preferences.value = await updateComposePreferences(patch)
   } catch (cause) {
     preferences.value = previous
-    error.value = cause instanceof Error && cause.message === 'MIGRATION_REQUIRED' ? t('settings.compose.migrationRequired') : t('settings.compose.failed')
+    saveError.value = cause instanceof Error && cause.message === 'MIGRATION_REQUIRED' ? t('settings.compose.migrationRequired') : t('settings.compose.failed')
   } finally {
     saving.value = false
   }

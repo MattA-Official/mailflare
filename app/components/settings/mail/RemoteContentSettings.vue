@@ -3,10 +3,15 @@
 type RemoteContentMode = 'ask' | 'new_sender' | 'allow'
 
 const { t } = useLanguage()
-const mode = ref<RemoteContentMode>('allow')
-const loading = ref(true)
+const { data: mode, status, error: loadError } = useAsyncData(
+  'settings-remote-content',
+  () => api<{ mode: RemoteContentMode }>('/api/settings/remote-content').then(data => data.mode),
+  { default: () => 'allow' as RemoteContentMode },
+)
+const loading = computed(() => status.value === 'pending')
 const saving = ref(false)
-const error = ref<string | null>(null)
+const saveError = ref<string | null>(null)
+const error = computed(() => saveError.value ?? (loadError.value ? apiErrorMessage(loadError.value, t('settings.remoteContent.failed')) : null))
 
 const items = computed(() => [
   { value: 'ask', label: t('settings.remoteContent.ask') },
@@ -14,28 +19,18 @@ const items = computed(() => [
   { value: 'allow', label: t('settings.remoteContent.allow') },
 ])
 
-onMounted(async () => {
-  try {
-    mode.value = (await api<{ mode: RemoteContentMode }>('/api/settings/remote-content')).mode
-  } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : t('settings.remoteContent.failed')
-  } finally {
-    loading.value = false
-  }
-})
-
 async function choose(next: RemoteContentMode) {
   const previous = mode.value
   mode.value = next
   saving.value = true
-  error.value = null
+  saveError.value = null
   try {
     mode.value = (await api<{ mode: RemoteContentMode }>('/api/settings/remote-content', { method: 'PATCH', body: { mode: next } })).mode
     // The reader listens for this to re-apply the policy.
     window.dispatchEvent(new Event('mailflare:remote-content-changed'))
   } catch (cause) {
     mode.value = previous
-    error.value = cause instanceof Error ? cause.message : t('settings.remoteContent.failed')
+    saveError.value = cause instanceof Error ? cause.message : t('settings.remoteContent.failed')
   } finally {
     saving.value = false
   }
