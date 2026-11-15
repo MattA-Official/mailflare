@@ -17,7 +17,7 @@ const { t } = useLanguage()
 const route = useRoute()
 const { confirm } = useAdminConfirm()
 
-const { data: mailbox, error: loadError, status: loadStatus } = useAsyncData(`mailbox-${props.mailboxId}`, () => fetchMailbox(props.mailboxId), { watch: [() => props.mailboxId] })
+const { data: mailbox, error: loadError, status: loadStatus } = useAsyncData(() => `mailbox-${props.mailboxId}`, () => fetchMailbox(props.mailboxId))
 const loading = computed(() => loadStatus.value === 'pending')
 const address = computed(() => mailbox.value ? getMailboxAddress(mailbox.value) : '')
 // The page shows the address as its title.
@@ -56,7 +56,7 @@ async function save() {
 }
 
 // Aliases
-const { data: aliases, status: aliasesStatus, error: aliasesError, refresh: refreshAliases } = useAsyncData(`mailbox-${props.mailboxId}-aliases`, () => fetchMailboxAliases(props.mailboxId), { watch: [() => props.mailboxId] })
+const { data: aliases, status: aliasesStatus, error: aliasesError, refresh: refreshAliases } = useAsyncData(() => `mailbox-${props.mailboxId}-aliases`, () => fetchMailboxAliases(props.mailboxId))
 const aliasDomainItems = computed(() => (aliases.value?.availableDomains ?? []).map(domain => ({ label: `@${domain.hostname}`, value: domain.id })))
 const aliasBusy = ref<'add' | 'remove' | null>(null)
 const aliasError = ref<string | null>(null)
@@ -90,13 +90,13 @@ async function removeAlias(aliasId: string) {
 // Shared access
 const canManageSharing = computed(() => mailbox.value?.canManageSharing === true)
 const { data: sharedAccess, status: sharedStatus, error: sharedError, refresh: refreshShared } = useAsyncData(
-  `mailbox-${props.mailboxId}-access`,
+  () => `mailbox-${props.mailboxId}-access`,
   () => canManageSharing.value ? fetchSharedInboxAccess(props.mailboxId) : Promise.resolve(null),
   { watch: [canManageSharing] },
 )
 // Fork-only: shared inboxes can also be given to a group; the picker offers groups and people together.
 const { data: groupAccess, refresh: refreshGroups } = useAsyncData(
-  `mailbox-${props.mailboxId}-group-access`,
+  () => `mailbox-${props.mailboxId}-group-access`,
   () => canManageSharing.value ? fetchMailboxGroupAccess(props.mailboxId) : Promise.resolve(null),
   { watch: [canManageSharing] },
 )

@@ -26,5 +26,5 @@ function onClose() {
     {{ t('navigation.compose') }}
   </button>
   <ComposeNoticeToast v-if="notice" :key="notice.id" :notice="notice" />
-  <ComposeForm v-if="open" :key="draftId ?? 'new'" mode="popup" :draft-id-to-load="draftId" :initial-to="initialTo" @close="onClose" />
+  <LazyComposeForm v-if="open" :key="draftId ?? 'new'" mode="popup" :draft-id-to-load="draftId" :initial-to="initialTo" @close="onClose" />
 </template>
