@@ -3,16 +3,18 @@
 import { getAvatarColorStyle } from '#lib/avatar-colors'
 
 const props = withDefaults(defineProps<{ name: string, email: string, src?: string | null, size?: 'md' | 'lg' | 'xl' }>(), { size: 'md', src: null })
-const failed = ref(false)
-watch(() => props.src, () => {
-  failed.value = false
-})
-const sizeClass = computed(() => ({ md: 'size-10 text-base', lg: 'size-12 text-lg', xl: 'size-16 text-xl' })[props.size])
+// UAvatar falls back to the initial by itself when the picture fails to load.
+const avatarSize = computed(() => ({ md: 'xl', lg: '3xl', xl: '3xl' } as const)[props.size])
 </script>
 
 <template>
-  <span :style="getAvatarColorStyle(email)" class="relative flex shrink-0 items-center justify-center overflow-hidden rounded-full font-semibold" :class="sizeClass">
-    {{ name.charAt(0).toUpperCase() }}
-    <img v-if="src && !failed" :src="src" alt="" class="absolute inset-0 size-full object-cover" @error="failed = true">
-  </span>
+  <UAvatar
+    :src="src ?? undefined"
+    alt=""
+    :text="name.charAt(0).toUpperCase()"
+    :size="avatarSize"
+    :style="getAvatarColorStyle(email)"
+    :class="{ md: 'text-base', lg: 'text-lg', xl: 'size-16 text-xl' }[size]"
+    :ui="{ fallback: 'text-inherit font-semibold' }"
+  />
 </template>
