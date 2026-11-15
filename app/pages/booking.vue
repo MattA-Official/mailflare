@@ -207,9 +207,7 @@ function goToEvent(event: { id: string }) {
               <UIcon v-if="event.enabled" name="i-lucide-check" class="size-3.5" />
             </span>
             <div class="min-w-0">
-              <button type="button" class="text-left text-lg font-semibold text-highlighted hover:text-primary max-md:text-base" @click="startEdit(event)">
-                {{ event.name }}
-              </button>
+              <UButton color="neutral" variant="link" size="xl" class="p-0 text-left text-lg font-semibold text-highlighted hover:text-primary max-md:text-base" :ui="{ label: 'whitespace-normal' }" :label="event.name" @click="startEdit(event)" />
               <p v-if="event.description" class="mt-1 line-clamp-2 text-sm whitespace-pre-wrap text-toned">
                 {{ event.description }}
               </p>

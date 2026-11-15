@@ -41,14 +41,11 @@ const open = computed(() => followUp.value?.status === 'pending' || followUp.val
       <UIcon name="i-lucide-bell-ring" class="size-3.5 text-warning" aria-hidden="true" />
       {{ followUp.status === 'due' ? t('followUp.noReplyYet') : t('followUp.scheduledFor', { date: formatUserDate(followUp.dueAt, DATE_FORMAT) }) }}
       <ComposeFollowUpMenu clearable @pick="days => run(setMessageFollowUp(messageId, days))" @clear="run(clearMessageFollowUp(messageId))">
-        <button type="button" class="font-medium text-primary hover:underline disabled:opacity-50">{{ t('followUp.change') }}</button>
+        <UButton variant="link" size="xs" class="p-0" :label="t('followUp.change')" />
       </ComposeFollowUpMenu>
     </template>
     <ComposeFollowUpMenu v-else @pick="days => run(setMessageFollowUp(messageId, days))">
-      <button type="button" class="inline-flex items-center gap-1.5 hover:text-highlighted">
-        <UIcon name="i-lucide-bell-ring" class="size-3.5" aria-hidden="true" />
-        {{ t('followUp.remindMe') }}
-      </button>
+      <UButton color="neutral" variant="link" size="xs" icon="i-lucide-bell-ring" class="p-0" :label="t('followUp.remindMe')" />
     </ComposeFollowUpMenu>
     <span v-if="failed" role="alert" class="text-error">{{ t('followUp.failed') }}</span>
   </p>
