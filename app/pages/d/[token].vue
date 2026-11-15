@@ -10,24 +10,14 @@ definePageMeta({ auth: { mode: 'public' } })
 const { t } = useLanguage()
 const route = useRoute()
 const token = computed(() => String(route.params.token))
-const itemId = ref<string | null>(null)
-const data = ref<PublicDriveListing | null>(null)
-const missing = ref(false)
-let generation = 0
-
-watch([token, itemId], async ([value, item]) => {
-  const current = ++generation
-  try {
-    const response = await fetch(`/api/drive/public/${encodeURIComponent(value)}${item ? `?item=${encodeURIComponent(item)}` : ''}`)
-    if (!response.ok) throw new Error()
-    const listing = await response.json() as PublicDriveListing
-    if (current !== generation) return
-    data.value = listing
-    missing.value = false
-  } catch {
-    if (current === generation) missing.value = true
-  }
-}, { immediate: true })
+// The open folder or file is in the URL (?item=), so Back works and a subfolder can be linked.
+const itemId = computed(() => typeof route.query.item === 'string' ? route.query.item : null)
+// One key, so the current listing stays on screen while the next one loads.
+const { data, error } = useFetch<PublicDriveListing>(() => `/api/drive/public/${encodeURIComponent(token.value)}`, {
+  key: 'public-drive-listing',
+  query: computed(() => itemId.value ? { item: itemId.value } : {}),
+})
+const missing = computed(() => Boolean(error.value))
 
 const isFile = computed(() => data.value?.item.kind === 'file')
 const entries = computed(() => data.value ? sortDriveItems(data.value.items, 'name', true) : [])
@@ -43,7 +33,7 @@ useHead({ title: () => data.value?.item.name ?? t('drive.title') })
         <span v-for="(crumb, index) in data.path" :key="crumb.id" class="flex items-center gap-1">
           <UIcon v-if="index > 0" name="i-lucide-chevron-right" class="size-[18px] text-muted" />
           <h1 v-if="index === data.path.length - 1" class="px-2 py-1">{{ crumb.name }}</h1>
-          <UButton v-else color="neutral" variant="ghost" size="lg" :label="crumb.name" class="rounded-full text-lg font-normal text-highlighted" @click="itemId = crumb.id" />
+          <UButton v-else :to="{ query: { item: crumb.id } }" color="neutral" variant="ghost" size="lg" :label="crumb.name" class="rounded-full text-lg font-normal text-highlighted" />
         </span>
         <UButton v-if="isFile" :to="publicContentUrl(token, data.item.id, true)" external icon="i-lucide-download" class="ml-auto rounded-full" :label="t('drive.download')" />
       </nav>
@@ -53,10 +43,10 @@ useHead({ title: () => data.value?.item.name ?? t('drive.title') })
       <div v-else class="rounded-2xl bg-default p-2">
         <UEmpty v-if="!entries.length" variant="naked" icon="i-lucide-folder-open" :title="t('drive.empty')" />
         <div v-for="entry in entries" :key="entry.id" class="flex items-center gap-4 rounded-lg px-3 text-sm hover:bg-elevated">
-          <button type="button" class="flex min-w-0 flex-1 items-center gap-4 py-3 text-left" @click="itemId = entry.id">
+          <NuxtLink :to="{ query: { item: entry.id } }" class="flex min-w-0 flex-1 items-center gap-4 py-3 text-left">
             <UIcon :name="driveIconFor(entry).icon" class="size-4 shrink-0" :class="[driveIconFor(entry).className, entry.kind === 'folder' && 'fill-current']" />
             <span class="truncate text-highlighted">{{ entry.name }}</span>
-          </button>
+          </NuxtLink>
           <span v-if="entry.kind === 'file'" class="hidden shrink-0 text-muted sm:block">{{ formatDriveSize(entry.size) }}</span>
           <UButton v-if="entry.kind === 'file'" :to="publicContentUrl(token, entry.id, true)" external icon="i-lucide-download" color="neutral" variant="ghost" class="rounded-full" :aria-label="entry.name" />
         </div>

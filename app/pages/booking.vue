@@ -17,7 +17,6 @@ const username = ref('')
 const hosts = ref<BookingHost[]>([])
 const canManageHosts = ref(false)
 const currentUserId = ref('')
-const loading = ref(true)
 const editingId = ref<string | null>(null)
 const form = ref<BookingForm>(emptyBookingForm(getUserTimeZone(), ''))
 const panelOpen = ref(false)
@@ -27,30 +26,37 @@ const listEvents = computed(() => visibleBookingEvents(events.value, currentUser
 
 type AccountRow = BookingHost & { disabled: boolean, calendarEnabled?: boolean }
 
-onMounted(async () => {
-  try {
-    const data = await api<{ events: BookingEvent[], username: string | null, currentUser: BookingHost, canManageHosts: boolean }>('/api/booking')
-    events.value = data.events
-    username.value = data.username ?? ''
-    hosts.value = [data.currentUser]
-    currentUserId.value = data.currentUser.id
-    if (data.canManageHosts) {
-      try {
-        const accounts = await api<{ accounts: AccountRow[] }>('/api/accounts')
-        hosts.value = [data.currentUser, ...accounts.accounts
-          .filter(account => !account.disabled && account.calendarEnabled !== false && account.id !== data.currentUser.id)
-          .map(({ id, name, email, hasAvatar }) => ({ id, name, email, hasAvatar }))]
-        canManageHosts.value = true
-      } catch {
-        toast.add({ title: t('booking.hostListFailed'), color: 'error' })
-      }
+// The page's event types and, for admins who can book for others, the people they can pick as host.
+const { data: page, status } = useAsyncData('booking-page', async () => {
+  const data = await api<{ events: BookingEvent[], username: string | null, currentUser: BookingHost, canManageHosts: boolean }>('/api/booking')
+  let pageHosts: BookingHost[] = [data.currentUser]
+  let hostsLoaded = false
+  if (data.canManageHosts) {
+    try {
+      const accounts = await api<{ accounts: AccountRow[] }>('/api/accounts')
+      pageHosts = [data.currentUser, ...accounts.accounts
+        .filter(account => !account.disabled && account.calendarEnabled !== false && account.id !== data.currentUser.id)
+        .map(({ id, name, email, hasAvatar }) => ({ id, name, email, hasAvatar }))]
+      hostsLoaded = true
+    } catch {
+      toast.add({ title: t('booking.hostListFailed'), color: 'error' })
     }
-  } catch {
-    toast.add({ title: t('booking.loadFailed'), color: 'error' })
-  } finally {
-    loading.value = false
   }
+  return { events: data.events, username: data.username ?? '', hosts: pageHosts, canManageHosts: hostsLoaded, currentUserId: data.currentUser.id }
 })
+const loading = computed(() => status.value === 'pending')
+watch(status, (value) => {
+  if (value === 'error') toast.add({ title: t('booking.loadFailed'), color: 'error' })
+})
+// Local copies the page edits in place after each save.
+watch(page, (value) => {
+  if (!value) return
+  events.value = value.events
+  username.value = value.username
+  hosts.value = value.hosts
+  canManageHosts.value = value.canManageHosts
+  currentUserId.value = value.currentUserId
+}, { immediate: true })
 
 function startCreate() {
   if (!currentUserId.value) return

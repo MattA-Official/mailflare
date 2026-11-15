@@ -10,9 +10,6 @@ const props = defineProps<{ username?: string, userId?: string, identifier: stri
 const { t } = useLanguage()
 
 const endpoint = computed(() => `/api/public/booking/${encodeURIComponent(props.identifier)}${props.username ? `?username=${encodeURIComponent(props.username)}` : ''}`)
-const event = ref<PublicBookingEvent | null>(null)
-const hostName = ref('')
-const slots = ref<BookingSlot[]>([])
 const timeZone = ref('UTC')
 const month = ref('')
 const selectedDate = ref(new Date().toISOString().slice(0, 10))
@@ -22,10 +19,20 @@ const email = ref('')
 const guestEmails = ref('')
 const showGuests = ref(false)
 const notes = ref('')
-const loading = ref(true)
 const submitting = ref(false)
 const done = ref(false)
 const error = ref('')
+
+const { data, status } = useFetch<{ event: PublicBookingEvent, hostName: string, slots: BookingSlot[] }>(endpoint)
+// A /book/<userId>/<eventId> link must name the event's own host.
+const loaded = computed(() => data.value && (!props.userId || data.value.event.userId === props.userId) ? data.value : null)
+const event = computed(() => loaded.value?.event ?? null)
+const hostName = computed(() => loaded.value?.hostName ?? '')
+const slots = computed(() => loaded.value?.slots ?? [])
+const loading = computed(() => status.value === 'pending' || status.value === 'idle')
+watch(status, (value) => {
+  if (value === 'error' || (value === 'success' && !loaded.value)) error.value = t('public.unavailable')
+}, { immediate: true })
 
 const slotsByDate = computed(() => {
   const grouped = new Map<string, BookingSlot[]>()
@@ -73,22 +80,6 @@ onMounted(() => window.addEventListener('popstate', restoreSelection))
 onBeforeUnmount(() => window.removeEventListener('popstate', restoreSelection))
 watch([slots, loading], restoreSelection, { immediate: true })
 
-watch(endpoint, async () => {
-  loading.value = true
-  try {
-    const response = await fetch(endpoint.value)
-    if (!response.ok) throw new Error()
-    const data = await response.json() as { event: PublicBookingEvent, hostName: string, slots: BookingSlot[] }
-    if (props.userId && data.event.userId !== props.userId) throw new Error()
-    event.value = data.event
-    hostName.value = data.hostName
-    slots.value = data.slots
-  } catch {
-    error.value = t('public.unavailable')
-  } finally {
-    loading.value = false
-  }
-}, { immediate: true })
 
 useHead({ title: () => event.value?.name ?? t('public.bookMeeting') })
 

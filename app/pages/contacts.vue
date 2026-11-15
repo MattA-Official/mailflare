@@ -18,34 +18,20 @@ const query = ref('')
 const editOpen = ref(false)
 const editing = ref<ContactListItem | null>(null)
 const deleting = ref<ContactListItem | null>(null)
-const contacts = shallowRef<ContactListItem[]>([])
-const loading = ref(false)
-const failed = ref(false)
-let request = 0
 
 watch(input, (value, _previous, onCleanup) => {
   const timer = setTimeout(() => { query.value = value.trim() }, SEARCH_DEBOUNCE_MS)
   onCleanup(() => clearTimeout(timer))
 })
 
-async function load() {
-  const id = mailboxId.value
-  if (!id) return
-  const current = ++request
-  loading.value = true
-  failed.value = false
-  try {
-    const list = await fetchContacts(id, query.value)
-    if (current === request) contacts.value = list
-  }
-  catch {
-    if (current === request) failed.value = true
-  }
-  finally {
-    if (current === request) loading.value = false
-  }
-}
-watch([mailboxId, query], load, { immediate: true })
+// One key for the page, so the current list stays on screen while a search or mailbox switch loads.
+const { data: contacts, status, error, refresh: load } = useAsyncData(
+  'contacts-page',
+  () => mailboxId.value ? fetchContacts(mailboxId.value, query.value) : Promise.resolve([] as ContactListItem[]),
+  { watch: [mailboxId, query], default: () => [] as ContactListItem[] },
+)
+const loading = computed(() => status.value === 'pending')
+const failed = computed(() => Boolean(error.value))
 
 function openCreate() {
   editing.value = null
@@ -141,6 +127,6 @@ function sendEmail(contact: ContactListItem) {
     </div>
 
     <ContactsEditModal v-model:open="editOpen" :mailbox-id="mailboxId" :contact="editing" @saved="onSaved" />
-    <ContactsDeleteModal :mailbox-id="mailboxId" :contact="deleting" @close="deleting = null" @deleted="load" />
+    <ContactsDeleteModal :mailbox-id="mailboxId" :contact="deleting" @close="deleting = null" @deleted="load()" />
   </AppPage>
 </template>

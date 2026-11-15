@@ -6,27 +6,13 @@ import type { PublicBookingEvent } from '~/types/calendar'
 const props = defineProps<{ username?: string, userId?: string }>()
 const { t } = useLanguage()
 
-const name = ref('')
-const events = ref<PublicBookingEvent[]>([])
-const loading = ref(true)
-const error = ref('')
-const query = computed(() => props.username ? `username=${encodeURIComponent(props.username)}` : `userId=${encodeURIComponent(props.userId ?? '')}`)
+const query = computed(() => props.username ? { username: props.username } : { userId: props.userId ?? '' })
 
-watch(query, async () => {
-  loading.value = true
-  error.value = ''
-  try {
-    const response = await fetch(`/api/public/booking?${query.value}`)
-    if (!response.ok) throw new Error()
-    const data = await response.json() as { name: string, events: PublicBookingEvent[] }
-    name.value = data.name
-    events.value = data.events
-  } catch {
-    error.value = t('public.listUnavailable')
-  } finally {
-    loading.value = false
-  }
-}, { immediate: true })
+const { data, status, error: loadError } = useFetch<{ name: string, events: PublicBookingEvent[] }>('/api/public/booking', { query })
+const name = computed(() => data.value?.name ?? '')
+const events = computed(() => data.value?.events ?? [])
+const loading = computed(() => status.value === 'pending')
+const error = computed(() => loadError.value ? t('public.listUnavailable') : '')
 
 useHead({ title: () => name.value ? t('public.bookMeetingWith', { name: name.value }) : t('public.bookMeeting') })
 </script>
