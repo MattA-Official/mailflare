@@ -914,6 +914,7 @@
 	"auth.resetMail.instructions": "Open this link within {minutes} minutes to choose a new password:",
 	"auth.resetMail.ignore": "If that was not you, you can ignore this message; the password stays as it is.",
 	"auth.reset.mismatch": "Passwords do not match",
+	"auth.passwordTooShort": "Use at least 8 characters.",
 	"auth.reset.failed": "Could not reset the password",
 	"auth.reset.linkMissing": "Reset link missing",
 	"auth.reset.linkMissingDescription": "Open the link from the reset email to choose a new password.",
