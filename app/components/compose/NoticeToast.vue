@@ -4,8 +4,9 @@
 // itself: it drives one Nuxt UI toast (id "compose-notice") and updates it in place as the notice
 // changes, so "Sending…", "Sent" and "Failed" replace each other instead of stacking. The title is
 // a render function, so the countdown and the subject link stay live inside the toast.
+import { Fragment } from 'vue'
 import type { ToastProps } from '@nuxt/ui'
-import { NuxtLink } from '#components'
+import { NuxtLink, UProgress } from '#components'
 import type { ComposeNotice, ComposeNoticeAction } from '~/types/compose/notice'
 import { COMPOSE_NOTICE_TOAST_ID } from '~/utils/compose/notice-toast'
 
@@ -20,6 +21,9 @@ let countdownTimer: number | undefined
 let pollTimer: number | undefined
 let cancelled = false
 
+// The undo window is shown as the toast's progress bar running down, not as ticking seconds.
+const countdownTotal = props.notice.countdown ? Math.max(1, props.notice.countdown.endAt - Date.now()) : 0
+const countdownLeft = computed(() => props.notice.countdown ? Math.max(0, props.notice.countdown.endAt - now.value) / countdownTotal * 100 : 0)
 const secondsLeft = computed(() => props.notice.countdown ? Math.max(0, Math.ceil((props.notice.countdown.endAt - now.value) / 1000)) : null)
 const ticker = computed(() => props.notice.parts?.ticker && secondsLeft.value !== null ? props.notice.parts.ticker(secondsLeft.value) : null)
 
@@ -63,13 +67,18 @@ const toast = useToast()
 
 function title() {
   const { parts, message } = props.notice
-  if (!parts) return h('span', { class: 'break-words' }, message)
-  return h('span', { class: 'break-words' }, [
+  if (!parts) return h(Fragment, [h('span', { class: 'break-words' }, message), countdownBar()])
+  return h(Fragment, [h('span', { class: 'break-words' }, [
     parts.before,
     parts.link ? h(NuxtLink, { to: parts.link.href, class: 'underline decoration-current underline-offset-2' }, () => parts.link!.label) : null,
     parts.after,
     ticker.value !== null ? h('span', { 'aria-live': 'off' }, ticker.value) : null,
-  ])
+  ]), countdownBar()])
+}
+
+// Drawn where Nuxt UI draws a timed toast's own bar; this toast has no duration because the notice ends it.
+function countdownBar() {
+  return props.notice.countdown ? h(UProgress, { modelValue: countdownLeft.value, size: 'sm', color: 'success', class: 'absolute inset-x-0 bottom-0', 'aria-hidden': 'true' }) : null
 }
 
 function toastProps(): Partial<ToastProps> & { id: string } {
