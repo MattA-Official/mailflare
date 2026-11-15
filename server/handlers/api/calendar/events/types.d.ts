@@ -17,4 +17,6 @@ export type CalendarEventInput = {
 	endsAt: string;
 	mailboxId?: string | null;
 	from?: string;
+	/** (fork) Midnight to midnight in timeZone; see #lib/calendar/all-day. */
+	allDay?: boolean;
 };

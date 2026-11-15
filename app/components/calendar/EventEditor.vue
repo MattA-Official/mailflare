@@ -11,7 +11,7 @@ import { folderColorKeys } from '#lib/folders/color-keys'
 import type { TranslationKey } from '#lib/i18n/types'
 import type { CalendarRepeat } from '#lib/calendar/types'
 import type { CalendarEvent, CalendarMailbox } from '~/types/calendar'
-import { calendarAnchorDay, defaultCalendarStart, eventEndAfterMinutes, formatLocalDateTime, rescheduleCalendarOccurrence, WEEKDAY_OPTIONS } from '~/utils/calendar/calendar'
+import { addDays, calendarAnchorDay, defaultCalendarStart, isAllDay, eventEndAfterMinutes, formatLocalDateTime, rescheduleCalendarOccurrence, WEEKDAY_OPTIONS } from '~/utils/calendar/calendar'
 
 const props = defineProps<{ mailbox: CalendarMailbox | null }>()
 const emit = defineEmits<{ saved: [] }>()
@@ -27,7 +27,9 @@ const repeat = ref<CalendarRepeat>('none')
 const repeatDays = ref<number[]>([...DEFAULT_REPEAT_DAYS])
 const reminderMinutes = ref<number | null>(null)
 const startsAt = ref('')
+// For an all-day event, both fields hold dates (with T00:00), and the end is the last day, inclusive.
 const endsAt = ref('')
+const allDay = ref(false)
 const durationOptionsOpen = ref(false)
 const guests = ref('')
 const location = ref('')
@@ -56,8 +58,14 @@ const reminderValue = computed({
 const repeatItems = computed(() => (['none', 'daily', 'weekly', 'monthly', 'weekdays'] as const).map(value => ({ label: t(`calendar.repeat.${value}`), value })))
 const durationPresets = [15, 30, 60, 1440] as const
 
-const parsedStart = computed(() => parseUserDateTimeLocal(startsAt.value))
-const parsedEnd = computed(() => parseUserDateTimeLocal(endsAt.value))
+const atMidnight = (value: string) => `${value.slice(0, 10)}T00:00`
+const parsedStart = computed(() => parseUserDateTimeLocal(allDay.value ? atMidnight(startsAt.value) : startsAt.value))
+// An all-day event ends at midnight after its last day.
+const parsedEnd = computed(() => {
+  if (!allDay.value) return parseUserDateTimeLocal(endsAt.value)
+  const lastDay = parseUserDateTimeLocal(atMidnight(endsAt.value))
+  return lastDay ? addDays(lastDay, 1) : null
+})
 const canSave = computed(() => Boolean(title.value.trim() && parsedStart.value && parsedEnd.value && parsedEnd.value > parsedStart.value && !(repeat.value === 'weekdays' && repeatDays.value.length === 0) && pending.value !== 'save'))
 
 function senderAddress() {
@@ -65,10 +73,12 @@ function senderAddress() {
   return mailbox?.senderAddresses?.[0] ?? (mailbox ? `${mailbox.localPart}@${mailbox.hostname}` : '')
 }
 
-function openNew(day: Date, startAt?: Date, endAt?: Date) {
+/** With `wholeDays`, an all-day event from the day of `startAt` to the day of `endAt`, inclusive. */
+function openNew(day: Date, startAt?: Date, endAt?: Date, wholeDays = false) {
   const start = startAt ? new Date(startAt) : defaultCalendarStart(day)
-  const end = endAt && endAt > start ? new Date(endAt) : new Date(start.getTime() + 60 * 60_000)
+  const end = endAt && (wholeDays ? endAt >= start : endAt > start) ? new Date(endAt) : new Date(start.getTime() + 60 * 60_000)
   editing.value = null
+  allDay.value = wholeDays
   title.value = ''
   color.value = DEFAULT_FOLDER_COLOR
   repeat.value = 'none'
@@ -77,8 +87,8 @@ function openNew(day: Date, startAt?: Date, endAt?: Date) {
   guests.value = ''
   location.value = ''
   description.value = ''
-  startsAt.value = formatLocalDateTime(start)
-  endsAt.value = formatLocalDateTime(end)
+  startsAt.value = wholeDays ? atMidnight(formatLocalDateTime(start)) : formatLocalDateTime(start)
+  endsAt.value = wholeDays ? atMidnight(formatLocalDateTime(end)) : formatLocalDateTime(end)
   durationOptionsOpen.value = false
   open.value = true
 }
@@ -92,8 +102,10 @@ function openEdit(event: CalendarEvent) {
   repeatDays.value = event.repeat === 'weekdays' ? parseCalendarRepeatDays(event.repeatDays) : [...DEFAULT_REPEAT_DAYS]
   location.value = event.location ?? ''
   description.value = event.description ?? ''
+  allDay.value = isAllDay(event)
   startsAt.value = formatLocalDateTime(new Date(event.startsAt))
-  endsAt.value = formatLocalDateTime(new Date(event.endsAt))
+  // An all-day event shows its last day, the one before it ends.
+  endsAt.value = allDay.value ? atMidnight(formatLocalDateTime(new Date(new Date(event.endsAt).getTime() - 1))) : formatLocalDateTime(new Date(event.endsAt))
   durationOptionsOpen.value = false
   let attendees: string[] = []
   try { attendees = JSON.parse(event.attendees || '[]') as string[] } catch { /* Unreadable guest lists start empty. */ }
@@ -103,6 +115,22 @@ function openEdit(event: CalendarEvent) {
 
 defineExpose({ openNew, openEdit, remove })
 
+// Turning all-day on keeps the dates; turning it off gives the first day the usual hour-long slot.
+function setAllDay(value: boolean) {
+  allDay.value = value
+  durationOptionsOpen.value = false
+  if (value) {
+    startsAt.value = atMidnight(startsAt.value)
+    endsAt.value = atMidnight(endsAt.value < startsAt.value ? startsAt.value : endsAt.value)
+    return
+  }
+  const day = parseUserDateTimeLocal(atMidnight(startsAt.value))
+  if (!day) return
+  const start = defaultCalendarStart(day)
+  startsAt.value = formatLocalDateTime(start)
+  endsAt.value = formatLocalDateTime(new Date(start.getTime() + 60 * 60_000))
+}
+
 function toggleRepeatDay(day: number) {
   repeatDays.value = repeatDays.value.includes(day) ? repeatDays.value.filter(value => value !== day) : [...repeatDays.value, day].sort((a, b) => a - b)
 }
@@ -111,8 +139,9 @@ async function save() {
   pending.value = 'save'
   try {
     const event = editing.value
-    const editedStart = event && startsAt.value === formatLocalDateTime(new Date(event.startsAt)) ? new Date(event.startsAt) : parsedStart.value
-    const editedEnd = event && endsAt.value === formatLocalDateTime(new Date(event.endsAt)) ? new Date(event.endsAt) : parsedEnd.value
+    const keepTimes = event && !allDay.value && !isAllDay(event)
+    const editedStart = keepTimes && startsAt.value === formatLocalDateTime(new Date(event.startsAt)) ? new Date(event.startsAt) : parsedStart.value
+    const editedEnd = keepTimes && endsAt.value === formatLocalDateTime(new Date(event.endsAt)) ? new Date(event.endsAt) : parsedEnd.value
     if (!editedStart || !editedEnd || editedEnd <= editedStart) {
       toast.add({ title: t('calendar.invalidTimes'), color: 'error' })
       return
@@ -144,6 +173,7 @@ async function save() {
         repeatDays: repeatDays.value,
         repeatAnchorDay,
         reminderMinutes: reminderMinutes.value,
+        allDay: allDay.value,
         effectiveFrom: effectiveFrom?.toISOString(),
         moveOccurrenceToPast: movingToPast,
         attendees: guests.value.split(','),
@@ -217,14 +247,15 @@ function showDurations(event: FocusEvent) {
           <UIcon name="i-lucide-clock-3" class="mt-2 size-5 text-muted" />
           <div class="min-w-0" @focusout="onTimesFocusOut">
             <div class="grid gap-2">
+              <USwitch :model-value="allDay" :label="t('calendar.allDay')" @update:model-value="setAllDay" />
               <UFormField :label="t('calendar.from')">
-                <AppDateTimeInput v-model="startsAt" :label="t('calendar.fromLabel')" @focusin="showDurations" />
+                <AppDateTimeInput v-model="startsAt" :label="t('calendar.fromLabel')" :date-only="allDay" @focusin="showDurations" />
               </UFormField>
               <UFormField :label="t('calendar.to')">
-                <AppDateTimeInput v-model="endsAt" :label="t('calendar.toLabel')" @focusin="showDurations" />
+                <AppDateTimeInput v-model="endsAt" :label="t('calendar.toLabel')" :date-only="allDay" @focusin="showDurations" />
               </UFormField>
             </div>
-            <div v-if="durationOptionsOpen" class="flex flex-wrap gap-1 pt-1" :aria-label="t('calendar.setDuration')">
+            <div v-if="durationOptionsOpen && !allDay" class="flex flex-wrap gap-1 pt-1" :aria-label="t('calendar.setDuration')">
               <UButton
                 v-for="minutes in durationPresets"
                 :key="minutes"

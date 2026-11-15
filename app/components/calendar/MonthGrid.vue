@@ -6,7 +6,7 @@ import { normalizeCalendarColor } from '#lib/calendar/colors'
 import { formatUserDate } from '#lib/time/utils'
 import type { TranslationKey } from '#lib/i18n/types'
 import type { CalendarEvent } from '~/types/calendar'
-import { addDays, dateKey, EVENT_COLOR_CLASSES, formatEventRange, isPendingInvite, monthGridDates, orderedWeekdays, PAST_EVENT_COLOR_CLASSES, PENDING_EVENT_CLASSES } from '~/utils/calendar/calendar'
+import { addDays, dateKey, EVENT_COLOR_CLASSES, formatEventRange, isAllDay, isPendingInvite, monthGridDates, orderedWeekdays, PAST_EVENT_COLOR_CLASSES, PENDING_EVENT_CLASSES } from '~/utils/calendar/calendar'
 
 const MAX_VISIBLE = 3
 
@@ -42,7 +42,8 @@ const cells = computed(() => {
     const next = addDays(day, 1)
     const list = props.events
       .filter(event => new Date(event.startsAt) < next && new Date(event.endsAt) > day)
-      .sort((a, b) => new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
+      // All-day events first, as in the week view's row above the hours.
+      .sort((a, b) => Number(isAllDay(b)) - Number(isAllDay(a)) || new Date(a.startsAt).getTime() - new Date(b.startsAt).getTime())
     return { day, key, list, today: key === todayKey, outside: key.slice(0, 7) !== monthKey, extra: list.length - MAX_VISIBLE }
   })
 })
@@ -208,7 +209,7 @@ function eventClass(event: CalendarEvent) {
             v-for="event in cell.list.slice(0, MAX_VISIBLE)"
             :key="`${event.id}-${event.startsAt}`"
             type="button"
-            :title="`${event.title} · ${formatEventRange(event)}`"
+            :title="`${event.title} · ${isAllDay(event) ? t('calendar.allDay') : formatEventRange(event)}`"
             :draggable="!busy && !isPendingInvite(event)"
             class="block w-full truncate rounded px-1.5 py-0.5 text-left text-[11px] font-medium hover:brightness-95"
             :class="[eventClass(event), dragged?.event.id === event.id && 'opacity-40']"

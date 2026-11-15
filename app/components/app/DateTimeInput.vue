@@ -12,6 +12,8 @@ const props = withDefaults(defineProps<{
   size?: 'sm' | 'md' | 'lg' | 'xl'
   label?: string
   disabled?: boolean
+  /** Only the date: the time part of the value is left as it is. */
+  dateOnly?: boolean
 }>(), { size: 'md', min: undefined, label: undefined })
 /** Enter, a calendar pick, or focus leaving both fields: the moment to save a change. */
 const emit = defineEmits<{ commit: [] }>()
@@ -102,6 +104,7 @@ function onFocusOut(event: FocusEvent) {
       </template>
     </UInputDate>
     <UInputTime
+      v-if="!dateOnly"
       :model-value="parts.time"
       :size="size"
       :disabled="disabled"

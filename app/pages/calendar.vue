@@ -7,7 +7,7 @@ import { parseCalendarRepeatDays } from '#lib/calendar/recurrence'
 import type { ShortcutDefinition } from '~/types/shortcuts'
 import type { CalendarEvent, CalendarMailbox, CalendarView, EventDragPreview, EventResizeEdge, EventResizeSession } from '~/types/calendar'
 import {
-  addDays, addMonths, calendarAnchorDay, defaultCalendarStart, CALENDAR_END_HOUR, CALENDAR_HOUR_HEIGHT, CALENDAR_START_HOUR,
+  addDays, addMonths, calendarAnchorDay, eventDayKeys, isAllDay, PENDING_EVENT_CLASSES, CALENDAR_END_HOUR, CALENDAR_HOUR_HEIGHT, CALENDAR_START_HOUR,
   currentTimePosition, dateKey, dropStartForPosition, EVENT_COLOR_CLASSES, eventPosition, expandCalendarEvents,
   formatEventRange, formatHour, isPendingInvite, monthGridDates, PAST_EVENT_COLOR_CLASSES, rescheduleCalendarOccurrence, resizeEventTimes, shiftEventByDays, slotMinutesForPosition, slotSelectionTimes, startOfDay, startOfWeek,
 } from '~/utils/calendar/calendar'
@@ -36,13 +36,23 @@ const dragPreview = shallowRef<EventDragPreview | null>(null)
 const pendingId = ref<string | null>(null)
 const mailbox = shallowRef<CalendarMailbox | null>(null)
 const editorOpen = ref(false)
-const editor = useTemplateRef<{ openNew: (day: Date, startAt?: Date, endAt?: Date) => void, openEdit: (event: CalendarEvent) => void, remove: (event?: CalendarEvent | null) => Promise<void> }>('editor')
+const editor = useTemplateRef<{ openNew: (day: Date, startAt?: Date, endAt?: Date, allDay?: boolean) => void, openEdit: (event: CalendarEvent) => void, remove: (event?: CalendarEvent | null) => Promise<void> }>('editor')
 // The highlighted range on the hour grid: shown while dragging out a new event and while its editor is open.
 const slotSelection = shallowRef<{ day: Date, startsAt: Date, endsAt: Date } | null>(null)
 let dragOffsetPixels = 0
 let resizeSession: EventResizeSession | null = null
 
 const isPhone = useMediaQuery('(max-width: 767px)')
+// All-day events go in the row above the hour grid, not on it.
+const timedEvents = computed(() => events.value.filter(event => !isAllDay(event)))
+const allDayRow = computed(() => days.value.map((day) => {
+  const key = dateKey(day)
+  return { key, events: events.value.filter((event) => {
+    if (!isAllDay(event)) return false
+    const span = eventDayKeys(event)
+    return span.first <= key && key <= span.last
+  }) }
+}))
 const now = computed(() => new Date(currentTime.value))
 const today = computed(() => startOfDay(now.value))
 const weekStart = computed(() => startOfWeek(visibleDate.value))
@@ -285,8 +295,8 @@ watch([events, () => route.query.event], () => {
   void router.replace({ query: {} })
 }, { immediate: true })
 
-function openNewEvent(day = visibleDate.value, startAt?: Date, endAt?: Date) {
-  editor.value?.openNew(day, startAt, endAt)
+function openNewEvent(day = visibleDate.value, startAt?: Date, endAt?: Date, allDay = false) {
+  editor.value?.openNew(day, startAt, endAt, allDay)
 }
 
 // The element last clicked, so a click on an event can open its popover beside it.
@@ -485,12 +495,9 @@ function onMoveDays(event: CalendarEvent, days: number) {
   void saveEventTimes(event, times.startsAt, times.endsAt)
 }
 
-// Days dragged across in the month view: an event from the usual start on the first day to an hour
-// after that time on the last.
+// Days dragged across in the month view: an all-day event over them.
 function onSelectDays(first: Date, last: Date) {
-  const startsAt = defaultCalendarStart(first)
-  const endsAt = new Date(defaultCalendarStart(last).getTime() + 60 * 60_000)
-  openNewEvent(first, startsAt, endsAt)
+  openNewEvent(first, first, last, true)
 }
 
 function openDay(day: Date) {
@@ -504,6 +511,7 @@ function selectionStyle(selection: { day: Date, startsAt: Date, endsAt: Date }) 
 }
 
 function previewClass(event: CalendarEvent) {
+  if (isPendingInvite(event)) return PENDING_EVENT_CLASSES
   const color = normalizeCalendarColor(event.color)
   return new Date(event.endsAt).getTime() <= currentTime.value ? PAST_EVENT_COLOR_CLASSES[color] : EVENT_COLOR_CLASSES[color]
 }
@@ -566,17 +574,34 @@ function previewClass(event: CalendarEvent) {
           @edit="selectEvent"
         />
         <div v-else :class="view === 'week' ? 'min-w-190' : 'min-w-90'">
-          <div class="sticky top-0 z-30 grid h-14 border-b border-default bg-default" :style="{ gridTemplateColumns: gridColumns }">
+          <div class="sticky top-0 z-30 grid border-b border-default bg-default" :style="{ gridTemplateColumns: gridColumns }">
             <div />
             <div
               v-for="day in days"
               :key="dateKey(day)"
-              class="border-l border-default px-3 py-2 text-xs"
+              class="h-14 border-l border-default px-3 py-2 text-xs"
               :class="dateKey(day) === dateKey(today) ? 'text-primary' : 'text-default'"
             >
               {{ formatUserDate(day, { weekday: 'short' }) }}
               <span class="block text-2xl font-medium">{{ formatUserDate(day, { day: 'numeric' }) }}</span>
             </div>
+            <!-- All-day events sit in their own row above the hours. -->
+            <template v-if="allDayRow.some(cell => cell.events.length)">
+              <span class="self-center pe-2 text-end text-[11px] text-muted">{{ t('calendar.allDay') }}</span>
+              <div v-for="cell in allDayRow" :key="cell.key" class="min-w-0 space-y-0.5 border-l border-default p-1">
+                <button
+                  v-for="event in cell.events"
+                  :key="`${event.id}-${event.startsAt}`"
+                  type="button"
+                  :title="`${event.title} · ${t('calendar.allDay')}`"
+                  class="block w-full truncate rounded px-1.5 py-0.5 text-left text-[11px] font-medium hover:brightness-95"
+                  :class="previewClass(event)"
+                  @click="selectEvent(event)"
+                >
+                  {{ event.title }}
+                </button>
+              </div>
+            </template>
           </div>
           <div class="grid" :style="{ gridTemplateColumns: gridColumns, height: `${hourCount * CALENDAR_HOUR_HEIGHT}px` }">
             <div class="relative">
@@ -618,7 +643,7 @@ function previewClass(event: CalendarEvent) {
               </div>
               <CalendarDayEvents
                 :day="day"
-                :events="events"
+                :events="timedEvents"
                 :current-time="currentTime"
                 :busy="busy"
                 :active-event-id="activeEventId"

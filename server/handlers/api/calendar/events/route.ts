@@ -12,6 +12,7 @@ import { DEFAULT_REPEAT_DAYS, normalizeCalendarRepeat, normalizeCalendarRepeatDa
 import type { CalendarEventInput } from "./types";
 import { getRequestTimeZone, normalizeTimeZone } from "#lib/time/utils";
 import { authorizeCalendarRequest, calendarKeyCanSendInvitations } from "#lib/calendar/api-auth";
+import { loadAllDayEventIds, setAllDayEvent } from "#lib/calendar/all-day";
 
 export async function GET(request: Request) {
 	const env = getEnv();
@@ -20,7 +21,13 @@ export async function GET(request: Request) {
 	const url = new URL(request.url);
 	const start = new Date(url.searchParams.get("start") ?? Date.now());
 	const end = new Date(url.searchParams.get("end") ?? start.getTime() + 31 * 86_400_000);
-	const events = await getDb(env).select().from(calendarEvents).where(and(eq(calendarEvents.userId, user.id), lt(calendarEvents.startsAt, end), or(gte(calendarEvents.endsAt, start), ne(calendarEvents.repeat, "none")))).orderBy(calendarEvents.startsAt);
+	const db = getDb(env);
+	const [rows, allDay] = await Promise.all([
+		db.select().from(calendarEvents).where(and(eq(calendarEvents.userId, user.id), lt(calendarEvents.startsAt, end), or(gte(calendarEvents.endsAt, start), ne(calendarEvents.repeat, "none")))).orderBy(calendarEvents.startsAt),
+		loadAllDayEventIds(db, user.id),
+	]);
+	// (fork) allDay: 1 for all-day events.
+	const events = rows.map((event) => ({ ...event, allDay: allDay.has(event.id) ? 1 : 0 }));
 	return NextResponse.json({ events });
 }
 
@@ -40,9 +47,11 @@ export async function POST(request: Request) {
 	const event = { id: newId("evt"), userId: user.id, mailboxId: input.mailboxId ?? null, title: input.title.trim(), description: input.description?.trim() ?? "", location: input.location?.trim() ?? "", attendees: JSON.stringify(attendees), color: normalizeCalendarColor(input.color), repeat, repeatDays: JSON.stringify(repeatDays), repeatAnchorDay: repeat === "monthly" && Number.isInteger(input.repeatAnchorDay) && input.repeatAnchorDay! >= 1 && input.repeatAnchorDay! <= 31 ? input.repeatAnchorDay : null, reminderMinutes: normalizeReminderMinutes(input.reminderMinutes), startsAt, endsAt };
 	const savedEvent = { ...event, timeZone: input.timeZone ? normalizeTimeZone(input.timeZone) : getRequestTimeZone(request, user.timeZone) };
 	await getDb(env).insert(calendarEvents).values(savedEvent);
+	// (fork) Before its migration the mark cannot be stored, and the event stays midnight to midnight.
+	const allDay = input.allDay === true && await setAllDayEvent(getDb(env), event.id, true);
 	if (attendees.length && input.mailboxId) {
-		const calendarFile = createCalendarInvitation({ ...event, uid: event.id, organizer: input.from || undefined, attendees });
+		const calendarFile = createCalendarInvitation({ ...event, uid: event.id, organizer: input.from || undefined, attendees, allDay, timeZone: savedEvent.timeZone });
 		await Promise.all(attendees.map((to) => sendEmail(env, { userId: user.id, mailboxId: input.mailboxId!, from: input.from ?? "", to, subject: `Invitation: ${event.title}`, text: event.description || `You are invited to ${event.title}.`, attachments: [{ filename: "invite.ics", type: "text/calendar; charset=utf-8", content: calendarFile }] })));
 	}
-	return NextResponse.json({ event: savedEvent });
+	return NextResponse.json({ event: { ...savedEvent, allDay: allDay ? 1 : 0 } });
 }

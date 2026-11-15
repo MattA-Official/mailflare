@@ -1,6 +1,6 @@
 // Pure helpers behind the calendar, booking and public booking pages (app/utils/calendar).
 import { describe, expect, it } from 'vitest'
-import { CALENDAR_HOUR_HEIGHT as H, dateKey, eventPosition, formatEventTime, layoutOverlappingEvents, shiftEventByDays, monthGridDates, orderedWeekdays, startOfWeek, weekStartDay, expandCalendarEvents, groupUpcomingEvents, resizeEventTimes, slotMinutesForPosition, slotSelectionTimes, takeUpcomingGroups } from '../../app/utils/calendar/calendar'
+import { CALENDAR_HOUR_HEIGHT as H, dateKey, eventPosition, eventDayKeys, formatEventTime, isAllDay, layoutOverlappingEvents, shiftEventByDays, monthGridDates, orderedWeekdays, startOfWeek, weekStartDay, expandCalendarEvents, groupUpcomingEvents, resizeEventTimes, slotMinutesForPosition, slotSelectionTimes, takeUpcomingGroups } from '../../app/utils/calendar/calendar'
 import { bookingFormWithName, matchBookingHost, nextBookingTimeRange, parseBookingHostIds, visibleBookingEvents } from '../../app/utils/calendar/booking'
 import { calendarDays, localDateIn, moveMonth, readBookingPageSelection } from '../../app/utils/calendar/public-booking'
 import type { BookingEvent, CalendarEvent } from '../../app/types/calendar'
@@ -68,6 +68,13 @@ describe('calendar grid', () => {
   it('moves an event by whole days, keeping its start time and length', () => {
     const moved = shiftEventByDays(event(), 3)
     expect([moved.startsAt.toISOString(), moved.endsAt.toISOString()]).toEqual(['2026-11-05T09:00:00.000Z', '2026-11-05T09:30:00.000Z'])
+  })
+
+  it('reads all-day events, and ignores the placeholder an unmigrated database sends', () => {
+    expect(isAllDay(event({ allDay: 1 }))).toBe(true)
+    expect(isAllDay(event({ allDay: 0 }))).toBe(false)
+    expect(isAllDay(event({ allDay: 'all_day' }))).toBe(false)
+    expect(eventDayKeys({ startsAt: '2026-11-19T00:00:00.000Z', endsAt: '2026-11-22T00:00:00.000Z' })).toEqual({ first: '2026-11-19', last: '2026-11-21' })
   })
 
   it('always shows minutes in event times', () => {

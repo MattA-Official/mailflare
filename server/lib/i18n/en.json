@@ -1753,6 +1753,7 @@
 	"calendar.eventCreated": "Event created",
 	"calendar.eventSaved": "Event saved",
 	"calendar.eventDeleted": "Event deleted",
+	"calendar.allDay": "All day",
 	"calendar.deleteFuture": "Delete future occurrences from now?",
 	"calendar.deleteEvent": "Delete this event?",
 	"calendar.deleteFailed": "Could not delete the event. Please try again.",

@@ -5,6 +5,7 @@ import type { AttachmentContent } from "#lib/email/attachment-types";
 import { inviteRepeat, parseInvite, type ParsedInvite } from "./invite";
 import { findInviteAttachment, MAX_INVITE_BYTES } from "./invite-attachment";
 import { addExcludedOccurrence, chooseRecipientZone, inboundNeedsRecipientZone, inviteSenderMatches, mergeExcludedOccurrences, normalizeInviteSender, planInboundInvite } from "./invite-rules";
+import { setAllDayEvent } from "./all-day";
 
 export { findInviteAttachment };
 
@@ -106,6 +107,7 @@ export async function registerInboundInvite(env: CloudflareEnv, input: { userId:
 		const values = { ...inviteEventValues(invite, invite.timeZone ?? userZone, existing?.excludedOccurrences), inviteSender: sender };
 		if (plan.action === "insert" || !existing) {
 			await db.insert(calendarEvents).values({ id, userId: input.userId, mailboxId: input.mailboxId, color: "#2563eb", responseStatus: "needs-action", inviteMessageId: input.messageId, ...values });
+			if (invite.allDay) await setAllDayEvent(db, id, true);
 			return;
 		}
 		const moved = existing.startsAt.getTime() !== invite.startsAt.getTime() || existing.endsAt.getTime() !== invite.endsAt.getTime();
@@ -113,6 +115,7 @@ export async function registerInboundInvite(env: CloudflareEnv, input: { userId:
 			...values, inviteMessageId: input.messageId,
 			responseStatus: moved ? "needs-action" : existing.responseStatus,
 		}).where(where);
+		await setAllDayEvent(db, id, invite.allDay);
 	} catch (error) {
 		console.error(`Invitation registration failed for ${input.messageId}`, error);
 	}

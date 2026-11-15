@@ -261,6 +261,14 @@ Tick in the PR that lands it. Add rows for anything discovered.
     named indexes in SQL. Drizzle Kit diffs against the schema snapshot, so none of these produce a
     migration unless the schema changes there.
 
+- (fork) All-day events (Matt, 2026-11-15). Upstream has none of its own; incoming all-day invites
+  were already stored midnight to midnight. The mark lives in its own table, `calendar_event_all_day`
+  (migration `20261115173626_calendar_all_day`), not a column on `calendar_events`, because Drizzle 1.0
+  names every schema column in every insert, so a new column would break all event saves until the
+  migration is applied. `server/lib/calendar/all-day.ts` treats a missing table as "no all-day events"
+  and skips the mark on write. `GET /api/calendar/events` adds `allDay: 0 | 1` to each event and
+  POST/PATCH accept `allDay: boolean`; the iCalendar feed and sent invitations use `VALUE=DATE`.
+
 - (11) No licences. `/api/licenses/*` is gone, there is no licence indicator (workstream 1) and no
   licences page (workstream 8). Every licensed feature is on: `canForwardEmail`, `canCreateShared` and
   `canManageHosts` are always true for those who would have had them with a Team licence, and

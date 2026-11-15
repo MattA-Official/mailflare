@@ -5,7 +5,7 @@ import { formatUserDate } from '#lib/time/utils'
 import { normalizeCalendarColor } from '#lib/calendar/colors'
 import type { TranslationKey } from '#lib/i18n/types'
 import type { CalendarEvent } from '~/types/calendar'
-import { dateKey, formatEventRange, formatEventTime } from '~/utils/calendar/calendar'
+import { dateKey, formatAllDayRange, formatEventRange, formatEventTime, isAllDay } from '~/utils/calendar/calendar'
 
 const props = defineProps<{
   event: CalendarEvent | null
@@ -21,6 +21,7 @@ const when = computed(() => {
   if (!event) return ''
   const start = new Date(event.startsAt)
   const end = new Date(event.endsAt)
+  if (isAllDay(event)) return `${formatAllDayRange(event)} · ${t('calendar.allDay')}`
   const day = (value: Date) => formatUserDate(value, { weekday: 'short', day: 'numeric', month: 'short' })
   // An event that runs past midnight names both days.
   if (dateKey(start) !== dateKey(new Date(end.getTime() - 1))) return `${day(start)}, ${formatEventTime(start)} – ${day(end)}, ${formatEventTime(end)}`

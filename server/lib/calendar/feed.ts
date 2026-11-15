@@ -1,5 +1,6 @@
 import { escapeIcsText, foldIcsLine, formatIcsUtc, joinIcsLines } from "./ics";
 import { parseCalendarRepeatDays, parseExcludedOccurrences } from "./recurrence";
+import { icsDate } from "./all-day";
 
 export { escapeIcsText, foldIcsLine };
 
@@ -19,6 +20,8 @@ export type FeedEvent = {
 	attendees: string;
 	updatedAt?: Date | null;
 	responseStatus?: string | null;
+	/** (fork) An all-day event; see all-day.ts. */
+	allDay?: boolean;
 };
 
 const BYDAY = ["SU", "MO", "TU", "WE", "TH", "FR", "SA"];
@@ -66,13 +69,15 @@ export function buildCalendarFeed(events: FeedEvent[], options: { name: string; 
 		// Recurring events keep their local clock time across daylight saving changes only when they carry a zone.
 		const zone = rule ? validTimeZone(event.timeZone) : null;
 		lines.push("BEGIN:VEVENT", `UID:${event.id}@mailflare`, `DTSTAMP:${stamp}`,
-			dateProperty("DTSTART", event.startsAt, zone), dateProperty("DTEND", event.endsAt, zone),
+			...(event.allDay
+				? [`DTSTART;VALUE=DATE:${icsDate(event.startsAt, validTimeZone(event.timeZone) ?? "UTC")}`, `DTEND;VALUE=DATE:${icsDate(event.endsAt, validTimeZone(event.timeZone) ?? "UTC")}`]
+				: [dateProperty("DTSTART", event.startsAt, zone), dateProperty("DTEND", event.endsAt, zone)]),
 			`SUMMARY:${escapeIcsText(event.title)}`);
 		if (event.description) lines.push(`DESCRIPTION:${escapeIcsText(event.description)}`);
 		if (event.location) lines.push(`LOCATION:${escapeIcsText(event.location)}`);
 		if (rule) {
 			lines.push(rule);
-			for (const excluded of parseExcludedOccurrences(event.excludedOccurrences)) lines.push(dateProperty("EXDATE", new Date(excluded), zone));
+			for (const excluded of parseExcludedOccurrences(event.excludedOccurrences)) lines.push(event.allDay ? `EXDATE;VALUE=DATE:${icsDate(new Date(excluded), validTimeZone(event.timeZone) ?? "UTC")}` : dateProperty("EXDATE", new Date(excluded), zone));
 		}
 		if (event.responseStatus === "tentative") lines.push("STATUS:TENTATIVE");
 		if (event.updatedAt) lines.push(`LAST-MODIFIED:${utc(event.updatedAt)}`);
