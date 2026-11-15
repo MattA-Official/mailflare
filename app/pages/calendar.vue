@@ -90,6 +90,21 @@ onMounted(() => {
 })
 onBeforeUnmount(() => clearInterval(clock))
 
+// Week and day views open scrolled to an hour before now (or 08:00 when today is not shown) rather than midnight.
+const grid = useTemplateRef<HTMLElement>('grid')
+function scrollToWorkingHours() {
+  const section = grid.value
+  if (!section || view.value === 'month') return
+  let scroller: HTMLElement | null = section.parentElement
+  while (scroller && scroller.scrollHeight <= scroller.clientHeight) scroller = scroller.parentElement
+  if (!scroller) return
+  const showsToday = days.value.some(day => dateKey(day) === dateKey(now.value))
+  const top = showsToday ? currentTimePosition(now.value) - CALENDAR_HOUR_HEIGHT : 8 * CALENDAR_HOUR_HEIGHT
+  scroller.scrollTop = Math.max(0, top)
+}
+onMounted(() => nextTick(scrollToWorkingHours))
+watch(view, () => nextTick(scrollToWorkingHours), { flush: 'post' })
+
 // Dragging on empty grid creates an event for the range dragged over. A mouse or pen drags straight
 // away; a finger holds still for a moment first, so an ordinary swipe still scrolls the grid.
 const LONG_PRESS_MS = 400
@@ -448,7 +463,7 @@ function previewClass(event: CalendarEvent) {
           <UButton icon="i-lucide-chevron-right" color="neutral" variant="ghost" :aria-label="t(`calendar.nextView.${view}`)" @click="step(1)" />
           <UButton :label="t('calendar.today')" color="neutral" variant="outline" class="max-md:hidden" @click="visibleDate = new Date()" />
           <UFieldGroup class="ms-1">
-            <UButton icon="i-lucide-plus" :label="t('calendar.newEvent')" :disabled="busy" @click="openNewEvent()" />
+            <UButton icon="i-lucide-plus" :label="t('calendar.newEvent')" :aria-label="t('calendar.newEvent')" :ui="{ label: 'max-sm:hidden' }" :disabled="busy" @click="openNewEvent()" />
             <UDropdownMenu :items="optionsMenu" :content="{ align: 'end' }">
               <UButton icon="i-lucide-chevron-down" :aria-label="t('calendar.options')" class="border-s border-inverted/30" />
             </UDropdownMenu>
@@ -459,7 +474,7 @@ function previewClass(event: CalendarEvent) {
     </template>
 
     <template #body>
-      <section :aria-busy="loading" class="min-h-0 min-w-0" :class="view === 'month' && 'h-full'">
+      <section ref="grid" :aria-busy="loading" class="min-h-0 min-w-0" :class="view === 'month' && 'h-full'">
         <CalendarMonthGrid
           v-if="view === 'month'"
           :month="visibleDate"
@@ -485,13 +500,13 @@ function previewClass(event: CalendarEvent) {
           </div>
           <div class="grid" :style="{ gridTemplateColumns: gridColumns, height: `${hourCount * CALENDAR_HOUR_HEIGHT}px` }">
             <div class="relative">
+              <!-- Every hour but the first, centred on its line. -->
               <span
-                v-for="index in hourCount"
-                :key="index"
-                class="absolute right-3 text-xs text-muted"
-                :class="index === 1 ? '' : '-translate-y-1/2'"
-                :style="{ top: `${(index - 1) * CALENDAR_HOUR_HEIGHT}px` }"
-              >{{ (index - 1) % 2 === 0 ? '' : formatHour(CALENDAR_START_HOUR + index - 1) }}</span>
+                v-for="hour in hourCount - 1"
+                :key="hour"
+                class="absolute right-2 -translate-y-1/2 text-xs whitespace-nowrap text-muted tabular-nums"
+                :style="{ top: `${hour * CALENDAR_HOUR_HEIGHT}px` }"
+              >{{ formatHour(CALENDAR_START_HOUR + hour) }}</span>
             </div>
             <div
               v-for="day in days"

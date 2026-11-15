@@ -156,6 +156,7 @@ async function save() {
     })
     emit('saved')
     open.value = false
+    toast.add({ title: event ? t('calendar.eventSaved') : t('calendar.eventCreated'), color: 'success' })
   } catch (error) {
     toast.add({ title: error instanceof ApiError ? error.message : t('calendar.saveFailed'), color: 'error' })
   } finally {
@@ -173,6 +174,7 @@ async function remove() {
     await api(`/api/calendar/events/${event.id}`, { method: 'DELETE', body: recurring ? { effectiveFrom: new Date().toISOString() } : undefined })
     emit('saved')
     open.value = false
+    toast.add({ title: t('calendar.eventDeleted'), color: 'success' })
   } catch (error) {
     toast.add({ title: error instanceof ApiError ? error.message : t('calendar.deleteFailed'), color: 'error' })
   } finally {

@@ -3,7 +3,7 @@
 // Ported from legacy/src/app/(calendar)/calendar/day-events.tsx.
 import { normalizeCalendarColor } from '#lib/calendar/colors'
 import type { CalendarEvent, EventResizeEdge } from '~/types/calendar'
-import { addDays, dateKey, EVENT_COLOR_CLASSES, eventPosition, formatEventRange, isPendingInvite, PAST_EVENT_COLOR_CLASSES, PENDING_EVENT_CLASSES } from '~/utils/calendar/calendar'
+import { addDays, dateKey, EVENT_COLOR_CLASSES, eventPosition, formatEventRange, formatEventTime, isPendingInvite, PAST_EVENT_COLOR_CLASSES, PENDING_EVENT_CLASSES } from '~/utils/calendar/calendar'
 
 const props = defineProps<{
   day: Date
@@ -43,6 +43,7 @@ const items = computed(() => {
       position,
       color: normalizeCalendarColor(event.color),
       range: formatEventRange(event),
+      start: formatEventTime(new Date(event.startsAt)),
       edges,
       pending,
       // Keep the grab zone inside the event so it never steals clicks from neighbours.
@@ -61,7 +62,7 @@ const items = computed(() => {
       class="absolute inset-x-1 z-10 flex cursor-move flex-col items-start justify-start overflow-hidden rounded-lg pr-2 pl-4 text-left hover:brightness-95"
       :class="[
         item.pending ? PENDING_EVENT_CLASSES : item.event.endsAt && new Date(item.event.endsAt).getTime() <= currentTime ? PAST_EVENT_COLOR_CLASSES[item.color] : EVENT_COLOR_CLASSES[item.color],
-        item.position.height >= 20 ? 'py-1.5' : 'py-0',
+        item.position.height >= 36 ? 'py-1.5' : item.position.height >= 18 ? 'py-1' : 'py-0',
         activeEventId === item.event.id && 'opacity-40',
       ]"
       :style="{ top: `${item.position.top}px`, height: `${item.position.height}px` }"
@@ -70,8 +71,15 @@ const items = computed(() => {
       @dragend="emit('dragEnd')"
     >
       <span class="absolute top-1 left-1 block h-[calc(100%-8px)] w-1 rounded-xl bg-current" />
-      <span v-if="item.position.height >= 15" class="block w-full truncate text-xs leading-4 font-semibold">{{ item.event.title }}</span>
-      <span v-if="item.position.height >= 34" class="block w-full truncate text-[11px] leading-4 opacity-70">{{ item.range }}</span>
+      <!-- Short events fit title and start time on one line; longer ones show the range underneath. -->
+      <span v-if="item.position.height < 36" class="flex w-full min-w-0 items-baseline gap-1.5 text-[11px] leading-3 whitespace-nowrap">
+        <span class="truncate font-semibold">{{ item.event.title }}</span>
+        <span class="shrink-0 opacity-70">{{ item.start }}</span>
+      </span>
+      <template v-else>
+        <span class="block w-full truncate text-xs leading-4 font-semibold">{{ item.event.title }}</span>
+        <span class="block w-full truncate text-[11px] leading-4 opacity-70">{{ item.range }}</span>
+      </template>
     </button>
     <button
       v-for="edge in item.edges"

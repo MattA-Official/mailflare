@@ -3,8 +3,9 @@
 // Ported from legacy/src/app/(calendar)/calendar/month-grid.tsx.
 import { normalizeCalendarColor } from '#lib/calendar/colors'
 import { formatUserDate } from '#lib/time/utils'
+import type { TranslationKey } from '#lib/i18n/types'
 import type { CalendarEvent } from '~/types/calendar'
-import { addDays, dateKey, EVENT_COLOR_CLASSES, formatEventRange, isPendingInvite, monthGridDates, PAST_EVENT_COLOR_CLASSES, PENDING_EVENT_CLASSES } from '~/utils/calendar/calendar'
+import { addDays, dateKey, EVENT_COLOR_CLASSES, formatEventRange, isPendingInvite, monthGridDates, orderedWeekdays, PAST_EVENT_COLOR_CLASSES, PENDING_EVENT_CLASSES } from '~/utils/calendar/calendar'
 
 const MAX_VISIBLE = 3
 
@@ -22,7 +23,7 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useLanguage()
-const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6] as const
+const WEEKDAYS = orderedWeekdays()
 
 const cells = computed(() => {
   const monthKey = dateKey(props.month).slice(0, 7)
@@ -47,7 +48,7 @@ function eventClass(event: CalendarEvent) {
 <template>
   <div class="flex min-h-full min-w-160 flex-col">
     <div class="sticky top-0 z-30 grid grid-cols-7 border-b border-default bg-default">
-      <span v-for="weekday in WEEKDAYS" :key="weekday" class="px-2 py-2 text-xs font-medium text-muted">{{ t(`calendar.weekdayShort.${weekday}`) }}</span>
+      <span v-for="weekday in WEEKDAYS" :key="weekday" class="px-2 py-2 text-xs font-medium text-muted">{{ t(`calendar.weekdayShort.${weekday}` as TranslationKey) }}</span>
     </div>
     <div class="grid flex-1 grid-cols-7 grid-rows-6">
       <div v-for="cell in cells" :key="cell.key" class="relative min-h-28 border-b border-l border-default p-1">

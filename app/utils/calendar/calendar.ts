@@ -8,7 +8,7 @@ import type { CalendarEvent, CalendarEventTimes, EventGroup, EventResizeEdge } f
 
 export const CALENDAR_START_HOUR = 0
 export const CALENDAR_END_HOUR = 24
-export const CALENDAR_HOUR_HEIGHT = 36
+export const CALENDAR_HOUR_HEIGHT = 48
 export const UPCOMING_BATCH_SIZE = 14
 export const WEEKDAY_OPTIONS = [0, 1, 2, 3, 4, 5, 6] as const
 
@@ -157,14 +157,40 @@ export function defaultCalendarStart(day: Date): Date {
   return dateFromZonedFields(fields, getUserTimeZone())
 }
 
-export function monthGridDates(month: Date): Date[] {
+// Regions whose weeks start on Sunday, for browsers without Intl.Locale week info (Firefox).
+const SUNDAY_FIRST_REGIONS = new Set(['US', 'CA', 'MX', 'BR', 'JP', 'KR', 'TW', 'HK', 'PH', 'IL', 'IN', 'ZA', 'AU', 'SA', 'PE', 'CO', 'AR', 'GT', 'VE', 'PR'])
+
+/** The weekday (0 = Sunday) a week starts on in the reader's region: Monday in Britain, Sunday in the US. */
+export function weekStartDay(locale: string | undefined = getDisplayLocale() ?? (typeof navigator === 'undefined' ? undefined : navigator.language)): number {
+  if (!locale) return 1
+  try {
+    const value = new Intl.Locale(locale) as Intl.Locale & { getWeekInfo?: () => { firstDay: number }, weekInfo?: { firstDay: number } }
+    const info = value.getWeekInfo?.() ?? value.weekInfo
+    if (info) return info.firstDay % 7
+    const region = value.maximize().region
+    return region && SUNDAY_FIRST_REGIONS.has(region) ? 0 : 1
+  } catch {
+    return 1
+  }
+}
+
+/** Weekday numbers (0 = Sunday) in the order the reader's week runs. */
+export function orderedWeekdays(firstDay = weekStartDay()): number[] {
+  return Array.from({ length: 7 }, (_, index) => (firstDay + index) % 7)
+}
+
+function daysIntoWeek(value: Date, firstDay: number): number {
+  return (zonedDateFields(value, getUserTimeZone()).getUTCDay() - firstDay + 7) % 7
+}
+
+export function monthGridDates(month: Date, firstDay = weekStartDay()): Date[] {
   const first = startOfMonth(month)
-  const gridStart = addDays(first, -zonedDateFields(first, getUserTimeZone()).getUTCDay())
+  const gridStart = addDays(first, -daysIntoWeek(first, firstDay))
   return Array.from({ length: 42 }, (_, index) => addDays(gridStart, index))
 }
 
-export function startOfWeek(value: Date): Date {
-  return addDays(startOfDay(value), -zonedDateFields(value, getUserTimeZone()).getUTCDay())
+export function startOfWeek(value: Date, firstDay = weekStartDay()): Date {
+  return addDays(startOfDay(value), -daysIntoWeek(value, firstDay))
 }
 
 export function dateKey(value: Date): string {
@@ -186,13 +212,18 @@ export function currentTimePosition(value: Date): number {
   return ((fields.getUTCHours() - CALENDAR_START_HOUR) * 60 + fields.getUTCMinutes() + fields.getUTCSeconds() / 60) * CALENDAR_HOUR_HEIGHT / 60
 }
 
-export function formatHour(hour: number): string {
-  return new Date(2026, 0, 1, hour).toLocaleTimeString(getDisplayLocale(), { hour: 'numeric' })
+function usesTwelveHourClock(): boolean {
+  return new Intl.DateTimeFormat(getDisplayLocale(), { hour: 'numeric' }).resolvedOptions().hour12 === true
 }
 
+/** Hour labels down the grid: "09:00" on a 24-hour clock, "9 AM" on a 12-hour one. */
+export function formatHour(hour: number): string {
+  return new Date(2026, 0, 1, hour).toLocaleTimeString(getDisplayLocale(), usesTwelveHourClock() ? { hour: 'numeric' } : { hour: '2-digit', minute: '2-digit' })
+}
+
+/** "09:00" or "9:00 AM": always with minutes, so the two ends of a range read alike. */
 export function formatEventTime(value: Date): string {
-  const minutes = zonedDateFields(value, getUserTimeZone()).getUTCMinutes()
-  return formatUserDate(value, { hour: 'numeric', minute: minutes ? '2-digit' : undefined })
+  return formatUserDate(value, { hour: usesTwelveHourClock() ? 'numeric' : '2-digit', minute: '2-digit' })
 }
 
 export function formatEventRange(event: Pick<CalendarEvent, 'startsAt' | 'endsAt'>): string {
@@ -211,7 +242,7 @@ export function groupUpcomingEvents(events: CalendarEvent[], today: Date, t: Tra
       ? t('calendar.today')
       : key === dateKey(tomorrowStart)
         ? t('calendar.tomorrow')
-        : formatUserDate(eventDate, { month: 'short', day: 'numeric', year: 'numeric' })
+        : formatUserDate(eventDate, { weekday: 'short', day: 'numeric', month: 'short', year: key.slice(0, 4) === dateKey(todayStart).slice(0, 4) ? undefined : 'numeric' })
     const lastGroup = groups[groups.length - 1]
     if (lastGroup?.key === key) lastGroup.events.push(event)
     else groups.push({ key, label, events: [event] })
