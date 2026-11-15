@@ -264,7 +264,7 @@ const activeClass = 'bg-primary/10 font-medium text-primary'
     <UModal v-model:open="creatingDrive" :title="t('sharedDrives.new')" :dismissible="!saving">
       <template #body>
         <form class="space-y-5" @submit.prevent="createDrive">
-          <UInput v-model="driveName" autofocus class="w-full" :maxlength="100" :placeholder="t('sharedDrives.name')" :aria-label="t('sharedDrives.name')" />
+          <UInput v-model="driveName" autofocus :maxlength="100" :placeholder="t('sharedDrives.name')" :aria-label="t('sharedDrives.name')" />
           <div class="flex justify-end gap-2">
             <UButton color="neutral" variant="ghost" :disabled="saving" :label="t('common.cancel')" @click="creatingDrive = false" />
             <UButton type="submit" :disabled="saving || !driveName.trim()" :label="t('sharedDrives.create')" />
@@ -275,7 +275,7 @@ const activeClass = 'bg-primary/10 font-medium text-primary'
     <UModal v-model:open="creating" :title="t('drive.newFolder')" :dismissible="!saving">
       <template #body>
         <form class="space-y-5" @submit.prevent="createFolder">
-          <UInput v-model="folderName" autofocus class="w-full" :maxlength="255" :placeholder="t('drive.folderName')" :aria-label="t('drive.folderName')" />
+          <UInput v-model="folderName" autofocus :maxlength="255" :placeholder="t('drive.folderName')" :aria-label="t('drive.folderName')" />
           <div class="flex justify-end gap-2">
             <UButton color="neutral" variant="ghost" :disabled="saving" :label="t('common.cancel')" @click="creating = false" />
             <UButton type="submit" :disabled="saving || !folderName.trim()" :label="t('drive.create')" />

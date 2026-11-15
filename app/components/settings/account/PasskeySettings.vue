@@ -289,7 +289,7 @@ const renameOpen = computed({ get: () => rename.value !== null, set: (v) => { if
       <template #body>
         <form class="space-y-4" @submit.prevent="submitAdd">
           <UFormField :label="t('passkey.nameOptional')" :help="t('passkey.nameHint')" name="new-passkey-name">
-            <UInput id="new-passkey-name" v-model="name" :maxlength="100" autocomplete="off" :placeholder="t('passkey.namePlaceholder')" autofocus class="w-full" />
+            <UInput id="new-passkey-name" v-model="name" :maxlength="100" autocomplete="off" :placeholder="t('passkey.namePlaceholder')" autofocus />
           </UFormField>
           <UButton type="submit" :label="t('common.continue')" />
         </form>
@@ -301,10 +301,8 @@ const renameOpen = computed({ get: () => rename.value !== null, set: (v) => { if
         <UAlert color="warning" variant="subtle" icon="i-lucide-triangle-alert" role="alert" :description="t('passkey.removeLastSecondFactorWarning')" />
       </template>
       <template #footer>
-        <div class="flex w-full justify-end gap-2">
-          <UButton ref="removeCancel" color="neutral" variant="outline" :label="t('common.cancel')" @click="confirmRemove = null" />
-          <UButton color="error" :label="t('passkey.remove')" @click="startRemove" />
-        </div>
+        <UButton ref="removeCancel" color="neutral" variant="outline" :label="t('common.cancel')" @click="confirmRemove = null" />
+        <UButton color="error" :label="t('passkey.remove')" @click="startRemove" />
       </template>
     </UModal>
 
@@ -312,7 +310,7 @@ const renameOpen = computed({ get: () => rename.value !== null, set: (v) => { if
       <template #body>
         <form v-if="rename" class="space-y-4" @submit.prevent="submitRename">
           <UFormField :label="t('passkey.name')" name="rename-passkey">
-            <UInput id="rename-passkey" v-model="rename.name" :maxlength="100" required autofocus class="w-full" />
+            <UInput id="rename-passkey" v-model="rename.name" :maxlength="100" required autofocus />
           </UFormField>
           <p v-if="renameError" role="alert" class="text-sm text-error">
             {{ renameError }}

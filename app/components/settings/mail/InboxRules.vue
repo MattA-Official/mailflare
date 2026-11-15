@@ -197,10 +197,10 @@ async function remove(rule: InboxRule) {
         <UForm id="inbox-rule-form" :state="form" class="space-y-4" @submit="save">
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <UFormField :label="t('rules.fieldLabel')" name="matchField">
-              <USelect v-model="form.matchField" :items="fieldItems" class="w-full" />
+              <USelect v-model="form.matchField" :items="fieldItems" />
             </UFormField>
             <UFormField :label="t('rules.matchLabel')" name="matchOperator">
-              <USelect v-model="form.matchOperator" :items="operatorItems" class="w-full" />
+              <USelect v-model="form.matchOperator" :items="operatorItems" />
             </UFormField>
           </div>
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -208,16 +208,15 @@ async function remove(rule: InboxRule) {
               <UInput
                 v-model="form.matchValue"
                 :placeholder="form.matchField === 'email' ? t('rules.valuePlaceholderEmail') : t('rules.valuePlaceholderOther')"
-                class="w-full"
               />
             </UFormField>
             <UFormField :label="t('rules.destination')" name="destination">
-              <USelect v-model="form.destination" :items="destinationItems" :placeholder="t('rules.selectDestination')" class="w-full" />
+              <USelect v-model="form.destination" :items="destinationItems" :placeholder="t('rules.selectDestination')" />
             </UFormField>
           </div>
           <div v-if="isForward" class="grid gap-3">
             <UFormField :label="t('rules.forwardAddress')" :help="t('rules.forwardHint')" name="forwardTo">
-              <UInput v-model="form.forwardTo" type="email" autocomplete="email" placeholder="destination@example.com" class="w-full" />
+              <UInput v-model="form.forwardTo" type="email" autocomplete="email" placeholder="destination@example.com" />
             </UFormField>
             <UCheckbox v-model="form.keepCopy" :label="t('rules.forwardKeepCopy')" />
           </div>
@@ -225,16 +224,14 @@ async function remove(rule: InboxRule) {
         </UForm>
       </template>
       <template #footer>
-        <div class="flex w-full justify-end gap-2">
-          <UButton color="neutral" variant="outline" :label="t('common.cancel')" @click="dialogOpen = false" />
-          <UButton
-            type="submit"
-            form="inbox-rule-form"
-            :disabled="!canSubmit"
-            :loading="saving"
-            :label="saving ? t('common.saving') : editingRule ? t('rules.saveChanges') : t('rules.create')"
-          />
-        </div>
+        <UButton color="neutral" variant="outline" :label="t('common.cancel')" @click="dialogOpen = false" />
+        <UButton
+          type="submit"
+          form="inbox-rule-form"
+          :disabled="!canSubmit"
+          :loading="saving"
+          :label="saving ? t('common.saving') : editingRule ? t('rules.saveChanges') : t('rules.create')"
+        />
       </template>
     </UModal>
   </section>

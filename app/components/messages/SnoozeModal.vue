@@ -53,7 +53,7 @@ async function handleSnooze() {
           />
         </div>
         <UFormField :label="t('snooze.selectDateTime', { timeZone: getUserTimeZone() })" :name="inputId">
-          <UInput :id="inputId" v-model="snoozedUntil" type="datetime-local" class="w-full" />
+          <UInput :id="inputId" v-model="snoozedUntil" type="datetime-local" />
         </UFormField>
         <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
         <UButton :loading="snoozing" :label="snoozing ? t('common.snoozing') : t('common.snooze')" @click="handleSnooze" />

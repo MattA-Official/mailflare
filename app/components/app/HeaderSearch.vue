@@ -37,7 +37,7 @@ async function expand() {
         icon="i-lucide-search"
         variant="soft"
         size="lg"
-        class="w-full max-w-2xl lg:min-w-96"
+        class="max-w-2xl lg:min-w-96"
         :ui="{ base: 'rounded-full' }"
         data-mail-search-input
         :aria-label="t('search.mail')"

@@ -326,7 +326,7 @@ const sortColumns = computed(() => [
     <template #header>
       <AppNavbar :title="t('drive.title')">
         <form role="search" class="w-full max-w-2xl" @submit.prevent="submitSearch">
-          <UInput v-model="search" icon="i-lucide-search" class="w-full" :placeholder="t('drive.search')" :aria-label="t('drive.search')" />
+          <UInput v-model="search" icon="i-lucide-search" :placeholder="t('drive.search')" :aria-label="t('drive.search')" />
         </form>
       </AppNavbar>
     </template>
@@ -449,7 +449,7 @@ const sortColumns = computed(() => [
       <UModal :open="!!naming" :title="naming?.mode === 'create' ? t('drive.newFolder') : t('drive.renameTitle')" @update:open="(value: boolean) => { if (!value) naming = null }">
         <template #body>
           <form v-if="naming" class="space-y-5" @submit.prevent="submitName">
-            <UInput v-model="naming.value" autofocus class="w-full" :maxlength="255" :aria-label="t('drive.folderName')" @focus="($event.target as HTMLInputElement).select()" />
+            <UInput v-model="naming.value" autofocus :maxlength="255" :aria-label="t('drive.folderName')" @focus="($event.target as HTMLInputElement).select()" />
             <div class="flex justify-end gap-2">
               <UButton color="neutral" variant="ghost" :label="t('common.cancel')" @click="naming = null" />
               <UButton type="submit" :disabled="!naming.value.trim()" :label="naming.mode === 'create' ? t('drive.create') : t('drive.save')" />

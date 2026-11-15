@@ -113,7 +113,7 @@ async function deleteForever() {
         <template #content>
           <div class="w-72 p-1.5">
             <div v-if="treeItems.length > 1" class="border-b border-default p-1.5 pb-2" @keydown.stop>
-              <USelect v-model="tree" :items="treeItems" size="sm" class="w-full" :aria-label="t('sharedDrives.moveTo')" />
+              <USelect v-model="tree" :items="treeItems" size="sm" :aria-label="t('sharedDrives.moveTo')" />
             </div>
             <form class="flex items-center gap-1 border-b border-default p-1.5 pb-2" @submit.prevent="createAndMove" @keydown.stop>
               <UIcon name="i-lucide-folder-plus" class="size-4 shrink-0 text-muted" />

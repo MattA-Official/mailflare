@@ -287,10 +287,8 @@ async function deleteBackup(backup: BackupItem) {
 
     <UModal :open="!!restoreFile" :title="t('backups.restore')" :description="t('backups.restoreConfirm')" @update:open="open => !open && (restoreFile = null)">
       <template #footer>
-        <div class="flex w-full justify-end gap-2">
-          <UButton color="neutral" variant="outline" :label="t('common.cancel')" @click="restoreFile = null" />
-          <UButton color="error" :label="t('backups.restore')" @click="confirmRestore" />
-        </div>
+        <UButton color="neutral" variant="outline" :label="t('common.cancel')" @click="restoreFile = null" />
+        <UButton color="error" :label="t('backups.restore')" @click="confirmRestore" />
       </template>
     </UModal>
   </AdminSystemPage>

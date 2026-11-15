@@ -95,7 +95,7 @@ const shownOnceParts = computed(() => t('emailClients.shownOnce', { link: '\u000
     <form v-else class="space-y-4" @submit.prevent="submit">
       <div class="flex flex-wrap items-end gap-3">
         <UFormField :label="t('emailClients.deviceName')" name="jmap-key-name" class="min-w-56 flex-1">
-          <UInput id="jmap-key-name" v-model="name" :placeholder="t('emailClients.devicePlaceholder')" class="w-full" />
+          <UInput id="jmap-key-name" v-model="name" :placeholder="t('emailClients.devicePlaceholder')" />
         </UFormField>
         <UButton
           type="submit"

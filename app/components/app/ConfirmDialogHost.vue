@@ -29,7 +29,7 @@ function settle(confirmed: boolean) {
     :title="options?.title ?? options?.message ?? ''"
     :description="options?.title ? options.message : undefined"
     :close="false"
-    :ui="{ footer: 'justify-end', header: options?.title ? undefined : 'sr-only', description: 'whitespace-pre-line' }"
+    :ui="{ header: options?.title ? undefined : 'sr-only', description: 'whitespace-pre-line' }"
     @update:open="open => !open && settle(false)"
   >
     <template v-if="options && (!options.title || options.requireText)" #body>
@@ -37,7 +37,7 @@ function settle(confirmed: boolean) {
         {{ options.message }}
       </p>
       <form v-if="options.requireText" :class="!options.title && 'mt-4'" @submit.prevent="canConfirm && settle(true)">
-        <UInput v-model="typed" :placeholder="options.requireText" :aria-label="options.requireText" autofocus class="w-full" autocomplete="off" spellcheck="false" />
+        <UInput v-model="typed" :placeholder="options.requireText" :aria-label="options.requireText" autofocus autocomplete="off" spellcheck="false" />
       </form>
     </template>
     <template #footer>

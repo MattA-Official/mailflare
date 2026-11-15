@@ -113,7 +113,7 @@ async function revoke() {
       <template #body>
         <form v-if="!newKey" class="space-y-4" @submit.prevent="create">
           <UFormField :label="t('apiKeys.keyName')">
-            <UInput v-model="name" :maxlength="100" :placeholder="t('adminKeys.namePlaceholder')" class="w-full" />
+            <UInput v-model="name" :maxlength="100" :placeholder="t('adminKeys.namePlaceholder')" />
           </UFormField>
           <UCheckbox v-model="mcpAllowed" :label="t('apiKeys.allowMcp')" :description="t('adminKeys.allowMcpHint')" />
           <fieldset class="space-y-2">
@@ -147,10 +147,8 @@ async function revoke() {
 
     <UModal :open="!!confirmRevoke" :title="t('common.revoke')" :description="confirmRevoke ? t('apiKeys.revokeConfirm', { name: confirmRevoke.name }) : ''" @update:open="open => !open && (confirmRevoke = null)">
       <template #footer>
-        <div class="flex w-full justify-end gap-2">
-          <UButton color="neutral" variant="outline" :label="t('common.cancel')" @click="confirmRevoke = null" />
-          <UButton color="error" :label="t('common.revoke')" @click="revoke" />
-        </div>
+        <UButton color="neutral" variant="outline" :label="t('common.cancel')" @click="confirmRevoke = null" />
+        <UButton color="error" :label="t('common.revoke')" @click="revoke" />
       </template>
     </UModal>
   </AdminSystemPage>

@@ -60,7 +60,7 @@ async function submit() {
       </template>
       <form class="space-y-6" @submit.prevent="submit">
         <UFormField :label="t('branding.appName')" required>
-          <UInput v-model="appName" :maxlength="60" required class="w-full" />
+          <UInput v-model="appName" :maxlength="60" required />
         </UFormField>
         <UFormField :label="t('branding.appIcon')">
           <input ref="input" type="file" :accept="BRANDING_ICON_ACCEPT" class="hidden" @change="pickIcon">

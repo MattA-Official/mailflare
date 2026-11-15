@@ -83,7 +83,7 @@ const description = computed(() => {
     </div>
     <form v-else class="space-y-5" @submit.prevent="createPasskey">
       <UFormField :label="t('passkey.nameOptional')" name="passkey-name" :help="t('passkey.nameHint')">
-        <UInput v-model="name" maxlength="100" autocomplete="off" autofocus size="xl" class="w-full" :placeholder="t('passkey.namePlaceholder')" />
+        <UInput v-model="name" maxlength="100" autocomplete="off" autofocus size="xl" :placeholder="t('passkey.namePlaceholder')" />
       </UFormField>
       <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />
       <UButton type="submit" block size="xl" :loading="loading" :label="loading ? t('passkey.waiting') : t('passkey.create')" />

@@ -32,7 +32,7 @@ const domainItems = computed(() => (domains.value ?? []).map(domain => ({ label:
           {{ t('routingAdmin.addDomainFirst') }}
         </p>
         <UFormField v-else :label="t('routingAdmin.managedDomain')">
-          <USelect :model-value="selectedDomain?.id" :items="domainItems" class="w-full" @update:model-value="value => domainId = value as string" />
+          <USelect :model-value="selectedDomain?.id" :items="domainItems" @update:model-value="value => domainId = value as string" />
         </UFormField>
       </UCard>
     </section>

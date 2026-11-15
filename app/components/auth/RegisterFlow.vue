@@ -247,7 +247,7 @@ const switchUi = { root: 'flex-row-reverse justify-between gap-4 rounded-xl bg-e
 
     <form v-else-if="showDomainStep" method="post" class="space-y-5" @submit.prevent="onDomainSubmit">
       <UFormField :label="t('setup.primaryDomain')" name="domain" :help="t('setup.zoneHint')" required>
-        <UInput v-model="domainInput" name="domain" placeholder="example.com" autocomplete="off" required size="xl" class="w-full" @blur="onDomainBlur" />
+        <UInput v-model="domainInput" name="domain" placeholder="example.com" autocomplete="off" required size="xl" @blur="onDomainBlur" />
       </UFormField>
       <USwitch v-model="skipDns" :label="t('setup.skipDns')" :description="skipDns ? t('setup.skipDnsOn') : t('setup.skipDnsHint')" :ui="switchUi" />
       <USwitch v-if="!skipDns" v-model="enableSending" :disabled="domainChecking || !domainCheck" :label="t('setup.enableSending')" :description="sendingHint" :ui="switchUi" />
@@ -271,7 +271,7 @@ const switchUi = { root: 'flex-row-reverse justify-between gap-4 rounded-xl bg-e
         :ui="{ label: 'text-warning', description: 'text-warning/90' }"
       />
       <UFormField :label="t('setup.username')" name="username" required>
-        <UInput v-model="account.username" name="username" :placeholder="t('setup.usernamePlaceholder')" autocomplete="username" required size="xl" class="w-full" :ui="{ trailing: 'pe-3' }">
+        <UInput v-model="account.username" name="username" :placeholder="t('setup.usernamePlaceholder')" autocomplete="username" required size="xl" :ui="{ trailing: 'pe-3' }">
           <template #trailing>
             <span class="max-w-40 truncate text-sm font-medium text-muted">@{{ accountDomain ?? t('setup.domainFallback') }}</span>
           </template>
@@ -285,10 +285,10 @@ const switchUi = { root: 'flex-row-reverse justify-between gap-4 rounded-xl bg-e
         class="rounded-xl bg-elevated px-4 py-3"
       />
       <UFormField v-if="!account.usePasskey" :label="t('auth.password')" name="password" required>
-        <UInput v-model="account.password" name="password" type="password" minlength="8" autocomplete="new-password" required size="xl" class="w-full" />
+        <UInput v-model="account.password" name="password" type="password" minlength="8" autocomplete="new-password" required size="xl" />
       </UFormField>
       <UFormField :label="t('setup.recoveryEmail')" name="resetEmail" required>
-        <UInput v-model="account.resetEmail" name="resetEmail" type="email" autocomplete="email" placeholder="you@gmail.com" required size="xl" class="w-full" />
+        <UInput v-model="account.resetEmail" name="resetEmail" type="email" autocomplete="email" placeholder="you@gmail.com" required size="xl" />
       </UFormField>
       <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />
       <UButton v-if="!mxChecking && mxRecordsExist === null" block size="xl" variant="outline" color="neutral" :label="t('setup.checkMxAgain')" @click="mxCheckRevision += 1" />

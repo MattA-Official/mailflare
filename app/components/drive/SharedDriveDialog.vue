@@ -205,10 +205,10 @@ async function deleteDrive() {
           <h3 class="mb-2 mt-6 text-sm font-medium text-highlighted">{{ t('sharedDrives.settings') }}</h3>
           <form class="space-y-3" @submit.prevent="saveSettings">
             <UFormField :label="t('sharedDrives.renameLabel')">
-              <UInput v-model="name" class="w-full" :maxlength="100" />
+              <UInput v-model="name" :maxlength="100" />
             </UFormField>
             <UFormField :label="t('sharedDrives.storageLimit')" :help="t('sharedDrives.storageLimitHelp')">
-              <UInput v-model="limitGb" type="number" min="0" step="any" inputmode="decimal" class="w-full" :disabled="!drive.canSetLimit" />
+              <UInput v-model="limitGb" type="number" min="0" step="any" inputmode="decimal" :disabled="!drive.canSetLimit" />
             </UFormField>
             <p class="text-xs text-muted">{{ t('sharedDrives.storageUsed', { size: formatDriveSize(drive.storageUsed) }) }}</p>
             <div class="flex justify-end">

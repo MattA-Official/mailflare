@@ -85,7 +85,7 @@ async function copyLink() {
       </p>
       <form v-else class="space-y-5" @submit.prevent="requestReset">
         <UFormField :label="t('account.password.new')" :help="t('account.password.hint')" required>
-          <UInput v-model="password" type="password" autocomplete="new-password" minlength="8" maxlength="128" required :disabled="!account || saving" :placeholder="t('account.password.placeholder')" class="w-full" />
+          <UInput v-model="password" type="password" autocomplete="new-password" minlength="8" maxlength="128" required :disabled="!account || saving" :placeholder="t('account.password.placeholder')" />
         </UFormField>
         <UButton type="submit" :loading="saving" :disabled="!account || password.trim().length < 8" :label="saving ? t('account.password.resetting') : t('account.password.reset')" />
       </form>

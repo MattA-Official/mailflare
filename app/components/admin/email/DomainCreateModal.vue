@@ -101,7 +101,7 @@ async function submit() {
     <template #body>
       <form class="space-y-4" @submit.prevent="submit">
         <UFormField :label="t('domains.hostname')" name="hostname">
-          <UInput v-model="hostname" placeholder="example.com" class="w-full" autocomplete="off" spellcheck="false" @blur="inspectDomain" />
+          <UInput v-model="hostname" placeholder="example.com" autocomplete="off" spellcheck="false" @blur="inspectDomain" />
         </UFormField>
 
         <div class="flex items-center justify-between gap-4 rounded-lg bg-elevated/60 px-4 py-3">

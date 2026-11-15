@@ -130,7 +130,7 @@ async function submitImap() {
       </div>
       <UCard :ui="{ body: 'space-y-6 p-6 sm:p-6' }">
         <UFormField :label="t('importPage.source')" name="source">
-          <USelect v-model="activeTab" :items="tabItems" class="w-full" />
+          <USelect v-model="activeTab" :items="tabItems" />
         </UFormField>
 
         <SettingsMailTakeoutImport v-if="activeTab === 'takeout'" />
@@ -143,7 +143,6 @@ async function submitImap() {
               multiple
               :search-input="false"
               :placeholder="t('importPage.selectSections')"
-              class="w-full"
             />
           </UFormField>
 
@@ -171,23 +170,23 @@ async function submitImap() {
           <UForm v-else :state="imapForm" class="space-y-4" @submit="submitImap">
             <div class="grid gap-3 md:grid-cols-[1fr_110px]">
               <UFormField :label="t('importPage.host')" name="host">
-                <UInput v-model="imapForm.host" placeholder="imap.gmail.com" class="w-full" />
+                <UInput v-model="imapForm.host" placeholder="imap.gmail.com" />
               </UFormField>
               <UFormField :label="t('importPage.port')" name="port">
-                <UInput v-model="imapForm.port" type="number" class="w-full" />
+                <UInput v-model="imapForm.port" type="number" />
               </UFormField>
             </div>
             <div class="grid gap-3 md:grid-cols-2">
               <UFormField :label="t('importPage.username')" name="username">
-                <UInput v-model="imapForm.username" placeholder="you@example.com" class="w-full" />
+                <UInput v-model="imapForm.username" placeholder="you@example.com" />
               </UFormField>
               <UFormField :label="t('importPage.passwordOrApp')" name="password">
-                <UInput v-model="imapForm.password" type="password" autocomplete="off" class="w-full" />
+                <UInput v-model="imapForm.password" type="password" autocomplete="off" />
               </UFormField>
             </div>
             <div class="grid items-end gap-3 md:grid-cols-2">
               <UFormField :label="imapForm.importAll ? t('importPage.perBatch') : t('importPage.perSource')" name="limit">
-                <UInput v-model="imapForm.limit" type="number" :min="1" :max="100" class="w-full" />
+                <UInput v-model="imapForm.limit" type="number" :min="1" :max="100" />
               </UFormField>
               <div class="flex flex-wrap gap-4 pb-2">
                 <UCheckbox v-model="imapForm.importAll" :label="t('importPage.importAll')" />

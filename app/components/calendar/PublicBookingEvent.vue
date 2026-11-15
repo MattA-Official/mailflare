@@ -238,17 +238,17 @@ async function book() {
             {{ t('public.enterDetails') }}
           </h2>
           <UFormField :label="t('public.name')" required>
-            <UInput v-model="name" required :maxlength="120" autocomplete="name" class="w-full" />
+            <UInput v-model="name" required :maxlength="120" autocomplete="name" />
           </UFormField>
           <UFormField :label="t('public.email')" required>
-            <UInput v-model="email" required type="email" :maxlength="254" autocomplete="email" class="w-full" />
+            <UInput v-model="email" required type="email" :maxlength="254" autocomplete="email" />
           </UFormField>
           <UFormField v-if="showGuests" :label="t('public.guestEmails')" :hint="t('public.commaSeparated')">
-            <UInput v-model="guestEmails" placeholder="guest@example.com" class="w-full" />
+            <UInput v-model="guestEmails" placeholder="guest@example.com" />
           </UFormField>
           <UButton v-else :label="t('public.addGuests')" color="neutral" variant="outline" class="rounded-full" @click="showGuests = true" />
           <UFormField :label="t('public.notes')">
-            <UTextarea v-model="notes" :maxlength="2000" :rows="4" class="w-full" />
+            <UTextarea v-model="notes" :maxlength="2000" :rows="4" />
           </UFormField>
           <p v-if="error" role="alert" class="text-sm text-error">
             {{ error }}

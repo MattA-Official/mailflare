@@ -243,7 +243,7 @@ async function remove() {
         <AdminEmailMailboxAvatarForm v-if="mailbox" :mailbox-id="mailbox.id" :has-avatar="!!mailbox.hasAvatar" :name="mailbox.displayName || mailbox.localPart" />
         <USkeleton v-else class="size-24 rounded-full" />
         <UFormField :label="t('common.name')">
-          <UInput v-model="displayName" :placeholder="mailbox?.localPart ?? t('mailboxes.namePlaceholder')" :disabled="loading || saving" class="w-full" />
+          <UInput v-model="displayName" :placeholder="mailbox?.localPart ?? t('mailboxes.namePlaceholder')" :disabled="loading || saving" />
         </UFormField>
         <div class="rounded-lg bg-elevated/60 p-4">
           <UCheckbox v-model="useAllDomains" :disabled="loading || saving" :label="t('aliases.useAll')" :description="t('mailbox.useAllHint')" />

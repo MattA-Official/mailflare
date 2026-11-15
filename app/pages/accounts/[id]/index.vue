@@ -67,10 +67,10 @@ async function uploadAvatar(event: Event) {
           </template>
         </div>
         <UFormField :label="t('auth.email')">
-          <UInput :model-value="account.email" readonly disabled class="w-full" />
+          <UInput :model-value="account.email" readonly disabled />
         </UFormField>
         <UFormField :label="t('common.name')">
-          <UInput v-model="account.name" :disabled="!account.editable" class="w-full" />
+          <UInput v-model="account.name" :disabled="!account.editable" />
         </UFormField>
         <UFormField v-if="account.canForwardEmail" :label="t('account.forwardingOptional')" :help="t('settings.forwarding.hint')">
           <UInput
@@ -78,7 +78,6 @@ async function uploadAvatar(event: Event) {
             type="email"
             placeholder="destination@example.com"
             :disabled="!account.editable"
-            class="w-full"
             @update:model-value="value => account && (account.forwardingEmail = String(value) || null)"
           />
         </UFormField>

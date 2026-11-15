@@ -192,7 +192,7 @@ const revokeOpen = computed({ get: () => confirmRevoke.value !== null, set: (v) 
       <template #body>
         <form v-if="!newKey" class="space-y-4" @submit.prevent="create">
           <UFormField :label="t('apiKeys.keyName')" name="managed-key-name">
-            <UInput id="managed-key-name" v-model="name" :maxlength="100" :placeholder="t('apiKeys.namePlaceholder')" class="w-full" />
+            <UInput id="managed-key-name" v-model="name" :maxlength="100" :placeholder="t('apiKeys.namePlaceholder')" />
           </UFormField>
           <UCheckbox v-model="mcpAllowed" :label="t('apiKeys.allowMcp')" :description="t('apiKeys.allowMcpHint')" :ui="{ label: 'font-semibold' }" />
           <UCheckbox
@@ -253,10 +253,8 @@ const revokeOpen = computed({ get: () => confirmRevoke.value !== null, set: (v) 
 
     <UModal v-model:open="revokeOpen" :title="t('common.revoke')" :description="confirmRevoke ? t('apiKeys.revokeConfirm', { name: confirmRevoke.name }) : undefined">
       <template #footer>
-        <div class="flex w-full justify-end gap-2">
-          <UButton color="neutral" variant="outline" :label="t('common.cancel')" @click="confirmRevoke = null" />
-          <UButton color="error" :label="t('common.revoke')" @click="confirmRevoke && revoke(confirmRevoke)" />
-        </div>
+        <UButton color="neutral" variant="outline" :label="t('common.cancel')" @click="confirmRevoke = null" />
+        <UButton color="error" :label="t('common.revoke')" @click="confirmRevoke && revoke(confirmRevoke)" />
       </template>
     </UModal>
   </div>

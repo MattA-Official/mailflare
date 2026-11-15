@@ -36,7 +36,7 @@ async function onSubmit() {
   <AuthShell icon="i-lucide-key-round" :title="t('auth.forgot.title')" :description="sent ? t('auth.forgot.sent') : t('auth.forgot.description')">
     <form v-if="!sent" class="space-y-5" @submit.prevent="onSubmit">
       <UFormField :label="t('auth.email')" name="email" required>
-        <UInput v-model="email" name="email" type="email" autocomplete="email" required autofocus size="xl" class="w-full" />
+        <UInput v-model="email" name="email" type="email" autocomplete="email" required autofocus size="xl" />
       </UFormField>
       <UAlert v-if="error" role="alert" color="error" variant="subtle" :title="error" />
       <AuthTurnstile ref="turnstile" v-model="turnstileToken" />

@@ -92,14 +92,14 @@ const columns = 'grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 md:gri
         <template #body>
           <form class="space-y-4" @submit.prevent="canCreate && create()">
             <UFormField v-if="mailboxes?.canCreateShared" :label="t('mailboxes.type')">
-              <USelect v-model="mailboxType" :items="typeItems" class="w-full" />
+              <USelect v-model="mailboxType" :items="typeItems" />
             </UFormField>
             <UFormField v-if="mailboxType === 'personal'" :label="t('mailboxes.account')">
-              <USelect :model-value="ownerUserId" :items="ownerItems" class="w-full" @update:model-value="pickOwner" />
+              <USelect :model-value="ownerUserId" :items="ownerItems" @update:model-value="pickOwner" />
             </UFormField>
             <UAlert v-else color="info" variant="subtle" :description="t('mailboxes.sharedHint')" />
             <UFormField :label="t('common.name')">
-              <UInput v-model="displayName" :placeholder="t('mailboxes.namePlaceholder')" class="w-full" />
+              <UInput v-model="displayName" :placeholder="t('mailboxes.namePlaceholder')" />
             </UFormField>
             <UFormField :label="t('mailboxes.emailAddress')">
               <UFieldGroup class="w-full">
@@ -108,7 +108,7 @@ const columns = 'grid grid-cols-[auto_minmax(0,1fr)] items-center gap-x-4 md:gri
                     <span class="text-sm text-muted">@</span>
                   </template>
                 </UInput>
-                <USelect v-model="domainId" :items="domainItems" :placeholder="t('accounts.selectDomain')" :aria-label="t('accounts.domain')" class="max-w-[55%]" />
+                <USelect v-model="domainId" :items="domainItems" :placeholder="t('accounts.selectDomain')" :aria-label="t('accounts.domain')" class="w-auto max-w-[55%]" />
               </UFieldGroup>
             </UFormField>
             <p v-if="createError" role="alert" class="text-sm text-error">

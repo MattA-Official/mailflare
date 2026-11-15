@@ -61,7 +61,7 @@ async function confirm() {
           </li>
         </ul>
         <UFormField :label="t('accounts.transferLabel')" :help="ownedDomains.length ? t('accounts.transferDomainsHint', { domains: ownedDomains.join(', ') }) : t('accounts.transferHint')">
-          <USelect v-model="transferToId" :items="recipients" :disabled="deleting" class="w-full" />
+          <USelect v-model="transferToId" :items="recipients" :disabled="deleting" />
         </UFormField>
         <p v-if="message" role="alert" class="text-sm text-error">
           {{ message }}
@@ -69,10 +69,8 @@ async function confirm() {
       </div>
     </template>
     <template #footer>
-      <div class="flex w-full justify-end gap-2">
-        <UButton color="neutral" variant="outline" :disabled="deleting" :label="t('common.cancel')" @click="open = false" />
-        <UButton color="error" :loading="deleting" :disabled="!accounts.length" :label="deleting ? t('accounts.deleting') : t('accounts.confirmDelete')" @click="confirm" />
-      </div>
+      <UButton color="neutral" variant="outline" :disabled="deleting" :label="t('common.cancel')" @click="open = false" />
+      <UButton color="error" :loading="deleting" :disabled="!accounts.length" :label="deleting ? t('accounts.deleting') : t('accounts.confirmDelete')" @click="confirm" />
     </template>
   </UModal>
 </template>

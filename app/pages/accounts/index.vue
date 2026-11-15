@@ -122,14 +122,14 @@ async function onDeleted() {
               <UFieldGroup class="w-full">
                 <UInput v-model="form.username" :placeholder="t('accounts.username')" required class="min-w-0 flex-1" />
                 <UBadge color="neutral" variant="outline" size="lg" label="@" />
-                <USelect v-model="form.domainId" :items="domainItems" :placeholder="t('accounts.selectDomain')" :aria-label="t('accounts.domain')" class="min-w-0 max-w-[55%]" />
+                <USelect v-model="form.domainId" :items="domainItems" :placeholder="t('accounts.selectDomain')" :aria-label="t('accounts.domain')" class="w-auto min-w-0 max-w-[55%]" />
               </UFieldGroup>
             </UFormField>
             <UFormField :label="t('auth.password')" required>
-              <UInput v-model="form.password" type="password" minlength="8" autocomplete="new-password" required class="w-full" />
+              <UInput v-model="form.password" type="password" minlength="8" autocomplete="new-password" required />
             </UFormField>
             <UFormField v-if="canChooseRole" :label="t('accounts.role')">
-              <USelect v-model="form.role" :items="roleItems" class="w-full" />
+              <USelect v-model="form.role" :items="roleItems" />
             </UFormField>
             <AdminSystemAccountAliases
               v-model:use-all-domains="form.useAllDomains"

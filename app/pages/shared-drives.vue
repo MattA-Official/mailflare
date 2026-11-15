@@ -116,7 +116,7 @@ async function create() {
     <UModal v-model:open="creating" :title="t('sharedDrives.new')" :dismissible="!saving">
       <template #body>
         <form class="space-y-5" @submit.prevent="create">
-          <UInput v-model="name" autofocus class="w-full" :maxlength="100" :placeholder="t('sharedDrives.name')" :aria-label="t('sharedDrives.name')" />
+          <UInput v-model="name" autofocus :maxlength="100" :placeholder="t('sharedDrives.name')" :aria-label="t('sharedDrives.name')" />
           <div class="flex justify-end gap-2">
             <UButton color="neutral" variant="ghost" :disabled="saving" :label="t('common.cancel')" @click="creating = false" />
             <UButton type="submit" :disabled="saving || !name.trim()" :label="t('sharedDrives.create')" />

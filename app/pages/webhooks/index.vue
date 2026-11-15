@@ -186,10 +186,10 @@ async function runTest(id: string) {
       <template #body>
         <form class="space-y-4" @submit.prevent="create">
           <UFormField :label="t('webhooks.endpointUrl')" required>
-            <UInput v-model="url" type="url" required class="w-full" />
+            <UInput v-model="url" type="url" required />
           </UFormField>
           <UFormField :label="t('webhooks.descriptionLabel')">
-            <UInput v-model="description" :placeholder="t('webhooks.optional')" class="w-full" />
+            <UInput v-model="description" :placeholder="t('webhooks.optional')" />
           </UFormField>
           <UFormField :label="t('webhooks.events')">
             <div class="space-y-2">
@@ -203,7 +203,7 @@ async function runTest(id: string) {
             </div>
           </UFormField>
           <UFormField :label="t('webhooks.stat.maxAttempts')">
-            <UInputNumber v-model="maxAttempts" :min="1" :max="10" class="w-full" />
+            <UInputNumber v-model="maxAttempts" :min="1" :max="10" />
           </UFormField>
           <p v-if="error" role="alert" class="text-sm text-error">
             {{ error }}

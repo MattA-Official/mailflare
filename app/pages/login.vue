@@ -207,7 +207,6 @@ const codeLabel = computed(() => (methods.value.includes('recovery') ? t('auth.c
             autofocus
             required
             size="xl"
-            class="w-full"
             :placeholder="t('auth.codePlaceholder')"
             :aria-invalid="error ? true : undefined"
           />
@@ -235,7 +234,6 @@ const codeLabel = computed(() => (methods.value.includes('recovery') ? t('auth.c
           autocomplete="username webauthn"
           required
           size="xl"
-          class="w-full"
           :aria-invalid="error ? true : undefined"
         />
       </UFormField>
@@ -250,7 +248,6 @@ const codeLabel = computed(() => (methods.value.includes('recovery') ? t('auth.c
           autocomplete="current-password"
           required
           size="xl"
-          class="w-full"
           :aria-invalid="error ? true : undefined"
         />
       </UFormField>

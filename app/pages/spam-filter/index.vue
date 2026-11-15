@@ -114,7 +114,7 @@ async function toggleDomainAge(checked: boolean) {
       </template>
       <form class="space-y-4" @submit.prevent="saveBrands">
         <UFormField :label="t('spamFilter.brandsLabel')" :help="t('spamFilter.brandsBuiltIn')" :error="parsedBrands.invalidLines.length ? t('spamFilter.brandsInvalid', { lines: parsedBrands.invalidLines.join(', ') }) : undefined">
-          <UTextarea v-model="brandText" :rows="6" :disabled="!editable || brandSaving" :placeholder="'PostFinance = postfinance.ch\nSwisscom = swisscom.ch, swisscom.com'" class="w-full font-mono text-sm" />
+          <UTextarea v-model="brandText" :rows="6" :disabled="!editable || brandSaving" :placeholder="'PostFinance = postfinance.ch\nSwisscom = swisscom.ch, swisscom.com'" class="font-mono text-sm" />
         </UFormField>
         <p v-if="brandStatus" role="status" class="text-sm text-toned">
           {{ brandStatus }}

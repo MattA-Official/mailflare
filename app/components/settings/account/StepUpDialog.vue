@@ -110,7 +110,6 @@ function submitPassword() {
               autocomplete="current-password"
               :autofocus="!hasPasskey"
               required
-              class="w-full"
             />
           </UFormField>
           <UFormField v-if="needsCode" :label="t('mfa.code')" name="step-up-code">
@@ -124,7 +123,6 @@ function submitPassword() {
               :spellcheck="false"
               :placeholder="t('auth.codePlaceholder')"
               required
-              class="w-full"
             />
           </UFormField>
           <UButton

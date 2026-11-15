@@ -34,10 +34,10 @@ async function save() {
     <template #body>
       <form class="space-y-4" @submit.prevent="save">
         <UFormField :label="t('template.title')" name="title" required>
-          <UInput v-model="title" :maxlength="200" required class="w-full" />
+          <UInput v-model="title" :maxlength="200" required />
         </UFormField>
         <UFormField :label="t('template.content')" name="content" required>
-          <UTextarea v-model="content" :rows="8" required class="w-full" />
+          <UTextarea v-model="content" :rows="8" required />
         </UFormField>
         <p v-if="error" role="alert" class="text-sm text-error">{{ error }}</p>
         <UButton type="submit" :loading="saving" :disabled="saving || !title.trim() || !content.trim()" :label="saving ? t('template.saving') : t('template.save')" />

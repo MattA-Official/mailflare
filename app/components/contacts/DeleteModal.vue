@@ -46,10 +46,8 @@ async function confirm() {
       </p>
     </template>
     <template #footer>
-      <div class="flex w-full justify-end gap-2">
-        <UButton color="neutral" variant="outline" :label="t('common.cancel')" @click="emit('close')" />
-        <UButton color="error" :disabled="deleting" :label="deleting ? t('contacts.deleting') : t('common.delete')" @click="confirm" />
-      </div>
+      <UButton color="neutral" variant="outline" :label="t('common.cancel')" @click="emit('close')" />
+      <UButton color="error" :disabled="deleting" :label="deleting ? t('contacts.deleting') : t('common.delete')" @click="confirm" />
     </template>
   </UModal>
 </template>

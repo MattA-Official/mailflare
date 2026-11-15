@@ -74,10 +74,10 @@ async function create() {
       <template #body>
         <form class="space-y-4" @submit.prevent="create">
           <UFormField :label="t('groups.name')" required>
-            <UInput v-model="name" :placeholder="t('groups.namePlaceholder')" class="w-full" autofocus />
+            <UInput v-model="name" :placeholder="t('groups.namePlaceholder')" autofocus />
           </UFormField>
           <UFormField :label="t('groups.descriptionLabel')" :hint="t('groups.optional')">
-            <UTextarea v-model="description" :rows="2" class="w-full" />
+            <UTextarea v-model="description" :rows="2" />
           </UFormField>
           <p v-if="createError" role="alert" class="text-sm text-error">
             {{ createError }}
