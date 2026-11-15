@@ -153,12 +153,12 @@ const codesOpen = computed({ get: () => codes.value !== null, set: (v) => { if (
             <!-- The server renders this SVG from the otpauth URL; it carries no user content. -->
             <!-- eslint-disable-next-line vue/no-v-html -->
             <div role="img" :aria-label="t('mfa.scanTitle')" class="mx-auto w-48 rounded-lg border border-default bg-white p-2" v-html="qrSvg ?? ''" />
-            <details class="text-xs text-muted">
-              <summary class="cursor-pointer">
-                {{ t('mfa.cantScan') }}
-              </summary>
-              <code class="mt-2 block break-all rounded-md bg-elevated/50 p-2 font-mono text-default">{{ secret }}</code>
-            </details>
+            <UCollapsible>
+              <UButton color="neutral" variant="link" size="xs" trailing-icon="i-lucide-chevron-down" :label="t('mfa.cantScan')" class="px-0" :ui="{ trailingIcon: 'size-3.5 transition-transform group-data-[state=open]:rotate-180' }" />
+              <template #content>
+                <code class="mt-2 block break-all rounded-md bg-elevated/50 p-2 font-mono text-xs text-default">{{ secret }}</code>
+              </template>
+            </UCollapsible>
             <UFormField :label="t('mfa.sixDigitCode')" name="mfa-code">
               <UInput id="mfa-code" v-model="code" inputmode="numeric" autocomplete="one-time-code" placeholder="123 456" required autofocus />
             </UFormField>

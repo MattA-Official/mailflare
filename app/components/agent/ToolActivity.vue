@@ -19,13 +19,19 @@ const attachments = computed(() => Array.isArray(result.value?.attachments) ? re
 </script>
 
 <template>
-  <details class="group/tool text-xs text-muted" :open="forceOpen || open" @toggle="(event) => { if (!forceOpen) open = (event.target as HTMLDetailsElement).open }">
-    <summary class="flex w-full max-w-full cursor-pointer list-none items-center gap-1.5 text-sm text-muted [&::-webkit-details-marker]:hidden">
-      <UIcon name="i-lucide-wrench" class="size-3.5 shrink-0 text-dimmed" aria-hidden="true" />
-      <span class="min-w-0 flex-1 truncate">{{ display.label }}</span>
-      <UIcon name="i-lucide-chevron-left" class="size-3.5 shrink-0 text-dimmed transition-transform group-open/tool:-rotate-90" aria-hidden="true" />
-    </summary>
-    <div class="mt-1.5 space-y-2 pl-[18px]">
+  <UCollapsible :open="forceOpen || open" class="text-xs text-muted" @update:open="value => { if (!forceOpen) open = value }">
+    <UButton
+      color="neutral"
+      variant="link"
+      icon="i-lucide-wrench"
+      trailing-icon="i-lucide-chevron-down"
+      :label="display.label"
+      block
+      class="p-0"
+      :ui="{ label: 'flex-1 truncate text-start', leadingIcon: 'size-3.5 text-dimmed', trailingIcon: 'size-3.5 text-dimmed transition-transform group-data-[state=open]:rotate-180' }"
+    />
+    <template #content>
+      <div class="mt-1.5 space-y-2 pl-[18px]">
       <p>{{ display.description }}</p>
       <ul v-if="emails.length" class="space-y-1.5">
         <li v-for="email in emails" :key="email.id" class="break-words">
@@ -38,6 +44,7 @@ const attachments = computed(() => Array.isArray(result.value?.attachments) ? re
       <p v-if="typeof result?.text === 'string'" class="max-h-36 overflow-y-auto whitespace-pre-wrap break-words">{{ result.text }}</p>
       <p v-if="attachments.length">{{ t('agent.activity.attachments', { list: attachments.map(file => file.filename || t('agent.activity.attachment')).join(', ') }) }}</p>
       <p v-if="!result && item.content" class="whitespace-pre-wrap break-words">{{ item.content }}</p>
-    </div>
-  </details>
+      </div>
+    </template>
+  </UCollapsible>
 </template>

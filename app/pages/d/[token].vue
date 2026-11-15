@@ -43,7 +43,7 @@ useHead({ title: () => data.value?.item.name ?? t('drive.title') })
         <span v-for="(crumb, index) in data.path" :key="crumb.id" class="flex items-center gap-1">
           <UIcon v-if="index > 0" name="i-lucide-chevron-right" class="size-[18px] text-muted" />
           <h1 v-if="index === data.path.length - 1" class="px-2 py-1">{{ crumb.name }}</h1>
-          <button v-else type="button" class="rounded-full px-2 py-1 hover:bg-elevated" @click="itemId = crumb.id">{{ crumb.name }}</button>
+          <UButton v-else color="neutral" variant="ghost" size="lg" :label="crumb.name" class="rounded-full text-lg font-normal text-highlighted" @click="itemId = crumb.id" />
         </span>
         <UButton v-if="isFile" :to="publicContentUrl(token, data.item.id, true)" external icon="i-lucide-download" class="ml-auto rounded-full" :label="t('drive.download')" />
       </nav>

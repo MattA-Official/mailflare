@@ -37,13 +37,18 @@ function approveLabel(proposal: NonNullable<ReturnType<typeof agentActionProposa
           </template>
         </div>
       </template>
-      <details v-else :open="workOpen" class="group/process text-muted" @toggle="(event) => workOpen = (event.target as HTMLDetailsElement).open">
-        <summary class="flex w-fit cursor-pointer list-none items-center gap-1.5 py-1 text-sm [&::-webkit-details-marker]:hidden">
-          <UIcon name="i-lucide-clock-3" class="size-3.5 text-dimmed" aria-hidden="true" />
-          <span>{{ turn.durationMs !== null ? t('agent.turn.workedFor', { duration: formatAgentDuration(turn.durationMs) }) : t('agent.turn.workDetails') }}</span>
-          <UIcon name="i-lucide-chevron-down" class="size-3.5 transition-transform group-open/process:rotate-180" aria-hidden="true" />
-        </summary>
-        <div class="mt-2 space-y-2 text-xs">
+      <UCollapsible v-else v-model:open="workOpen" class="text-muted">
+        <UButton
+          color="neutral"
+          variant="link"
+          icon="i-lucide-clock-3"
+          trailing-icon="i-lucide-chevron-down"
+          :label="turn.durationMs !== null ? t('agent.turn.workedFor', { duration: formatAgentDuration(turn.durationMs) }) : t('agent.turn.workDetails')"
+          class="px-0"
+          :ui="{ leadingIcon: 'size-3.5 text-dimmed', trailingIcon: 'size-3.5 transition-transform group-data-[state=open]:rotate-180' }"
+        />
+        <template #content>
+          <div class="mt-2 space-y-2 text-xs">
           <template v-if="turn.activity.length">
             <template v-for="item in turn.activity" :key="item.id">
               <p v-if="item.role === 'reasoning'" class="whitespace-pre-wrap break-words pl-5 text-xs text-muted">{{ item.content }}</p>
@@ -51,8 +56,9 @@ function approveLabel(proposal: NonNullable<ReturnType<typeof agentActionProposa
             </template>
           </template>
           <p v-else class="text-dimmed">{{ t('agent.turn.noDetails') }}</p>
-        </div>
-      </details>
+          </div>
+        </template>
+      </UCollapsible>
       <AgentMarkdown v-if="turn.assistant?.content" :content="turn.assistant.content" />
       <div v-for="action in turnDraftActions" :key="action.draftId" class="flex flex-wrap items-center justify-end gap-3 text-xs">
         <UButton variant="link" size="xs" :label="t('agent.activity.editDraft')" @click="emit('openDraft', action.draftId)" />

@@ -149,12 +149,14 @@ function progressLabel(job: ImportJobSummary) {
           </form>
           <p v-if="resuming === job.id && resumeError" class="text-xs text-error">{{ resumeError }}</p>
           <UAlert v-if="job.error" color="error" variant="subtle" :description="job.error" />
-          <details v-if="job.errorCount > 0" class="text-xs text-muted">
-            <summary class="cursor-pointer">{{ t('importJobs.errors', { count: job.errorCount }) }}</summary>
-            <ul class="mt-2 list-disc space-y-1 pl-5">
-              <li v-for="item in job.errors.slice(0, 5)" :key="item">{{ item }}</li>
-            </ul>
-          </details>
+          <UCollapsible v-if="job.errorCount > 0" class="text-xs text-muted">
+            <UButton color="neutral" variant="link" size="xs" trailing-icon="i-lucide-chevron-down" :label="t('importJobs.errors', { count: job.errorCount })" class="px-0" :ui="{ trailingIcon: 'size-3.5 transition-transform group-data-[state=open]:rotate-180' }" />
+            <template #content>
+              <ul class="mt-2 list-disc space-y-1 pl-5">
+                <li v-for="item in job.errors.slice(0, 5)" :key="item">{{ item }}</li>
+              </ul>
+            </template>
+          </UCollapsible>
         </UCard>
       </li>
     </ul>

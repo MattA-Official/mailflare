@@ -31,9 +31,7 @@ function openDialog() {
   dialogOpen.value = true
 }
 
-function toggleEvent(event: WebhookEvent, on: boolean) {
-  events.value = on ? [...new Set([...events.value, event])] : events.value.filter(value => value !== event)
-}
+const eventItems = computed(() => WEBHOOK_EVENTS.map(event => ({ value: event.value, label: t(event.labelKey), description: t(event.hintKey) })))
 
 async function create() {
   creating.value = true
@@ -190,15 +188,7 @@ async function runTest(id: string) {
             <UInput v-model="description" :placeholder="t('webhooks.optional')" />
           </UFormField>
           <UFormField :label="t('webhooks.events')">
-            <div class="space-y-2">
-              <label v-for="event in WEBHOOK_EVENTS" :key="event.value" class="flex cursor-pointer items-center justify-between gap-3 rounded-md border border-default px-3 py-2">
-                <span>
-                  <span class="block text-sm font-medium">{{ t(event.labelKey) }}</span>
-                  <span class="block text-xs text-muted">{{ t(event.hintKey) }}</span>
-                </span>
-                <UCheckbox :model-value="events.includes(event.value)" @update:model-value="value => toggleEvent(event.value, value === true)" />
-              </label>
-            </div>
+            <UCheckboxGroup v-model="events" :items="eventItems" variant="card" indicator="end" />
           </UFormField>
           <UFormField :label="t('webhooks.stat.maxAttempts')">
             <UInputNumber v-model="maxAttempts" :min="1" :max="10" />

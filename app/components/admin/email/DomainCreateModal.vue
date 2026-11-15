@@ -104,36 +104,17 @@ async function submit() {
           <UInput v-model="hostname" placeholder="example.com" autocomplete="off" spellcheck="false" @blur="inspectDomain" />
         </UFormField>
 
-        <div class="flex items-center justify-between gap-4 rounded-lg bg-elevated/60 px-4 py-3">
-          <div>
-            <label for="skip-dns" class="text-sm font-medium text-highlighted">{{ t('setup.skipDns') }}</label>
-            <p class="mt-1 text-xs leading-5 text-muted">
-              {{ skipDns ? t('setup.skipDnsOn') : t('setup.skipDnsHint') }}
-            </p>
-          </div>
-          <USwitch id="skip-dns" v-model="skipDns" />
-        </div>
+        <UFormField :label="t('setup.skipDns')" :description="skipDns ? t('setup.skipDnsOn') : t('setup.skipDnsHint')" orientation="horizontal" class="items-center gap-4 rounded-lg bg-elevated/60 px-4 py-3">
+          <USwitch v-model="skipDns" />
+        </UFormField>
 
         <template v-if="!skipDns">
-          <div class="flex items-center justify-between gap-4 rounded-lg bg-elevated/60 px-4 py-3">
-            <div>
-              <label for="receiving-provider" class="text-sm font-medium text-highlighted">{{ t('domains.receiveWith') }}</label>
-              <p class="mt-1 text-xs leading-5 text-muted">
-                {{ receivingProvider === 'cloudflare' ? t('domains.receiveHintCloudflare') : t('domains.receiveHintNone') }}
-              </p>
-            </div>
-            <USelect id="receiving-provider" v-model="receivingProvider" :items="receivingItems" class="w-56 shrink-0" />
-          </div>
-          <div class="flex items-center justify-between gap-4 rounded-lg bg-elevated/60 px-4 py-3">
-            <div>
-              <label for="sending-provider" class="text-sm font-medium text-highlighted">{{ t('domains.sendWith') }}</label>
-              <p class="mt-1 text-xs leading-5 text-muted">
-                {{ domainChecking ? t('setup.checkingCloudflare') : sendingProvider === 'cloudflare' ? t('domains.sendHintCloudflare') : t('domains.sendHintNone') }}
-              </p>
-            </div>
-            <UIcon v-if="domainChecking" name="i-lucide-loader-circle" class="size-4 shrink-0 animate-spin text-muted" />
-            <USelect id="sending-provider" v-model="sendingProvider" :items="sendingItems" class="w-56 shrink-0" />
-          </div>
+          <UFormField :label="t('domains.receiveWith')" :description="receivingProvider === 'cloudflare' ? t('domains.receiveHintCloudflare') : t('domains.receiveHintNone')" orientation="horizontal" class="items-center gap-4 rounded-lg bg-elevated/60 px-4 py-3">
+            <USelect v-model="receivingProvider" :items="receivingItems" class="w-56" />
+          </UFormField>
+          <UFormField :label="t('domains.sendWith')" :description="domainChecking ? t('setup.checkingCloudflare') : sendingProvider === 'cloudflare' ? t('domains.sendHintCloudflare') : t('domains.sendHintNone')" orientation="horizontal" class="items-center gap-4 rounded-lg bg-elevated/60 px-4 py-3">
+            <USelect v-model="sendingProvider" :items="sendingItems" :loading="domainChecking" class="w-56" />
+          </UFormField>
         </template>
 
         <UAlert v-if="domainCheck && !skipDns" color="success" variant="subtle" icon="i-lucide-circle-check" :title="t('setup.domainFound', { zone: domainCheck.zone.name })" />
