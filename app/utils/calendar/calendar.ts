@@ -256,6 +256,25 @@ export function dropStartForPosition(day: Date, pixelsFromTop: number): Date {
   return dateFromZonedFields(fields, getUserTimeZone())
 }
 
+/** The 15-minute slot (minutes after midnight) that a point on the hour grid falls in. */
+export function slotMinutesForPosition(pixelsFromTop: number): number {
+  return Math.max(0, Math.min(24 * 60 - 15, Math.floor(pixelsFromTop * 60 / CALENDAR_HOUR_HEIGHT / 15) * 15))
+}
+
+/**
+ * Times covered by a drag across the hour grid, from the slot the pointer went down in to the slot it
+ * is over now, in either direction. Both slots are included, so a press without a move covers one slot.
+ */
+export function slotSelectionTimes(day: Date, anchorMinutes: number, currentMinutes: number): CalendarEventTimes {
+  const fields = zonedDateFields(startOfDay(day), getUserTimeZone())
+  const at = (minutes: number) => {
+    const value = new Date(fields)
+    value.setUTCMinutes(minutes)
+    return dateFromZonedFields(value, getUserTimeZone())
+  }
+  return { startsAt: at(Math.min(anchorMinutes, currentMinutes)), endsAt: at(Math.max(anchorMinutes, currentMinutes) + 15) }
+}
+
 export function resizeEventTimes(event: CalendarEvent, day: Date, edge: EventResizeEdge, pixelsFromTop: number): CalendarEventTimes {
   const minimum = edge === 'start' ? 0 : 15
   const maximum = edge === 'start' ? 24 * 60 - 15 : 24 * 60

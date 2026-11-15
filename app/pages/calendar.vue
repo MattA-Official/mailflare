@@ -8,7 +8,7 @@ import type { CalendarEvent, CalendarMailbox, CalendarView, EventDragPreview, Ev
 import {
   addDays, addMonths, calendarAnchorDay, CALENDAR_END_HOUR, CALENDAR_HOUR_HEIGHT, CALENDAR_START_HOUR,
   currentTimePosition, dateKey, dropStartForPosition, EVENT_COLOR_CLASSES, eventPosition, expandCalendarEvents,
-  formatEventRange, formatHour, isPendingInvite, monthGridDates, PAST_EVENT_COLOR_CLASSES, rescheduleCalendarOccurrence, resizeEventTimes, startOfDay, startOfWeek,
+  formatEventRange, formatHour, isPendingInvite, monthGridDates, PAST_EVENT_COLOR_CLASSES, rescheduleCalendarOccurrence, resizeEventTimes, slotMinutesForPosition, slotSelectionTimes, startOfDay, startOfWeek,
 } from '~/utils/calendar/calendar'
 import { loadSelectedMailbox } from '~/utils/calendar/mailbox'
 
@@ -34,7 +34,9 @@ const dragPreview = shallowRef<EventDragPreview | null>(null)
 const pendingId = ref<string | null>(null)
 const mailbox = shallowRef<CalendarMailbox | null>(null)
 const editorOpen = ref(false)
-const editor = useTemplateRef<{ openNew: (day: Date, startAt?: Date) => void, openEdit: (event: CalendarEvent) => void }>('editor')
+const editor = useTemplateRef<{ openNew: (day: Date, startAt?: Date, endAt?: Date) => void, openEdit: (event: CalendarEvent) => void }>('editor')
+// The highlighted range on the hour grid: shown while dragging out a new event and while its editor is open.
+const slotSelection = shallowRef<{ day: Date, startsAt: Date, endsAt: Date } | null>(null)
 let dragOffsetPixels = 0
 let resizeSession: EventResizeSession | null = null
 
@@ -88,6 +90,116 @@ onMounted(() => {
 })
 onBeforeUnmount(() => clearInterval(clock))
 
+// Dragging on empty grid creates an event for the range dragged over. A mouse or pen drags straight
+// away; a finger holds still for a moment first, so an ordinary swipe still scrolls the grid.
+const LONG_PRESS_MS = 400
+interface SlotDrag { day: Date, column: HTMLElement, pointerId: number, anchor: number, current: number, startY: number, active: boolean, timer?: ReturnType<typeof setTimeout> }
+let slotDrag: SlotDrag | null = null
+let suppressSlotClick = false
+
+function showSlotSelection(drag: SlotDrag) {
+  const times = slotSelectionTimes(drag.day, drag.anchor, drag.current)
+  const current = slotSelection.value
+  if (current && current.startsAt.getTime() === times.startsAt.getTime() && current.endsAt.getTime() === times.endsAt.getTime()) return
+  slotSelection.value = { day: drag.day, ...times }
+}
+
+function startSlotDrag(drag: SlotDrag) {
+  drag.active = true
+  try { drag.column.setPointerCapture(drag.pointerId) } catch { /* The pointer has gone; pointerup tidies up. */ }
+  showSlotSelection(drag)
+}
+
+function endSlotDrag() {
+  if (slotDrag?.timer) clearTimeout(slotDrag.timer)
+  slotDrag = null
+}
+
+function onSlotPointerDown(pointerEvent: PointerEvent, day: Date) {
+  if (busy.value || pointerEvent.button !== 0 || slotDrag) return
+  const column = pointerEvent.currentTarget as HTMLElement
+  const anchor = slotMinutesForPosition(pointerEvent.clientY - column.getBoundingClientRect().top)
+  const drag: SlotDrag = { day, column, pointerId: pointerEvent.pointerId, anchor, current: anchor, startY: pointerEvent.clientY, active: false }
+  slotDrag = drag
+  if (pointerEvent.pointerType === 'touch') {
+    drag.timer = setTimeout(() => { if (slotDrag === drag) startSlotDrag(drag) }, LONG_PRESS_MS)
+    return
+  }
+  // Keeps the browser from selecting text while the pointer drags.
+  pointerEvent.preventDefault()
+  startSlotDrag(drag)
+}
+
+function onSlotPointerMove(pointerEvent: PointerEvent) {
+  const drag = slotDrag
+  if (!drag || pointerEvent.pointerId !== drag.pointerId) return
+  if (!drag.active) {
+    // A finger that moves before the long press is scrolling, not selecting.
+    if (Math.abs(pointerEvent.clientY - drag.startY) > 8) endSlotDrag()
+    return
+  }
+  // Measured each time, as the grid can scroll during a drag.
+  drag.current = slotMinutesForPosition(pointerEvent.clientY - drag.column.getBoundingClientRect().top)
+  showSlotSelection(drag)
+}
+
+function onSlotPointerUp(pointerEvent: PointerEvent) {
+  const drag = slotDrag
+  if (!drag || pointerEvent.pointerId !== drag.pointerId) return
+  endSlotDrag()
+  // A tap before the long press falls through to the click handler.
+  if (!drag.active) return
+  suppressSlotClick = true
+  const times = slotSelectionTimes(drag.day, drag.anchor, drag.current)
+  // A press without a drag keeps the usual hour-long event.
+  const endsAt = drag.anchor === drag.current ? new Date(times.startsAt.getTime() + 60 * 60_000) : times.endsAt
+  slotSelection.value = { day: drag.day, startsAt: times.startsAt, endsAt }
+  openNewEvent(drag.day, times.startsAt, endsAt)
+}
+
+function cancelSlotDrag() {
+  endSlotDrag()
+  slotSelection.value = null
+}
+
+// Taps, and Enter or Space on the focused slot, which has no position to go by.
+function onSlotClick(mouseEvent: MouseEvent, day: Date) {
+  if (suppressSlotClick) {
+    suppressSlotClick = false
+    return
+  }
+  if (mouseEvent.detail === 0) {
+    openNewEvent(day)
+    return
+  }
+  const column = mouseEvent.currentTarget as HTMLElement
+  const anchor = slotMinutesForPosition(mouseEvent.clientY - column.getBoundingClientRect().top)
+  const slotStart = slotSelectionTimes(day, anchor, anchor).startsAt
+  const endsAt = new Date(slotStart.getTime() + 60 * 60_000)
+  slotSelection.value = { day, startsAt: slotStart, endsAt }
+  openNewEvent(day, slotStart, endsAt)
+}
+
+// Once a long press has started a selection, the finger's movement drags it rather than scrolling.
+function blockTouchScroll(touchEvent: TouchEvent) {
+  if (slotDrag?.active) touchEvent.preventDefault()
+}
+function cancelSlotDragOnEscape(keyEvent: KeyboardEvent) {
+  if (keyEvent.key === 'Escape' && slotDrag) cancelSlotDrag()
+}
+onMounted(() => {
+  window.addEventListener('touchmove', blockTouchScroll, { passive: false })
+  window.addEventListener('keydown', cancelSlotDragOnEscape)
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('touchmove', blockTouchScroll)
+  window.removeEventListener('keydown', cancelSlotDragOnEscape)
+  endSlotDrag()
+})
+watch(editorOpen, (value) => {
+  if (!value) slotSelection.value = null
+})
+
 const range = computed(() => {
   // The month view needs the whole six-week grid.
   const monthDates = view.value === 'month' ? monthGridDates(visibleDate.value) : null
@@ -122,8 +234,8 @@ watch([events, () => route.query.event], () => {
   void router.replace({ query: {} })
 }, { immediate: true })
 
-function openNewEvent(day = visibleDate.value, startAt?: Date) {
-  editor.value?.openNew(day, startAt)
+function openNewEvent(day = visibleDate.value, startAt?: Date, endAt?: Date) {
+  editor.value?.openNew(day, startAt, endAt)
 }
 
 function editEvent(event: CalendarEvent) {
@@ -295,6 +407,11 @@ function openDay(day: Date) {
   view.value = 'day'
 }
 
+function selectionStyle(selection: { day: Date, startsAt: Date, endsAt: Date }) {
+  const position = eventPosition({ startsAt: selection.startsAt.toISOString(), endsAt: selection.endsAt.toISOString() }, selection.day)
+  return position ? { top: `${position.top}px`, height: `${position.height}px` } : { display: 'none' }
+}
+
 function previewClass(event: CalendarEvent) {
   const color = normalizeCalendarColor(event.color)
   return new Date(event.endsAt).getTime() <= currentTime.value ? PAST_EVENT_COLOR_CLASSES[color] : EVENT_COLOR_CLASSES[color]
@@ -387,9 +504,23 @@ function previewClass(event: CalendarEvent) {
               <button
                 type="button"
                 :aria-label="t('calendar.addEventOn', { date: formatUserDate(day, { dateStyle: 'short' }) })"
-                class="absolute inset-0 z-0 cursor-crosshair"
-                @click="openNewEvent(day, dropStartForPosition(day, $event.offsetY))"
+                class="absolute inset-0 z-0 cursor-crosshair select-none [-webkit-touch-callout:none]"
+                @pointerdown="onSlotPointerDown($event, day)"
+                @pointermove="onSlotPointerMove"
+                @pointerup="onSlotPointerUp"
+                @pointercancel="cancelSlotDrag"
+                @contextmenu.prevent
+                @click="onSlotClick($event, day)"
               />
+              <div
+                v-if="slotSelection && dateKey(slotSelection.day) === dateKey(day)"
+                aria-hidden="true"
+                class="pointer-events-none absolute inset-x-1 z-20 overflow-hidden rounded-lg border-2 border-primary bg-primary/15 px-2 text-primary"
+                :style="selectionStyle(slotSelection)"
+              >
+                <span class="block truncate text-xs leading-4 font-semibold">{{ t('calendar.newEvent') }}</span>
+                <span class="block truncate text-[11px] leading-4">{{ formatEventRange({ startsAt: slotSelection.startsAt.toISOString(), endsAt: slotSelection.endsAt.toISOString() }) }}</span>
+              </div>
               <CalendarDayEvents
                 :day="day"
                 :events="events"
