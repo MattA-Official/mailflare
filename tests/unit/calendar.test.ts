@@ -1,6 +1,6 @@
 // Pure helpers behind the calendar, booking and public booking pages (app/utils/calendar).
 import { describe, expect, it } from 'vitest'
-import { dateKey, eventPosition, expandCalendarEvents, groupUpcomingEvents, resizeEventTimes, slotMinutesForPosition, slotSelectionTimes, takeUpcomingGroups } from '../../app/utils/calendar/calendar'
+import { CALENDAR_HOUR_HEIGHT as H, dateKey, eventPosition, formatEventTime, monthGridDates, orderedWeekdays, startOfWeek, weekStartDay, expandCalendarEvents, groupUpcomingEvents, resizeEventTimes, slotMinutesForPosition, slotSelectionTimes, takeUpcomingGroups } from '../../app/utils/calendar/calendar'
 import { bookingFormWithName, matchBookingHost, nextBookingTimeRange, parseBookingHostIds, visibleBookingEvents } from '../../app/utils/calendar/booking'
 import { calendarDays, localDateIn, moveMonth, readBookingPageSelection } from '../../app/utils/calendar/public-booking'
 import type { BookingEvent, CalendarEvent } from '../../app/types/calendar'
@@ -25,23 +25,37 @@ describe('calendar grid', () => {
   })
 
   it('positions an event on the hour grid and snaps resizes to 15 minutes', () => {
-    expect(eventPosition(event(), new Date('2026-11-02T00:00:00Z'))).toEqual({ top: 9 * 36, height: 18 })
+    expect(eventPosition(event(), new Date('2026-11-02T00:00:00Z'))).toEqual({ top: 9 * H, height: H / 2 })
     expect(eventPosition(event(), new Date('2026-11-03T00:00:00Z'))).toBeNull()
-    const resized = resizeEventTimes(event(), new Date('2026-11-02T00:00:00Z'), 'end', 10 * 36 + 2)
+    const resized = resizeEventTimes(event(), new Date('2026-11-02T00:00:00Z'), 'end', 10 * H + 2)
     expect(resized.endsAt.toISOString()).toBe('2026-11-02T10:00:00.000Z')
   })
 
   it('turns a drag on the hour grid into a range of whole 15-minute slots, in either direction', () => {
     const day = new Date('2026-11-02T00:00:00Z')
-    expect(slotMinutesForPosition(9 * 36 + 8)).toBe(9 * 60)
+    expect(slotMinutesForPosition(9 * H + 8)).toBe(9 * 60)
     expect(slotMinutesForPosition(-20)).toBe(0)
-    expect(slotMinutesForPosition(25 * 36)).toBe(24 * 60 - 15)
+    expect(slotMinutesForPosition(25 * H)).toBe(24 * 60 - 15)
     const down = slotSelectionTimes(day, 9 * 60, 10 * 60 + 15)
     expect([down.startsAt.toISOString(), down.endsAt.toISOString()]).toEqual(['2026-11-02T09:00:00.000Z', '2026-11-02T10:30:00.000Z'])
     const up = slotSelectionTimes(day, 10 * 60 + 15, 9 * 60)
     expect([up.startsAt.toISOString(), up.endsAt.toISOString()]).toEqual(['2026-11-02T09:00:00.000Z', '2026-11-02T10:30:00.000Z'])
     const last = slotSelectionTimes(day, 24 * 60 - 15, 24 * 60 - 15)
     expect(last.endsAt.toISOString()).toBe('2026-11-03T00:00:00.000Z')
+  })
+
+  it('starts weeks on the reader\'s first weekday', () => {
+    expect(weekStartDay('en-GB')).toBe(1)
+    expect(weekStartDay('en-US')).toBe(0)
+    expect(orderedWeekdays(1)).toEqual([1, 2, 3, 4, 5, 6, 0])
+    // Thursday 5 November 2026.
+    expect(dateKey(startOfWeek(new Date('2026-11-05T12:00:00Z'), 1))).toBe('2026-11-02')
+    expect(dateKey(startOfWeek(new Date('2026-11-05T12:00:00Z'), 0))).toBe('2026-11-01')
+    expect(dateKey(monthGridDates(new Date('2026-11-05T12:00:00Z'), 1)[0]!)).toBe('2026-10-26')
+  })
+
+  it('always shows minutes in event times', () => {
+    expect(formatEventTime(new Date('2026-11-02T09:00:00Z'))).toMatch(/9:00/)
   })
 
   it('groups upcoming events by day and takes them in batches', () => {
