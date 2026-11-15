@@ -101,7 +101,7 @@ UPDATE users SET totp_secret = NULL, totp_enabled = 0, require_second_factor = 0
   // A password-only session is turned away.
   await page.goto(authorize)
   await page.waitForURL('**/oauth/blocked**')
-  await expect(page.getByText('You cannot sign in to E2E Admin yet')).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'You cannot sign in to E2E Admin yet' })).toBeVisible()
   await expect(page.getByText(/needs a sign-in with two-step verification/)).toBeVisible()
 
   // With an authenticator set up, signing in again with a code goes straight back to the app.

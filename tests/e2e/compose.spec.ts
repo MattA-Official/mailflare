@@ -16,7 +16,7 @@ async function signIn(page: Page) {
 
 async function openComposer(page: Page) {
   await page.getByRole('button', { name: /^compose$/i }).first().click()
-  const form = page.getByRole('region', { name: /new message|compose/i })
+  const form = page.getByRole('form', { name: /new message|compose/i })
   await expect(form).toBeVisible()
   return form
 }
@@ -33,10 +33,12 @@ test('autosave creates a draft, Undo returns the message to Drafts and reopens i
   await expect(page.getByText(/draft saved/i)).toBeVisible({ timeout: 5000 })
 
   await page.getByRole('button', { name: /^send$/i }).click()
-  const toast = page.getByRole('status').filter({ hasText: subject })
+  // The send notice is a Nuxt UI toast, a list item in the Notifications region.
+  const toasts = page.getByRole('region', { name: /notifications/i })
+  const toast = toasts.getByRole('listitem').filter({ hasText: subject })
   await expect(toast).toContainText(/sending/i)
-  await toast.getByRole('button', { name: /undo/i }).click()
-  await expect(page.getByRole('status')).toContainText(/cancelled/i)
+  await toast.getByRole('button', { name: /^undo$/i }).click()
+  await expect(toasts).toContainText(/cancelled/i)
   await expect(page.locator('#popup-subject')).toHaveValue(subject)
 })
 
