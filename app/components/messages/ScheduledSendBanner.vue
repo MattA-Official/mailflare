@@ -79,17 +79,21 @@ function commit() {
     <UPopover v-model:open="menuOpen" :content="{ align: 'end', sideOffset: 6 }">
       <UButton variant="link" size="sm" class="px-0 font-medium" :disabled="busy" :label="t('schedule.reschedule')" />
       <template #content>
-        <div class="min-w-56 p-1 text-sm">
-          <button
+        <div class="w-80 p-1">
+          <UButton
             v-for="option in options"
             :key="option.labelKey"
-            type="button"
-            class="flex w-full cursor-pointer items-baseline rounded-md px-3 py-2 text-left hover:bg-elevated focus:bg-elevated focus:outline-none"
+            color="neutral"
+            variant="ghost"
+            block
+            class="justify-start"
+            :label="t(option.labelKey)"
             @click="option.value && reschedule(option.value)"
           >
-            {{ t(option.labelKey) }}
-            <span class="ml-2 text-xs text-muted">{{ option.value && formatScheduledSend(option.value) }}</span>
-          </button>
+            <template #trailing>
+              <span class="text-xs text-muted">{{ option.value && formatScheduledSend(option.value) }}</span>
+            </template>
+          </UButton>
           <USeparator class="my-1" />
           <p class="px-3 pb-1 pt-2 text-xs font-medium text-muted">{{ t('schedule.pick', { timeZone: getUserTimeZone() }) }}</p>
           <AppDateTimeInput

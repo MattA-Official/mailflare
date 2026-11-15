@@ -80,6 +80,15 @@ function toggle(section: BookingEditorSection) {
   activeSection.value = activeSection.value === section ? null : section
 }
 
+// The five settings below the name open one at a time; a closed one shows its current value.
+const sections = computed(() => [
+  { value: 'duration', slot: 'duration' as const, label: t('booking.editor.duration'), summaryIcon: 'i-lucide-clock-3', summary: durationLabel(form.value.durationMinutes, t) },
+  { value: 'location', slot: 'location' as const, label: t('booking.editor.location'), summaryIcon: 'i-lucide-map-pin', summary: form.value.location || t('booking.noLocation') },
+  { value: 'availability', slot: 'availability' as const, label: t('booking.editor.availability'), summaryIcon: 'i-lucide-calendar-days', summary: formAvailabilityLabel(form.value, t) },
+  { value: 'host', slot: 'host' as const, label: t('booking.editor.host'), summaryIcon: '', summary: '' },
+  { value: 'confirmation', slot: 'confirmation' as const, label: t('booking.editor.confirmation'), summaryIcon: 'i-lucide-mail', summary: form.value.confirmationSubject || form.value.confirmationBody ? t('booking.editor.confirmationCustom') : t('booking.editor.confirmationDefault') },
+])
+
 function toggleWeekday(day: number) {
   const weekdays = form.value.weekdays
   update({ weekdays: weekdays.includes(day) ? weekdays.filter(value => value !== day) : [...weekdays, day].sort() })
@@ -195,211 +204,186 @@ function fromTime(value: unknown) {
         </div>
       </section>
 
-      <section class="border-b border-default p-5">
-        <button type="button" :aria-expanded="activeSection === 'duration'" class="flex w-full items-center justify-between gap-3 text-left font-semibold text-highlighted" @click="toggle('duration')">
-          <span>{{ t('booking.editor.duration') }}</span>
-          <UIcon name="i-lucide-chevron-down" class="size-5 text-muted transition-transform" :class="activeSection === 'duration' && 'rotate-180'" />
-        </button>
-        <div v-if="activeSection === 'duration'" class="mt-4 space-y-3">
-          <USelect v-model="durationChoice" :items="durationItems" :aria-label="t('booking.editor.meetingLength')" />
-          <UInputNumber
-            v-if="durationChoice === 'custom'"
-            :model-value="form.durationMinutes"
-            :aria-label="t('booking.editor.customMinutes')"
-            :min="5"
-            :max="480"
-            :step="5"
-            @update:model-value="update({ durationMinutes: Number($event) })"
-          />
-        </div>
-        <button v-else type="button" class="mt-2 flex w-full items-center gap-2 text-left text-sm text-muted" @click="toggle('duration')">
-          <UIcon name="i-lucide-clock-3" class="size-4" />{{ durationLabel(form.durationMinutes, t) }}
-        </button>
-      </section>
-
-      <section class="border-b border-default p-5">
-        <button type="button" :aria-expanded="activeSection === 'location'" class="flex w-full items-center justify-between gap-3 text-left font-semibold text-highlighted" @click="toggle('location')">
-          <span>{{ t('booking.editor.location') }}</span>
-          <UIcon name="i-lucide-chevron-down" class="size-5 text-muted transition-transform" :class="activeSection === 'location' && 'rotate-180'" />
-        </button>
-        <UInput
-          v-if="activeSection === 'location'"
-          :model-value="form.location"
-          :aria-label="t('booking.editor.location')"
-          :placeholder="t('booking.editor.locationPlaceholder')"
-          :maxlength="240"
-          class="mt-4"
-          @update:model-value="update({ location: String($event) })"
-        />
-        <button v-else type="button" class="mt-2 flex w-full items-center gap-2 text-left text-sm text-muted" @click="toggle('location')">
-          <UIcon name="i-lucide-map-pin" class="size-4" />{{ form.location || t('booking.noLocation') }}
-        </button>
-      </section>
-
-      <section class="border-b border-default p-5">
-        <button type="button" :aria-expanded="activeSection === 'availability'" class="flex w-full items-center justify-between gap-3 text-left font-semibold text-highlighted" @click="toggle('availability')">
-          <span>{{ t('booking.editor.availability') }}</span>
-          <UIcon name="i-lucide-chevron-down" class="size-5 text-muted transition-transform" :class="activeSection === 'availability' && 'rotate-180'" />
-        </button>
-        <div v-if="activeSection === 'availability'" class="mt-4 space-y-4">
-          <fieldset :aria-label="t('booking.editor.availableDays')" class="flex flex-wrap gap-1">
-            <UButton
-              v-for="day in WEEKDAYS"
-              :key="day"
-              size="xs"
-              class="rounded-full"
-              :label="t(`calendar.weekdayShort.${day}` as TranslationKey)"
-              :aria-label="t(`weekday.${day}` as TranslationKey)"
-              :aria-pressed="form.weekdays.includes(day)"
-              :color="form.weekdays.includes(day) ? 'primary' : 'neutral'"
-              :variant="form.weekdays.includes(day) ? 'solid' : 'soft'"
-              @click="toggleWeekday(day)"
+      <UAccordion
+        :model-value="activeSection ?? undefined"
+        :items="sections"
+        :ui="{ item: 'px-5', trigger: 'items-start py-5 text-base font-semibold text-highlighted', trailingIcon: 'text-muted', body: 'pb-5 text-base' }"
+        @update:model-value="value => activeSection = (value as BookingEditorSection | undefined) ?? null"
+      >
+        <template #default="{ item, open: expanded }">
+          {{ item.label }}
+          <span v-if="!expanded && item.value === 'host'" class="mt-2 flex items-center gap-2 text-sm font-normal text-muted">
+            <span class="flex shrink-0 -space-x-1">
+              <template v-for="id in form.hostIds.slice(0, 3)" :key="id">
+                <CalendarBookingHostAvatar v-if="hostFor(id)" :host="hostFor(id)!" :current-user-id="currentUserId" size="small" />
+                <UAvatar v-else icon="i-lucide-user-round" size="2xs" />
+              </template>
+            </span>
+            <span class="truncate">{{ form.hostIds.map(id => hostFor(id)?.name ?? t('booking.editor.userFallback')).join(', ') }}</span>
+          </span>
+          <span v-else-if="!expanded" class="mt-2 flex items-center gap-2 text-sm font-normal text-muted">
+            <UIcon :name="item.summaryIcon" class="size-4 shrink-0" />{{ item.summary }}
+          </span>
+        </template>
+        <template #duration-body>
+          <div class="space-y-3">
+            <USelect v-model="durationChoice" :items="durationItems" :aria-label="t('booking.editor.meetingLength')" />
+            <UInputNumber
+              v-if="durationChoice === 'custom'"
+              :model-value="form.durationMinutes"
+              :aria-label="t('booking.editor.customMinutes')"
+              :min="5"
+              :max="480"
+              :step="5"
+              @update:model-value="update({ durationMinutes: Number($event) })"
             />
-          </fieldset>
-          <div>
-            <p class="text-sm font-medium text-default">
-              {{ t('booking.editor.times') }}
-            </p>
-            <div class="mt-2 space-y-2">
-              <div v-for="(range, index) in form.timeRanges" :key="index" class="flex items-end gap-2">
-                <UFormField :label="t('calendar.from')" class="min-w-0 flex-1" size="xs">
-                  <UInputTime :model-value="toTime(range.startTime)" @update:model-value="setRange(index, 'startTime', fromTime($event))" />
-                </UFormField>
-                <UFormField :label="t('calendar.to')" class="min-w-0 flex-1" size="xs">
-                  <UInputTime :model-value="toTime(range.endTime)" @update:model-value="setRange(index, 'endTime', fromTime($event))" />
-                </UFormField>
+          </div>
+        </template>
+        <template #location-body>
+          <UInput
+:model-value="form.location"
+            :aria-label="t('booking.editor.location')"
+            :placeholder="t('booking.editor.locationPlaceholder')"
+            :maxlength="240"
+            @update:model-value="update({ location: String($event) })"
+          />
+        </template>
+        <template #availability-body>
+          <div class="space-y-4">
+            <fieldset :aria-label="t('booking.editor.availableDays')" class="flex flex-wrap gap-1">
+              <UButton
+                v-for="day in WEEKDAYS"
+                :key="day"
+                size="xs"
+                class="rounded-full"
+                :label="t(`calendar.weekdayShort.${day}` as TranslationKey)"
+                :aria-label="t(`weekday.${day}` as TranslationKey)"
+                :aria-pressed="form.weekdays.includes(day)"
+                :color="form.weekdays.includes(day) ? 'primary' : 'neutral'"
+                :variant="form.weekdays.includes(day) ? 'solid' : 'soft'"
+                @click="toggleWeekday(day)"
+              />
+            </fieldset>
+            <div>
+              <p class="text-sm font-medium text-default">
+                {{ t('booking.editor.times') }}
+              </p>
+              <div class="mt-2 space-y-2">
+                <div v-for="(range, index) in form.timeRanges" :key="index" class="flex items-end gap-2">
+                  <UFormField :label="t('calendar.from')" class="min-w-0 flex-1" size="xs">
+                    <UInputTime :model-value="toTime(range.startTime)" @update:model-value="setRange(index, 'startTime', fromTime($event))" />
+                  </UFormField>
+                  <UFormField :label="t('calendar.to')" class="min-w-0 flex-1" size="xs">
+                    <UInputTime :model-value="toTime(range.endTime)" @update:model-value="setRange(index, 'endTime', fromTime($event))" />
+                  </UFormField>
+                  <UButton
+                    icon="i-lucide-trash-2"
+                    color="neutral"
+                    variant="ghost"
+                    :aria-label="t('booking.editor.removeTime', { n: index + 1 })"
+                    :disabled="form.timeRanges.length === 1"
+                    @click="update({ timeRanges: form.timeRanges.filter((_, itemIndex) => itemIndex !== index) })"
+                  />
+                </div>
                 <UButton
-                  icon="i-lucide-trash-2"
+                  icon="i-lucide-plus"
+                  variant="link"
+                  :label="t('booking.editor.addTime')"
+                  :disabled="form.timeRanges.length >= 12"
+                  class="px-0"
+                  @click="update({ timeRanges: [...form.timeRanges, nextBookingTimeRange(form.timeRanges, form.durationMinutes)] })"
+                />
+              </div>
+            </div>
+            <p class="text-xs text-muted">
+              {{ t('booking.editor.timesUse', { zone: form.timeZone }) }}
+            </p>
+          </div>
+        </template>
+        <template #host-body>
+          <div class="space-y-4">
+            <div class="space-y-2">
+              <div v-for="id in form.hostIds" :key="id" class="flex items-center gap-3 rounded-lg bg-elevated px-3 py-2">
+                <CalendarBookingHostAvatar v-if="hostFor(id)" :host="hostFor(id)!" :current-user-id="currentUserId" />
+                <UAvatar v-else icon="i-lucide-user-round" />
+                <span class="min-w-0 flex-1">
+                  <span class="block truncate text-sm font-medium text-highlighted">{{ hostFor(id)?.name || t('booking.editor.unavailableUser') }}{{ id === currentUserId ? t('booking.editor.you') : '' }}</span>
+                  <span class="block truncate text-xs text-muted">{{ hostFor(id)?.email }}</span>
+                </span>
+                <UButton
+                  v-if="id !== currentUserId"
+                  size="xs"
                   color="neutral"
                   variant="ghost"
-                  :aria-label="t('booking.editor.removeTime', { n: index + 1 })"
-                  :disabled="form.timeRanges.length === 1"
-                  @click="update({ timeRanges: form.timeRanges.filter((_, itemIndex) => itemIndex !== index) })"
+                  :label="t('resend.remove')"
+                  @click="update({ hostIds: form.hostIds.filter(hostId => hostId !== id) })"
                 />
               </div>
-              <UButton
-                icon="i-lucide-plus"
-                variant="link"
-                :label="t('booking.editor.addTime')"
-                :disabled="form.timeRanges.length >= 12"
-                class="px-0"
-                @click="update({ timeRanges: [...form.timeRanges, nextBookingTimeRange(form.timeRanges, form.durationMinutes)] })"
-              />
             </div>
+            <form v-if="canManageHosts" @submit.prevent="addHost">
+              <UFormField :label="t('booking.editor.addHost')" :error="hostError || undefined">
+                <div class="flex gap-2">
+                  <UInput
+                    v-model="hostQuery"
+                    :placeholder="t('booking.editor.nameOrEmail')"
+                    autocomplete="off"
+                    class="min-w-0 flex-1"
+                    @update:model-value="hostError = ''"
+                  />
+                  <UButton type="submit" color="neutral" variant="outline" :label="t('booking.editor.add')" />
+                </div>
+              </UFormField>
+            </form>
           </div>
-          <p class="text-xs text-muted">
-            {{ t('booking.editor.timesUse', { zone: form.timeZone }) }}
-          </p>
-        </div>
-        <button v-else type="button" class="mt-2 flex w-full items-center gap-2 text-left text-sm text-muted" @click="toggle('availability')">
-          <UIcon name="i-lucide-calendar-days" class="size-4 shrink-0" />{{ formAvailabilityLabel(form, t) }}
-        </button>
-      </section>
-
-      <section class="border-b border-default p-5">
-        <button type="button" :aria-expanded="activeSection === 'host'" class="flex w-full items-center justify-between gap-3 text-left font-semibold text-highlighted" @click="toggle('host')">
-          <span>{{ t('booking.editor.host') }}</span>
-          <UIcon name="i-lucide-chevron-down" class="size-5 text-muted transition-transform" :class="activeSection === 'host' && 'rotate-180'" />
-        </button>
-        <div v-if="activeSection === 'host'" class="mt-4 space-y-4">
-          <div class="space-y-2">
-            <div v-for="id in form.hostIds" :key="id" class="flex items-center gap-3 rounded-lg bg-elevated px-3 py-2">
-              <CalendarBookingHostAvatar v-if="hostFor(id)" :host="hostFor(id)!" :current-user-id="currentUserId" />
-              <UAvatar v-else icon="i-lucide-user-round" />
-              <span class="min-w-0 flex-1">
-                <span class="block truncate text-sm font-medium text-highlighted">{{ hostFor(id)?.name || t('booking.editor.unavailableUser') }}{{ id === currentUserId ? t('booking.editor.you') : '' }}</span>
-                <span class="block truncate text-xs text-muted">{{ hostFor(id)?.email }}</span>
-              </span>
-              <UButton
-                v-if="id !== currentUserId"
-                size="xs"
-                color="neutral"
-                variant="ghost"
-                :label="t('resend.remove')"
-                @click="update({ hostIds: form.hostIds.filter(hostId => hostId !== id) })"
-              />
-            </div>
-          </div>
-          <form v-if="canManageHosts" @submit.prevent="addHost">
-            <UFormField :label="t('booking.editor.addHost')" :error="hostError || undefined">
-              <div class="flex gap-2">
-                <UInput
-                  v-model="hostQuery"
-                  :placeholder="t('booking.editor.nameOrEmail')"
-                  autocomplete="off"
-                  class="min-w-0 flex-1"
-                  @update:model-value="hostError = ''"
-                />
-                <UButton type="submit" color="neutral" variant="outline" :label="t('booking.editor.add')" />
-              </div>
-            </UFormField>
-          </form>
-        </div>
-        <button v-else type="button" class="mt-2 flex w-full items-center gap-2 text-left text-sm text-muted" @click="toggle('host')">
-          <span class="flex shrink-0 -space-x-1">
-            <template v-for="id in form.hostIds.slice(0, 3)" :key="id">
-              <CalendarBookingHostAvatar v-if="hostFor(id)" :host="hostFor(id)!" :current-user-id="currentUserId" size="small" />
-              <UAvatar v-else icon="i-lucide-user-round" size="2xs" />
-            </template>
-          </span>
-          <span class="truncate">{{ form.hostIds.map(id => hostFor(id)?.name ?? t('booking.editor.userFallback')).join(', ') }}</span>
-        </button>
-      </section>
-
-      <section class="p-5">
-        <button type="button" :aria-expanded="activeSection === 'confirmation'" class="flex w-full items-center justify-between gap-3 text-left font-semibold text-highlighted" @click="toggle('confirmation')">
-          <span>{{ t('booking.editor.confirmation') }}</span>
-          <UIcon name="i-lucide-chevron-down" class="size-5 text-muted transition-transform" :class="activeSection === 'confirmation' && 'rotate-180'" />
-        </button>
-        <div v-if="activeSection === 'confirmation'" class="mt-4 space-y-4">
-          <p class="text-xs text-muted">
-            {{ t('booking.editor.confirmationHint') }}
-          </p>
-          <UFormField :label="t('booking.editor.confirmationSubject')">
-            <UInput :model-value="form.confirmationSubject" :placeholder="DEFAULT_CONFIRMATION_SUBJECT" :maxlength="CONFIRMATION_SUBJECT_MAX" @update:model-value="update({ confirmationSubject: String($event) })" />
-          </UFormField>
-          <UFormField :label="t('booking.editor.confirmationBody')">
-            <UTextarea
-              ref="confirmationBody"
-              :model-value="form.confirmationBody"
-              :placeholder="DEFAULT_CONFIRMATION_BODY"
-              :maxlength="CONFIRMATION_BODY_MAX"
-              :rows="10"
-              :ui="{ base: 'resize-y' }"
-              @update:model-value="update({ confirmationBody: String($event) })"
-            />
-          </UFormField>
-          <UButton
-            v-if="!form.confirmationSubject || !form.confirmationBody"
-            size="xs"
-            color="neutral"
-            variant="outline"
-            class="rounded-full"
-            :label="t('booking.editor.confirmationUseDefault')"
-            @click="useDefaultConfirmation"
-          />
-          <div>
-            <p class="text-xs font-medium text-default">
-              {{ t('booking.editor.confirmationPlaceholders') }}
+        </template>
+        <template #confirmation-body>
+          <div class="space-y-4">
+            <p class="text-xs text-muted">
+              {{ t('booking.editor.confirmationHint') }}
             </p>
-            <div class="mt-2 flex flex-wrap gap-1.5">
-              <UButton
-                v-for="name in BOOKING_TEMPLATE_PLACEHOLDERS"
-                :key="name"
-                size="xs"
-                color="neutral"
-                variant="soft"
-                class="rounded-full font-mono"
-                :label="`{${name}}`"
-                @click="insertPlaceholder(name)"
+            <UFormField :label="t('booking.editor.confirmationSubject')">
+              <UInput :model-value="form.confirmationSubject" :placeholder="DEFAULT_CONFIRMATION_SUBJECT" :maxlength="CONFIRMATION_SUBJECT_MAX" @update:model-value="update({ confirmationSubject: String($event) })" />
+            </UFormField>
+            <UFormField :label="t('booking.editor.confirmationBody')">
+              <UTextarea
+                ref="confirmationBody"
+                :model-value="form.confirmationBody"
+                :placeholder="DEFAULT_CONFIRMATION_BODY"
+                :maxlength="CONFIRMATION_BODY_MAX"
+                :rows="10"
+                :ui="{ base: 'resize-y' }"
+                @update:model-value="update({ confirmationBody: String($event) })"
               />
+            </UFormField>
+            <UButton
+              v-if="!form.confirmationSubject || !form.confirmationBody"
+              size="xs"
+              color="neutral"
+              variant="outline"
+              class="rounded-full"
+              :label="t('booking.editor.confirmationUseDefault')"
+              @click="useDefaultConfirmation"
+            />
+            <div>
+              <p class="text-xs font-medium text-default">
+                {{ t('booking.editor.confirmationPlaceholders') }}
+              </p>
+              <div class="mt-2 flex flex-wrap gap-1.5">
+                <UButton
+                  v-for="name in BOOKING_TEMPLATE_PLACEHOLDERS"
+                  :key="name"
+                  size="xs"
+                  color="neutral"
+                  variant="soft"
+                  class="rounded-full font-mono"
+                  :label="`{${name}}`"
+                  @click="insertPlaceholder(name)"
+                />
+              </div>
             </div>
           </div>
-        </div>
-        <button v-else type="button" class="mt-2 flex w-full items-center gap-2 text-left text-sm text-muted" @click="toggle('confirmation')">
-          <UIcon name="i-lucide-mail" class="size-4" />{{ form.confirmationSubject || form.confirmationBody ? t('booking.editor.confirmationCustom') : t('booking.editor.confirmationDefault') }}
-        </button>
-      </section>
+        </template>
+      </UAccordion>
     </template>
 
     <template #footer>

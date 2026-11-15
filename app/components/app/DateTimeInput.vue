@@ -81,7 +81,7 @@ function onFocusOut(event: FocusEvent) {
       :color="invalid ? 'error' : undefined"
       :highlight="invalid"
       :aria-invalid="invalid || undefined"
-      class="w-auto flex-1"
+      class="flex-1 basis-40"
       @update:model-value="value => setDate(value as DateValue | null)"
     >
       <template #trailing>

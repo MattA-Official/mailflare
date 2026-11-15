@@ -757,8 +757,8 @@ const iconButton = 'rounded-md p-1.5 hover:bg-elevated disabled:pointer-events-n
         :disabled="loadingDraft"
       >
         <template #trailing>
-          <button v-if="!showCc" type="button" class="rounded px-1 hover:text-highlighted" @click="showCc = true">{{ t('compose.cc') }}</button>
-          <button v-if="!showBcc" type="button" class="rounded px-1 hover:text-highlighted" @click="showBcc = true">{{ t('compose.bcc') }}</button>
+          <UButton v-if="!showCc" color="neutral" variant="link" size="xs" class="px-1" :label="t('compose.cc')" @click="showCc = true" />
+          <UButton v-if="!showBcc" color="neutral" variant="link" size="xs" class="px-1" :label="t('compose.bcc')" @click="showBcc = true" />
         </template>
       </ComposeRecipientInput>
       <ComposeRecipientInput
