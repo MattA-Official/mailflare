@@ -21,7 +21,6 @@ const router = useRouter()
 useHead({ title: () => t('account.calendar') })
 
 const events = shallowRef<CalendarEvent[]>([])
-const loading = ref(true)
 const eventsVersion = ref(0)
 const currentTime = ref(Date.now())
 const visibleDate = ref(new Date())
@@ -98,20 +97,20 @@ const range = computed(() => {
   }
 })
 
-let loadGeneration = 0
-watch([() => range.value.start.getTime(), () => range.value.end.getTime(), eventsVersion], async () => {
-  const generation = ++loadGeneration
+// Events for the visible range. One key for the page, so the calendar keeps showing what it has while
+// another range loads, and a failed load leaves it in place.
+const { data: loadedEvents, status: eventsStatus, error: eventsError } = useAsyncData('calendar-events', () => {
   const { start, end } = range.value
-  loading.value = true
-  try {
-    const data = await api<{ events?: CalendarEvent[] }>(`/api/calendar/events?start=${start.toISOString()}&end=${end.toISOString()}`)
-    if (generation === loadGeneration) events.value = expandCalendarEvents(data.events ?? [], start, end)
-  } catch {
-    if (generation === loadGeneration) toast.add({ title: t('calendar.loadFailed'), color: 'error' })
-  } finally {
-    if (generation === loadGeneration) loading.value = false
-  }
+  return api<{ events?: CalendarEvent[] }>(`/api/calendar/events?start=${start.toISOString()}&end=${end.toISOString()}`)
+    .then(data => expandCalendarEvents(data.events ?? [], start, end))
+}, { watch: [() => range.value.start.getTime(), () => range.value.end.getTime(), eventsVersion] })
+const loading = computed(() => eventsStatus.value === 'pending')
+watch(loadedEvents, (value) => {
+  if (value) events.value = value
 }, { immediate: true })
+watch(eventsError, (error) => {
+  if (error) toast.add({ title: t('calendar.loadFailed'), color: 'error' })
+})
 
 // /calendar?event=<id> (from the upcoming list elsewhere) opens that event once it has loaded.
 watch([events, () => route.query.event], () => {

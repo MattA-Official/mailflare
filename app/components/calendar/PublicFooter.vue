@@ -1,12 +1,6 @@
 <script setup lang="ts">
 // Language picker and branding at the foot of the public booking pages.
-const appName = ref('Flytower Mail')
-onMounted(async () => {
-  try {
-    const response = await fetch('/api/branding', { cache: 'no-store' })
-    if (response.ok) appName.value = ((await response.json()) as { appName?: string }).appName || 'Flytower Mail'
-  } catch { /* The default name stays. */ }
-})
+const { appName } = useBranding()
 </script>
 
 <template>
