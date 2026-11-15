@@ -1,3 +1,5 @@
+import { mkdirSync, writeFileSync } from 'node:fs'
+import { dirname } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { getSecurityHeaders } from './server/lib/security/headers'
 
@@ -63,11 +65,15 @@ export default defineNuxtConfig({
     cache: { driver: 'cloudflare-kv-binding', namespaceId: CACHE_NAMESPACE_ID },
   },
 
+  // Custom Worker entry for builds only: wraps Nitro's module handler and adds the realtime Durable
+  // Object plus the email, queue and scheduled handlers (see server/worker.ts). In `nuxt dev` it would
+  // replace Nitro's dev server entry, so the dev worker would never start listening.
+  $production: { nitro: { entry: r('./server/worker.ts') } },
+
   nitro: {
     preset: 'cloudflare_module',
-    // Custom Worker entry: wraps Nitro's module handler and adds the realtime Durable Object
-    // plus the email, queue and scheduled handlers. See server/worker.ts.
-    entry: r('./server/worker.ts'),
+    // Drizzle Kit 1.0 has no `drizzle-kit/api`; NuxtHub's dev-only Studio handler still imports it.
+    alias: { 'drizzle-kit/api': r('./server/dev/drizzle-kit-api.ts') },
     // Lets ported code read the current request (cookies(), headers()) without threading the event.
     experimental: { asyncContext: true },
     // Imported for its side effect in server/worker.ts (passkeys need the Reflect metadata API).
@@ -149,4 +155,32 @@ export default defineNuxtConfig({
     },
   },
   eslint: { config: { stylistic: false } },
+
+  hooks: {
+    // `nuxt dev` emulates the bindings through wrangler's platform proxy, which needs a wrangler
+    // config file. There is none in the repo (the build generates one), so write a local one: the
+    // same D1, R2 and KV names as `bun run seed:local` and `bun run preview` (one shared local state
+    // in .wrangler/state), and nothing that needs a Cloudflare login. Queue consumers, email, cron
+    // and the Durable Object still need `bun run preview`.
+    'nitro:config'(config) {
+      if (!config.dev) return
+      const path = r('./.nuxt/wrangler.dev.json')
+      mkdirSync(dirname(path), { recursive: true })
+      writeFileSync(path, JSON.stringify({
+        name: WORKER_NAME,
+        compatibility_date: '2026-11-01',
+        compatibility_flags: ['nodejs_compat'],
+        vars: { CF_EMAIL_WORKER_NAME: WORKER_NAME, APP_URL: 'http://localhost:3000' },
+        d1_databases: [{ binding: 'DB', database_name: 'mailflare', database_id: D1_DATABASE_ID }],
+        r2_buckets: [{ binding: 'BUCKET', bucket_name: 'mailflare-raw' }],
+        kv_namespaces: [{ binding: 'KV', id: KV_NAMESPACE_ID }, { binding: 'CACHE', id: CACHE_NAMESPACE_ID }],
+        queues: { producers: ['INBOUND', 'OUTBOUND', 'AGENT'].map(name => ({ binding: `${name}_QUEUE`, queue: `mailflare-${name.toLowerCase()}` })) },
+        ratelimits: [
+          { name: 'LOGIN_RATE_LIMIT', namespace_id: '1001', simple: { limit: 20, period: 60 } },
+          { name: 'AGENT_RATE_LIMIT', namespace_id: '1002', simple: { limit: 120, period: 60 } },
+        ],
+      }, null, 2))
+      config.cloudflare = { ...config.cloudflare, dev: { ...config.cloudflare?.dev, configPath: path } }
+    },
+  },
 })

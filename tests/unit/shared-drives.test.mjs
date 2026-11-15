@@ -1,6 +1,6 @@
 // Fork-only: shared drives held by their own hidden account (migration 0094_shared_drives).
 import assert from "node:assert/strict";
-import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterAll as after, test, onTestFinished } from "vitest";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -53,11 +53,10 @@ const primary = { id: "primary", role: "admin", isPrimaryAdmin: true, canManageU
 /** Every migration except 0094, as a database looks after deploy and before the update card is used. */
 function migrationsWithout0094() {
 	const dir = join(directory, `without-${Math.random().toString(36).slice(2)}`);
-	mkdirSync(join(dir, "meta"), { recursive: true });
+	mkdirSync(dir, { recursive: true });
 	for (const name of readdirSync(migrations)) {
-		if (name.endsWith(".sql") && !name.startsWith("0094")) copyFileSync(join(migrations, name), join(dir, name));
+		if (!name.startsWith("0094")) cpSync(join(migrations, name), join(dir, name), { recursive: true });
 	}
-	copyFileSync(join(migrations, "meta", "_journal.json"), join(dir, "meta", "_journal.json"));
 	return dir;
 }
 

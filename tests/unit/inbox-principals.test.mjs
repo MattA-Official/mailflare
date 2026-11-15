@@ -1,6 +1,6 @@
 // Fork-only: shared inboxes held by their own hidden account (migration 0093_inbox_principals).
 import assert from "node:assert/strict";
-import { copyFileSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
+import { cpSync, mkdirSync, mkdtempSync, readdirSync, rmSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { afterAll as after, test, onTestFinished } from "vitest";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -56,11 +56,10 @@ const primary = { id: "primary", role: "admin", isPrimaryAdmin: true, canManageU
 /** Every migration before 0093, so a test can seed the old shape and then upgrade. */
 function migrationsBefore0093() {
 	const dir = join(directory, `before-${Math.random().toString(36).slice(2)}`);
-	mkdirSync(join(dir, "meta"), { recursive: true });
+	mkdirSync(dir, { recursive: true });
 	for (const name of readdirSync(migrations)) {
-		if (name.endsWith(".sql") && name < "0093") copyFileSync(join(migrations, name), join(dir, name));
+		if (name < "0093") cpSync(join(migrations, name), join(dir, name), { recursive: true });
 	}
-	copyFileSync(join(migrations, "meta", "_journal.json"), join(dir, "meta", "_journal.json"));
 	return dir;
 }
 
@@ -135,7 +134,7 @@ test("the upgrade can run again without changing anything", async () => {
 	const before = f.sql.prepare("SELECT COUNT(*) AS n FROM users").get().n;
 	f.sql.exec("DELETE FROM d1_migrations WHERE name = '0093_inbox_principals.sql'");
 	// The column already exists, so only the data statements can be re-run; they must be no-ops.
-	const statements = (await import("node:fs")).readFileSync(join(migrations, "0093_inbox_principals.sql"), "utf8")
+	const statements = (await import("node:fs")).readFileSync(join(migrations, "0093_inbox_principals", "migration.sql"), "utf8")
 		.split(/-->\s*statement-breakpoint/g).map(statement => statement.replace(/^\s*--.*$/gm, "").trim()).filter(Boolean).slice(2);
 	for (const statement of statements) f.sql.exec(statement);
 	assert.equal(f.sql.prepare("SELECT COUNT(*) AS n FROM users").get().n, before);

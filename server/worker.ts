@@ -8,7 +8,8 @@
 //   and for per-message ack/retry.
 // - The RealtimeHub export, which must come from the Worker entrypoint.
 // @simplewebauthn/server pulls in @peculiar/x509, whose tsyringe container needs the Reflect
-// metadata API at import time. Without it every passkey route fails with a 500.
+// metadata API at import time. Without it every passkey route fails with a 500. (In `nuxt dev`, which
+// does not use this entry, server/plugins/reflect-metadata.ts loads it.)
 import "reflect-metadata";
 import nitroHandler from "nitropack/presets/cloudflare/runtime/cloudflare-module";
 import {

@@ -237,14 +237,29 @@ Tick in the PR that lands it. Add rows for anything discovered.
 
 ## Deviations from upstream
 
-- (fork) Drizzle 1.0 (Matt, 2026-11-15), while upstream stays on 0.x. Migrations are unchanged:
-  `server/db/migrations/sqlite/NNNN_name.sql` stay flat files applied by the in-app runner, which
-  records them by file name in `d1_migrations`, so nothing is renamed or re-applied. `drizzle-kit up`
-  was deliberately not run: it would move every migration into its own folder, which the runner, the
-  bundle generator and `port.mjs` do not expect, and upstream's migrations keep arriving flat. Drizzle
-  Kit is not used to write migrations here (its 0.x journal and snapshots stopped at 0087/0080, and
-  Drizzle Kit 1.0 refuses the old layout), so the `db:generate` script is gone; write a new migration
-  by hand and run `bun run db:bundle`. `drizzle-kit` stays installed because NuxtHub's module looks for it.
+- (fork) Drizzle 1.0 (Matt, 2026-11-15), while upstream stays on 0.x. Migrations are in Drizzle Kit
+  1.0's folder layout: `server/db/migrations/sqlite/<name>/migration.sql`, configured by
+  `drizzle.config.ts`. Write migrations with Drizzle Kit, not by hand (Matt): change the schema, run
+  `bun run db:generate -- --name <what>` (a folder named `<timestamp>_<what>`, which sorts after the
+  numbered ones), then `bun run db:bundle`. `bun run db:check` checks the folder and shows any
+  ungenerated change. Hand-written SQL only where Drizzle Kit cannot express it (data moves, FTS,
+  triggers): `bun run db:generate -- --custom --name <what>` makes an empty migration with the right
+  snapshot.
+  - The in-app runner, the bundle and `bun run seed:local` record each folder as `<name>.sql` in
+    `d1_migrations`, the name it had as a flat file, so databases migrated before the move (production
+    was at 0095) see nothing new. The generated `bundle.json` was byte-for-byte unchanged by the move.
+  - `drizzle-kit up` could not do the move itself: it needs a 0.x snapshot for every journal entry
+    and upstream kept only three (0000, 0010, 0080), the fork's hand-written 0087_oidc_provider and
+    0088-0095 were never in the journal, and it renames folders to timestamps, which would have made
+    the runner apply everything again. The files were moved by `git mv` instead, and the one
+    snapshot (in `0095_mailbox_managers/`) is Drizzle Kit's own snapshot of the schema at that point.
+  - Known differences between the schema and the SQL the migrations ran, kept as they were: the
+    `messages_fts` tables (raw SQL, not in the schema); `users.kind` and `users_kind_idx` (declared in
+    `server/lib/accounts/kind.ts` on purpose); `groups_name_idx` and
+    `idx_api_keys_prefix` exist only in SQL; defaults of `backup_settings.enabled` (SQL false, schema
+    true) and `mailbox_agent_settings.enabled` (SQL true, schema false); some unique constraints are
+    named indexes in SQL. Drizzle Kit diffs against the schema snapshot, so none of these produce a
+    migration unless the schema changes there.
 
 - (11) No licences. `/api/licenses/*` is gone, there is no licence indicator (workstream 1) and no
   licences page (workstream 8). Every licensed feature is on: `canForwardEmail`, `canCreateShared` and
@@ -519,8 +534,13 @@ port started from `cee65a5` (v0.5.4, the tree that was `legacy/`). Read upstream
     upstream test that builds `drizzle(async (sql, params, method) => ...)` over `node:sqlite` should use
     `drizzle(sqliteExecutors(sqlite))` from `tests/unit/helpers/fixtures.mjs`. `drizzle(d1, { schema })`
     becomes `drizzle(d1)` (there are no relational queries). `getTableColumns` is deprecated in favour
-    of `getColumns` but still works; leave upstream's spelling. Upstream's `drizzle/migrations/meta`
-    files still come across with its migrations and are ignored: see the Drizzle 1.0 deviation.
+    of `getColumns` but still works; leave upstream's spelling.
+  - Upstream's migrations are flat 0.x files. `port.mjs` maps `drizzle/migrations/<name>.sql` to
+    `server/db/migrations/sqlite/<name>/migration.sql` and ignores `drizzle/migrations/meta/`. Once
+    the schema change is ported too, run `bun run db:snapshot` (records the schema as that folder's
+    snapshot, so `db:generate` does not emit the change again), then `bun run db:check`. An upstream
+    test that reads `drizzle/migrations/*.sql` or the journal needs the folder layout
+    (`listMigrations` in `tests/unit/helpers/migrate.mjs`).
 
 ## Open items
 
