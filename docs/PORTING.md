@@ -261,6 +261,19 @@ Tick in the PR that lands it. Add rows for anything discovered.
     named indexes in SQL. Drizzle Kit diffs against the schema snapshot, so none of these produce a
     migration unless the schema changes there.
 
+- (fork) Directory and org chart (Matt, 2026-11-15; contacts plan phase 2). `/directory` lists every
+  enabled person (not inbox or drive principals, not hidden), every group and every shared inbox, and
+  everyone signed in can read it. Profile fields live in `user_profiles` and the instance settings
+  (people may set their own title, department and manager; who is pinned at the top of the chart) in
+  `directory_settings`, both from migration `20261115180146_directory_profiles`. They are separate
+  tables so sign-in never reads them; `server/lib/directory/service.ts` treats them as empty until the
+  migration is applied, and writes answer 503 `needs_migration`. A manager change that would make a
+  loop is refused (409 `reporting_loop`); hidden or disabled managers are skipped when drawing, so
+  their reports move up. API: `GET /api/directory`, `GET|PATCH /api/directory/people/:id`,
+  `GET /api/directory/people/:id/avatar`, `GET /api/directory/groups/:id`,
+  `GET|PATCH /api/directory/profile`, `GET /api/directory/org-chart`, `GET|PATCH /api/directory/settings`.
+  The org chart draws with Vue Flow and dagre on wide screens and a UTree on phones.
+
 - (fork) All-day events (Matt, 2026-11-15). Upstream has none of its own; incoming all-day invites
   were already stored midnight to midnight. The mark lives in its own table, `calendar_event_all_day`
   (migration `20261115173626_calendar_all_day`), not a column on `calendar_events`, because Drizzle 1.0

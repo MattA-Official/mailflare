@@ -9,6 +9,7 @@ const items = computed(() => [[
   ...(user.value?.calendarEnabled !== false ? [{ label: t('account.calendar'), icon: 'i-lucide-calendar-days', to: '/calendar' }] : []),
   ...(user.value?.driveEnabled !== false ? [{ label: t('account.drive'), icon: 'i-lucide-hard-drive', to: '/drive' }] : []),
   { label: t('navigation.contacts'), icon: 'i-lucide-users-round', to: '/contacts' },
+  { label: t('directory.title'), icon: 'i-lucide-building-2', to: '/directory' },
 ]])
 </script>
 
