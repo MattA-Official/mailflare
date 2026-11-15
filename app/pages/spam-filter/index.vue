@@ -7,6 +7,7 @@ import { ABUSECH_SIGNUP_URL, SPAMHAUS_SIGNUP_URL, formatBrandLines, loadSpamFilt
 
 definePageMeta({ layout: 'dashboard', nav: 'admin', auth: { role: 'admin', primary: true, requireMailbox: true } })
 const { t } = useLanguage()
+const toast = useToast()
 
 const brandText = ref('')
 const brandStatus = ref('')
@@ -32,7 +33,7 @@ async function saveBrands() {
   try {
     settings.value = await saveSpamFilterSettings({ brands: parsedBrands.value.brands })
     brandText.value = formatBrandLines(settings.value.brands)
-    brandStatus.value = t('spamFilter.saved')
+    toast.add({ title: t('spamFilter.saved'), color: 'success' })
   } catch (error) {
     brandStatus.value = errorMessage(error, t('spamFilter.saveFailed'))
   } finally {
@@ -109,9 +110,7 @@ async function toggleDomainAge(checked: boolean) {
         <UFormField :label="t('spamFilter.brandsLabel')" :help="t('spamFilter.brandsBuiltIn')" :error="parsedBrands.invalidLines.length ? t('spamFilter.brandsInvalid', { lines: parsedBrands.invalidLines.join(', ') }) : undefined">
           <UTextarea v-model="brandText" :rows="6" :disabled="!editable || brandSaving" :placeholder="'PostFinance = postfinance.ch\nSwisscom = swisscom.ch, swisscom.com'" class="font-mono text-sm" />
         </UFormField>
-        <p v-if="brandStatus" role="status" class="text-sm text-toned">
-          {{ brandStatus }}
-        </p>
+        <UAlert v-if="brandStatus" role="alert" color="error" variant="subtle" :title="brandStatus" />
         <UButton type="submit" :disabled="!editable || brandSaving || parsedBrands.invalidLines.length > 0" :label="brandSaving ? t('common.saving') : t('spamFilter.saveBrands')" />
       </form>
     </UCard>

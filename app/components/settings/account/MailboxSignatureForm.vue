@@ -3,6 +3,7 @@
 import { getMailboxAddress, isHtmlSignature, updateMailboxSignature } from '~/utils/settings/account/mailbox'
 
 const { t } = useLanguage()
+const toast = useToast()
 const { selectedMailbox, setSelectedMailbox, isLoading } = useSelectedMailbox()
 const signature = ref('')
 const savedSignature = ref('')
@@ -27,7 +28,7 @@ async function submit() {
     signature.value = saved
     savedSignature.value = saved
     setSelectedMailbox({ ...mailbox, signature: saved })
-    status.value = t('common.saved')
+    toast.add({ title: t('common.saved'), color: 'success' })
   } catch (error) {
     status.value = error instanceof Error ? error.message : t('settings.signature.failed')
   } finally {
@@ -59,6 +60,7 @@ async function submit() {
       </p>
       <SettingsAccountSignaturePreview :html="signature" />
     </div>
+    <UAlert v-if="status" role="alert" color="error" variant="subtle" :title="status" />
     <div class="flex items-center gap-3">
       <UButton
         type="submit"
@@ -67,9 +69,6 @@ async function submit() {
       />
       <p v-if="!canManage" class="text-sm text-muted">
         {{ t('settings.signature.needFullAccess') }}
-      </p>
-      <p v-if="status" role="status" class="text-sm text-muted">
-        {{ status }}
       </p>
     </div>
   </form>

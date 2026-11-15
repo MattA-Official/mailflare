@@ -11,6 +11,7 @@ import { PROVIDER_PRESETS, baseUrlForPreset, loadAgentAdminSettings, loadAgentMo
 definePageMeta({ layout: 'dashboard', nav: 'admin', auth: { role: 'admin', primary: true, requireMailbox: true } })
 
 const { t } = useLanguage()
+const toast = useToast()
 useHead({ title: () => t('agentAdmin.title') })
 
 const form = ref<AgentAdminForm>({ provider: 'cloudflare', preset: 'openai', baseUrl: '', apiKey: '', model: DEFAULT_CLOUDFLARE_MODEL, rates: {} })
@@ -121,7 +122,7 @@ async function submit() {
     form.value = { ...form.value, apiKey: '', model: data.config.models.join(', '), rates: data.config.rates }
     hasSavedKey.value = data.config.hasApiKey
     savedEndpoint.value = `${data.config.preset}|${data.config.baseUrl}`
-    status.value = t('agentAdmin.saved')
+    toast.add({ title: t('agentAdmin.saved'), color: 'success' })
   } catch (error) {
     status.value = error instanceof Error ? error.message : t('agentAdmin.saveFailed')
   } finally {
@@ -230,9 +231,7 @@ async function submit() {
           </template>
         </div>
 
-        <p v-if="status" role="status" class="text-sm text-toned">
-          {{ status }}
-        </p>
+        <UAlert v-if="status" role="alert" color="error" variant="subtle" :title="status" />
         <UButton type="submit" :loading="saving" :disabled="!canSubmit" :label="saving ? t('common.saving') : t('agentAdmin.save')" />
       </form>
     </UCard>

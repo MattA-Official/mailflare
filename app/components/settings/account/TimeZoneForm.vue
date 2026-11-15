@@ -4,6 +4,7 @@ import { formatCurrentTimeInZone, listTimeZones, saveUserTimeZonePreference, upd
 
 const props = defineProps<{ userId: string, initialTimeZone: string | null }>()
 const { t } = useLanguage()
+const toast = useToast()
 
 const timeZone = ref(props.initialTimeZone ?? '')
 const savedTimeZone = ref(props.initialTimeZone ?? '')
@@ -30,7 +31,7 @@ async function submit() {
     timeZone.value = saved ?? ''
     savedTimeZone.value = saved ?? ''
     saveUserTimeZonePreference(props.userId, saved)
-    status.value = t('common.saved')
+    toast.add({ title: t('common.saved'), color: 'success' })
   } catch (error) {
     status.value = error instanceof Error ? error.message : t('settings.timeZone.failed')
   } finally {
@@ -62,15 +63,13 @@ async function submit() {
         <option v-for="zone in zones" :key="zone" :value="zone" />
       </datalist>
     </UFormField>
+    <UAlert v-if="status" role="alert" color="error" variant="subtle" :title="status" />
     <div class="flex items-center gap-3">
       <UButton
         type="submit"
         :disabled="saving || timeZone.trim() === savedTimeZone || !currentTime"
         :label="saving ? t('common.saving') : t('settings.timeZone.save')"
       />
-      <p v-if="status" role="status" class="text-sm text-muted">
-        {{ status }}
-      </p>
     </div>
   </form>
 </template>

@@ -7,6 +7,7 @@ import { getMailboxAddress, updateCurrentMailboxName } from '~/utils/settings/ac
 
 const props = defineProps<{ accountName: string, initialResetEmail: string }>()
 const { t } = useLanguage()
+const toast = useToast()
 const { selectedMailbox, setSelectedMailbox, isLoading } = useSelectedMailbox()
 
 const name = ref('')
@@ -42,7 +43,7 @@ async function submitProfile() {
     savedName.value = updated.displayName ?? ''
     // The primary inbox is the account, so its name is the profile name.
     if (isPrimary.value) dispatchProfileNameChanged(updated.displayName ?? '')
-    profileStatus.value = t('common.saved')
+    toast.add({ title: t('common.saved'), color: 'success' })
   } catch (error) {
     profileStatus.value = error instanceof Error ? error.message : t('settings.profile.updateFailed')
   } finally {
@@ -57,7 +58,7 @@ async function submitRecovery() {
     const saved = await updateProfile(props.accountName, resetEmail.value)
     resetEmail.value = saved
     savedResetEmail.value = saved
-    recoveryStatus.value = t('common.saved')
+    toast.add({ title: t('common.saved'), color: 'success' })
   } catch (error) {
     recoveryStatus.value = error instanceof Error ? error.message : t('settings.profile.recoveryFailed')
   } finally {
@@ -105,15 +106,13 @@ async function submitRecovery() {
         <UFormField :label="t('settings.profile.currentEmail')" name="accountEmail">
           <UInput id="accountEmail" :model-value="address" type="email" autocomplete="email" readonly aria-readonly="true" variant="soft" />
         </UFormField>
+        <UAlert v-if="profileStatus" role="alert" color="error" variant="subtle" :title="profileStatus" />
         <div class="flex items-center gap-3">
           <UButton
             type="submit"
             :disabled="!canManage || savingProfile || name.trim() === savedName"
             :label="savingProfile ? t('common.saving') : t('settings.profile.save')"
           />
-          <p v-if="profileStatus" class="text-sm text-muted">
-            {{ profileStatus }}
-          </p>
         </div>
       </form>
     </UCard>
@@ -131,15 +130,13 @@ async function submitRecovery() {
         <UFormField :label="t('settings.profile.emailAddress')" name="resetEmail">
           <UInput id="resetEmail" v-model="resetEmail" type="email" autocomplete="email" placeholder="recovery@example.com" />
         </UFormField>
+        <UAlert v-if="recoveryStatus" role="alert" color="error" variant="subtle" :title="recoveryStatus" />
         <div class="flex items-center gap-3">
           <UButton
             type="submit"
             :disabled="savingRecovery || resetEmail.trim() === savedResetEmail"
             :label="savingRecovery ? t('common.saving') : t('settings.profile.saveRecovery')"
           />
-          <p v-if="recoveryStatus" class="text-sm text-muted">
-            {{ recoveryStatus }}
-          </p>
         </div>
       </form>
     </UCard>

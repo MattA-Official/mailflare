@@ -5,6 +5,7 @@ interface AutoReplySettings { enabled: boolean, subject: string, body: string }
 interface AutoReplyResponse { mailbox?: { autoReplyEnabled: boolean, autoReplySubject: string, autoReplyBody: string } }
 
 const { t } = useLanguage()
+const toast = useToast()
 const { selectedMailbox, setSelectedMailbox, isLoading } = useSelectedMailbox()
 const settings = reactive<AutoReplySettings>({ enabled: false, subject: 'Out of office', body: '' })
 const saved = ref<AutoReplySettings>({ ...settings })
@@ -47,7 +48,7 @@ async function submit() {
     Object.assign(settings, { enabled: data.mailbox.autoReplyEnabled, subject: data.mailbox.autoReplySubject, body: data.mailbox.autoReplyBody })
     saved.value = { ...settings }
     setSelectedMailbox({ ...mailbox, autoReplyEnabled: settings.enabled, autoReplySubject: settings.subject, autoReplyBody: settings.body })
-    status.value = t('common.saved')
+    toast.add({ title: t('common.saved'), color: 'success' })
   } catch (cause) {
     status.value = cause instanceof Error ? cause.message : t('settings.autoReply.failed')
   } finally {
@@ -81,10 +82,10 @@ async function submit() {
       </UFormField>
     </template>
     <!-- Turning the reply off is saved here too, so the button stays reachable when the fields hide. -->
+    <UAlert v-if="status" role="alert" color="error" variant="subtle" :title="status" />
     <div v-if="settings.enabled || changed || status" class="flex items-center gap-3">
       <UButton type="submit" :disabled="!canManage || saving || !changed" :loading="saving" :label="saving ? t('common.saving') : t('settings.autoReply.save')" />
       <p v-if="!canManage" class="text-sm text-muted">{{ t('settings.autoReply.needFullAccess') }}</p>
-      <p v-if="status" role="status" class="text-sm text-muted">{{ status }}</p>
     </div>
   </UForm>
 </template>

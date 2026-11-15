@@ -110,8 +110,6 @@ async function remove(mailboxId: string) {
         </div>
       </div>
     </UCard>
-    <p v-if="message" role="status" class="text-sm text-muted">
-      {{ message }}
-    </p>
+    <UAlert v-if="message" role="alert" color="error" variant="subtle" :title="message" />
   </div>
 </template>

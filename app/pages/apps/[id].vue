@@ -6,6 +6,7 @@ import { appToDraft, deleteOidcApp, draftToInput, fetchOidcApp, rotateOidcAppSec
 definePageMeta({ layout: 'dashboard', nav: 'admin', auth: { role: 'admin', primary: true, requireMailbox: true } })
 
 const { t } = useLanguage()
+const toast = useToast()
 const route = useRoute()
 const id = computed(() => String(route.params.id))
 const { data, error, refresh } = useAsyncData(() => `oidc-app-${id.value}`, () => fetchOidcApp(id.value))
@@ -36,7 +37,7 @@ async function save() {
   try {
     await updateOidcApp(id.value, draftToInput(draft.value))
     await refresh()
-    message.value = t('oidc.apps.saved')
+    toast.add({ title: t('oidc.apps.saved'), color: 'success' })
   } catch (cause) {
     message.value = cause instanceof Error ? cause.message : t('oidc.apps.saveFailed')
   } finally {
@@ -121,11 +122,9 @@ async function remove() {
       <UCard>
         <form class="space-y-5" @submit.prevent="save">
           <AdminSystemAppForm v-model="draft" mode="edit" />
+          <UAlert v-if="message" role="alert" color="error" variant="subtle" :title="message" />
           <div class="flex items-center gap-3">
             <UButton type="submit" :loading="saving" :label="saving ? t('common.saving') : t('oidc.apps.save')" />
-            <p v-if="message" role="status" class="text-sm text-muted">
-              {{ message }}
-            </p>
           </div>
         </form>
       </UCard>

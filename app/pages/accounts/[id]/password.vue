@@ -7,6 +7,7 @@ import { createRecoveryLink, saveManagedAccount } from '~/utils/admin/system/acc
 import { useManagedAccount } from '~/utils/admin/system/use-managed-account'
 
 const { t } = useLanguage()
+const toast = useToast()
 const route = useRoute()
 const id = computed(() => String(route.params.id))
 const { data: account, error: loadError } = useManagedAccount(id)
@@ -46,7 +47,7 @@ async function resetPassword(token: string) {
   try {
     await saveManagedAccount({ ...account.value, newPassword: state.password }, token)
     state.password = ''
-    message.value = t('account.password.resetDone')
+    toast.add({ title: t('account.password.resetDone'), color: 'success' })
   } catch (error) {
     message.value = error instanceof Error ? error.message : t('account.password.resetFailed')
     throw error
@@ -88,9 +89,7 @@ function copyLink() {
         <UButton type="submit" :loading="saving" :disabled="!account" :label="saving ? t('account.password.resetting') : t('account.password.reset')" />
       </UForm>
     </UCard>
-    <p v-if="message" role="status" class="text-sm text-muted">
-      {{ message }}
-    </p>
+    <UAlert v-if="message" role="alert" color="error" variant="subtle" :title="message" />
 
     <UCard v-if="account?.editable">
       <div class="space-y-3">

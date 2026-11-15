@@ -6,6 +6,7 @@ import { BRANDING_ICON_ACCEPT, saveBranding } from '~/utils/admin/system/setting
 definePageMeta({ layout: 'dashboard', nav: 'admin', auth: { role: 'admin', primary: true, requireMailbox: true } })
 
 const { t } = useLanguage()
+const toast = useToast()
 const branding = useBranding()
 useHead({ title: () => t('branding.title') })
 
@@ -38,7 +39,7 @@ async function submit() {
     await saveBranding(appName.value.trim(), icon.value)
     await branding.refreshBranding()
     icon.value = null
-    status.value = t('branding.updated')
+    toast.add({ title: t('branding.updated'), color: 'success' })
   } catch (error) {
     status.value = error instanceof Error ? error.message : t('branding.saveFailed')
   } finally {
@@ -73,9 +74,7 @@ async function submit() {
             </span>
           </button>
         </UFormField>
-        <p v-if="status" role="status" class="text-sm text-toned">
-          {{ status }}
-        </p>
+        <UAlert v-if="status" role="alert" color="error" variant="subtle" :title="status" />
         <UButton type="submit" :loading="saving" :disabled="!appName.trim()" :label="saving ? t('common.saving') : t('branding.save')" />
       </form>
     </UCard>

@@ -6,6 +6,7 @@ import { fetchAccountApps, saveAccountAppRoles } from '~/utils/admin/system/apps
 definePageMeta({ auth: { role: 'admin', primary: true, requireMailbox: true } })
 
 const { t } = useLanguage()
+const toast = useToast()
 const route = useRoute()
 const id = computed(() => String(route.params.id))
 const { data, error, refresh } = useAsyncData(() => `account-apps-${id.value}`, () => fetchAccountApps(id.value))
@@ -35,7 +36,7 @@ async function save(app: AccountApp) {
   try {
     await saveAccountAppRoles(id.value, app.id, drafts.value[app.id] ?? [])
     await refresh()
-    messages.value[app.id] = t('oidc.account.saved')
+    toast.add({ title: t('oidc.account.saved'), color: 'success' })
   } catch (cause) {
     messages.value[app.id] = cause instanceof Error ? cause.message : t('oidc.account.saveFailed')
   } finally {
@@ -93,11 +94,9 @@ async function save(app: AccountApp) {
         </li>
       </ul>
       <template #footer>
+        <UAlert v-if="messages[app.id]" role="alert" color="error" variant="subtle" :title="messages[app.id]" />
         <div class="flex items-center gap-3">
           <UButton size="sm" :disabled="!changed(app)" :loading="saving === app.id" :label="saving === app.id ? t('common.saving') : t('common.save')" @click="save(app)" />
-          <p v-if="messages[app.id]" role="status" class="text-sm text-muted">
-            {{ messages[app.id] }}
-          </p>
         </div>
       </template>
     </UCard>

@@ -5,6 +5,7 @@ import { fetchTransferCandidates, saveManagedAccount, transferPrimaryAdmin } fro
 import { useManagedAccountDraft } from '~/utils/admin/system/use-managed-account'
 
 const { t } = useLanguage()
+const toast = useToast()
 const route = useRoute()
 const id = computed(() => String(route.params.id))
 const currentUser = useCurrentUser()
@@ -49,7 +50,7 @@ async function savePermissions() {
       clearCurrentUserCache()
       void fetchSessionInfo({ fresh: true })
     }
-    message.value = t('account.permissions.updated')
+    toast.add({ title: t('account.permissions.updated'), color: 'success' })
   } catch (error) {
     message.value = error instanceof Error ? error.message : t('account.permissions.updateFailed')
   } finally {
@@ -165,9 +166,7 @@ const enabledFeatures = flagModel(() => features.value, true)
       </div>
     </UCard>
 
-    <p v-if="message" role="status" class="text-sm text-muted">
-      {{ message }}
-    </p>
+    <UAlert v-if="message" role="alert" color="error" variant="subtle" :title="message" />
 
     <UModal v-model:open="transferOpen" :dismissible="!transferring" :title="t('account.permissions.transferQuestion')" :description="t('account.permissions.transferWarning')">
       <template #body>
