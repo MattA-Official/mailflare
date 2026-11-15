@@ -2837,5 +2837,7 @@
 	"directory.colleague": "Colleague",
 	"directory.zoomIn": "Zoom in",
 	"directory.zoomOut": "Zoom out",
-	"directory.openInDirectory": "Open in directory"
+	"directory.openInDirectory": "Open in directory",
+	"directory.addGroupMembers.one": "Add its {count} member",
+	"directory.addGroupMembers.other": "Add all {count} members"
 }

@@ -274,7 +274,9 @@ Tick in the PR that lands it. Add rows for anything discovered.
   `GET|PATCH /api/directory/profile`, `GET /api/directory/org-chart`, `GET|PATCH /api/directory/settings`.
   The org chart draws with Vue Flow and dagre on wide screens and a UTree on phones. In mail, the
   contact card (`ContactDetailsTrigger`) shows a colleague's directory name, title and department, and
-  the MCP server has a read-only `lookup_people` tool (scope `mcp:read`).
+  the MCP server has a read-only `lookup_people` tool (scope `mcp:read`). Compose and calendar guest
+  suggestions add colleagues (below saved and written-to contacts, above senders only heard from) and,
+  in compose, groups, which add every direct member.
 
 - (fork) All-day events (Matt, 2026-11-15). Upstream has none of its own; incoming all-day invites
   were already stored midnight to midnight. The mark lives in its own table, `calendar_event_all_day`

@@ -3,9 +3,10 @@
 // chips as soon as the user types a comma, presses Enter or Tab, pastes a list, or leaves the field;
 // Backspace on an empty field pulls the last chip back out for editing. With a mailboxId the field
 // also offers matching contacts as suggestions (recipient-suggestions.tsx).
-import { getEmailAddress } from '#lib/email/address'
+import { formatEmailAddress, getEmailAddress } from '#lib/email/address'
 import { getRecipientLabel, isValidRecipient, parseRecipientEntries } from '~/utils/compose/recipient-utils'
-import { fetchContactSuggestions, filterContactSuggestions, formatContactSuggestion, type ContactSuggestion } from '~/utils/compose/recipient-suggestions-utils'
+import { fetchContactSuggestions, filterContactSuggestions, formatContactSuggestion, mergeDirectorySuggestions, type ContactSuggestion } from '~/utils/compose/recipient-suggestions-utils'
+import { fetchDirectoryGroup } from '~/utils/directory/directory'
 
 const SUGGESTIONS_DEBOUNCE_MS = 180
 
@@ -22,6 +23,8 @@ const props = defineProps<{
 }>()
 const model = defineModel<string[]>({ required: true })
 const { t } = useLanguage()
+// Fork-only (directory): colleagues and groups join the suggestions.
+const directory = useDirectoryPeople()
 const draft = ref('')
 const input = useTemplateRef<HTMLInputElement>('input')
 const suggestions = shallowRef<ContactSuggestion[]>([])
@@ -37,7 +40,8 @@ watch([draft, () => props.disabled, () => props.mailboxId], ([value, disabled, m
   if (!mailboxId || disabled || !query) return
   const current = ++request
   const timer = setTimeout(() => {
-    fetchContactSuggestions(mailboxId, query)
+    Promise.all([fetchContactSuggestions(mailboxId, query), directory.load()])
+      .then(([contacts]) => mergeDirectorySuggestions(contacts, { people: directory.people.value, groups: directory.groups.value }, query))
       .then((list) => {
         if (request !== current) return
         suggestions.value = list
@@ -68,7 +72,16 @@ function commit(raw = draft.value) {
   closeSuggestions()
 }
 
-function pickSuggestion(suggestion: ContactSuggestion) {
+async function pickSuggestion(suggestion: ContactSuggestion) {
+  if (suggestion.group) {
+    draft.value = ''
+    closeSuggestions()
+    input.value?.focus()
+    const { group } = await fetchDirectoryGroup(suggestion.group.id).catch(() => ({ group: null }))
+    const entries = parseRecipientEntries((group?.members ?? []).map(member => formatEmailAddress(member.email, member.name)).join(', '), model.value)
+    if (entries.length > 0) model.value = [...model.value, ...entries]
+    return
+  }
   const entries = parseRecipientEntries(formatContactSuggestion(suggestion), model.value)
   if (entries.length > 0) model.value = [...model.value, ...entries]
   draft.value = ''
@@ -191,7 +204,14 @@ defineExpose({ focus: () => input.value?.focus() })
           @mousedown.prevent="pickSuggestion(suggestion)"
           @mouseenter="activeIndex = index"
         >
+          <UAvatar v-if="suggestion.group" icon="i-lucide-network" color="primary" size="sm" />
+          <DirectoryPersonAvatar
+            v-else-if="suggestion.colleague && !suggestion.hasAvatar"
+            :person="{ id: suggestion.colleague.id, name: suggestion.displayName ?? suggestion.email, email: suggestion.email, hasAvatar: suggestion.colleague.hasAvatar }"
+            size="sm"
+          />
           <ContactsContactAvatar
+            v-else
             :mailbox-id="mailboxId"
             :address="suggestion.email"
             :name="suggestion.displayName ?? ''"
@@ -200,8 +220,10 @@ defineExpose({ focus: () => input.value?.focus() })
           />
           <span class="min-w-0 flex-1">
             <span class="block truncate text-sm text-highlighted">{{ suggestion.displayName ?? suggestion.email }}</span>
-            <span v-if="suggestion.displayName" class="block truncate text-xs text-muted">{{ suggestion.email }}</span>
+            <span v-if="suggestion.group" class="block truncate text-xs text-muted">{{ t('directory.addGroupMembers', { count: suggestion.group.memberCount }) }}</span>
+            <span v-else-if="suggestion.displayName" class="block truncate text-xs text-muted">{{ suggestion.colleague?.title ? `${suggestion.colleague.title} · ${suggestion.email}` : suggestion.email }}</span>
           </span>
+          <UBadge v-if="suggestion.colleague || suggestion.group" color="neutral" variant="soft" size="sm" :label="t('directory.title')" class="shrink-0" />
         </li>
       </ul>
     </div>

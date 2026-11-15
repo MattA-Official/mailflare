@@ -3,13 +3,15 @@
 // mailbox's contacts, in the same order as compose, and any other address can be added as typed.
 import { getEmailAddress } from '#lib/email/address'
 import { isValidRecipient, parseRecipientEntries } from '~/utils/compose/recipient-utils'
-import { fetchContactSuggestions, type ContactSuggestion } from '~/utils/compose/recipient-suggestions-utils'
+import { fetchContactSuggestions, mergeDirectorySuggestions, type ContactSuggestion } from '~/utils/compose/recipient-suggestions-utils'
 
 const SUGGESTIONS_DEBOUNCE_MS = 180
 
 const props = defineProps<{ mailboxId?: string, placeholder?: string, ariaLabel?: string }>()
 const model = defineModel<string[]>({ required: true })
 const { t } = useLanguage()
+// Fork-only (directory): colleagues are suggested too.
+const directory = useDirectoryPeople()
 const searchTerm = ref('')
 const suggestions = shallowRef<ContactSuggestion[]>([])
 let request = 0
@@ -22,7 +24,8 @@ watch([searchTerm, () => props.mailboxId], ([value, mailboxId], _previous, onCle
   }
   const current = ++request
   const timer = setTimeout(() => {
-    fetchContactSuggestions(mailboxId, query)
+    Promise.all([fetchContactSuggestions(mailboxId, query), directory.load()])
+      .then(([contacts]) => mergeDirectorySuggestions(contacts, { people: directory.people.value, groups: [] }, query))
       .then((list) => {
         if (request === current) suggestions.value = list
       })
