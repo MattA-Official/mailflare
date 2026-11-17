@@ -516,8 +516,8 @@ Tick in the PR that lands it. Add rows for anything discovered.
 
 ## Following upstream
 
-Last ported upstream commit: `f4a17bd` fix: sync package-lock.json for npm 10 (#301) (2026-11-14)
-<!-- upstream-ported: f4a17bd98d8ad9dbcf95be911ac21cea1e471d91 -->
+Last ported upstream commit: `5330fa4` chore(deps): update next, react-server-dom-webpack, zod, nodemailer, MCP SDK (#304) (2026-11-16)
+<!-- upstream-ported: 5330fa4fff72cb0f38564822ff873e8ab854dee8 -->
 
 The marker above is the last commit of hieunc229/mailflare's `main` whose changes are in `nuxt`. The
 port started from `cee65a5` (v0.5.4, the tree that was `legacy/`). Read upstream's current source from the `upstream` branch or with
