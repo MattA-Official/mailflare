@@ -52,8 +52,12 @@ const IGNORED = [
 /** Upstream paths whose changes need a hand port: the React UI and the Worker entry. */
 const MANUAL = [/^src\/app\/(?!api\/|jmap\/|mcp\/|\.well-known\/)/, /^src\/(components|hooks)\//, /^worker(-utils)?\.ts$/, /^env\.d\.ts$/];
 
+function gitRaw(...args) {
+	return execFileSync("git", args, { encoding: "utf8", maxBuffer: 256 * 1024 * 1024 });
+}
+
 function git(...args) {
-	return execFileSync("git", args, { encoding: "utf8", maxBuffer: 256 * 1024 * 1024 }).trimEnd();
+	return gitRaw(...args).trimEnd();
 }
 
 function lastPorted() {
@@ -139,12 +143,13 @@ function apply(target) {
 		return;
 	}
 	const paths = result.auto.map((item) => item.path);
-	let patch = git("diff", "--binary", "--full-index", "--no-renames", from, to, "--", ...paths);
+	// Untrimmed: a hunk can end in a context line that is a single space.
+	let patch = gitRaw("diff", "--binary", "--full-index", "--no-renames", from, to, "--", ...paths);
 	// Rewrite the paths on the header lines only; hunks stay as they are.
 	patch = patch.split("\n").map((line) => {
 		if (!/^(diff --git|--- |\+\+\+ )/.test(line)) return line;
 		return line.replace(/(a\/|b\/)(\S+)/g, (whole, side, path) => side + (mapPath(path) ?? path));
-	}).join("\n") + "\n";
+	}).join("\n");
 	const dir = mkdtempSync(join(tmpdir(), "mailflare-upstream-"));
 	const file = join(dir, "server.patch");
 	writeFileSync(file, patch);
