@@ -3,6 +3,7 @@
 // only the message detail cache is warmed.
 import type { Message } from '~/types/messages'
 import { fetchCachedMessageDetail, getCachedMessageDetail, primeMessageDetail } from '~/utils/messages/detail-cache'
+import { warmMessageInvite } from '~/utils/calendar/invite-cache'
 
 const HOVER_PREFETCH_DELAY_MS = 120
 
@@ -12,10 +13,16 @@ export function useMessageNavigation(href: () => string, message: () => Message)
 
   function warmDetail() {
     const current = message()
-    if (getCachedMessageDetail(current.id)?.body) return
+    const cached = getCachedMessageDetail(current.id)
+    if (cached?.body) {
+      warmMessageInvite(current.id, cached)
+      return
+    }
     // Seed the header while the body loads.
     primeMessageDetail({ ...current })
-    void fetchCachedMessageDetail(current.id, true).catch(() => {})
+    void fetchCachedMessageDetail(current.id, true)
+      .then(detail => warmMessageInvite(current.id, detail))
+      .catch(() => {})
   }
 
   function cancelPrefetch() {
@@ -30,7 +37,12 @@ export function useMessageNavigation(href: () => string, message: () => Message)
   }
 
   function prefetch() {
-    if (hoverTimer || getCachedMessageDetail(message().id)?.body) return
+    const cached = getCachedMessageDetail(message().id)
+    if (cached?.body) {
+      warmMessageInvite(message().id, cached)
+      return
+    }
+    if (hoverTimer) return
     hoverTimer = window.setTimeout(() => {
       hoverTimer = null
       if ('requestIdleCallback' in window) idleCallback = window.requestIdleCallback(warmDetail, { timeout: 400 })
@@ -39,6 +51,8 @@ export function useMessageNavigation(href: () => string, message: () => Message)
   }
 
   function prefetchNow() {
+    // Start the invitation in parallel with the body for a tap that is about to navigate.
+    warmMessageInvite(message().id, getCachedMessageDetail(message().id))
     warmDetail()
   }
 
@@ -47,6 +61,7 @@ export function useMessageNavigation(href: () => string, message: () => Message)
     event.preventDefault()
     const current = message()
     primeMessageDetail({ ...current, read: markRead || current.read })
+    warmMessageInvite(current.id, getCachedMessageDetail(current.id))
     void navigateTo(href())
   }
 

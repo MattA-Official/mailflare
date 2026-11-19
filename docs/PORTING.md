@@ -513,11 +513,37 @@ Tick in the PR that lands it. Add rows for anything discovered.
   adds `nextCursor`. `DELETE /api/contacts/block` unblocks. `DELETE /api/contacts` keeps a blocked or
   image-allowed row as an Other entry unless `forget=1`. The Gravatar lookup is removed (Matt's decision),
   so `server/lib/contacts/gravatar.ts` and `ContactInput.lookupAvatar` are gone.
+- (upstream 5330fa4..be81a41, ported 19 Nov 2026) Undoable message actions (c738d9c): the server side is
+  upstream's (`/api/messages/actions`, `#lib/messages/actions/*`, migration
+  `0088_message_action_undo_claims`, the claim pruning on every cron). The client is simplified:
+  `app/utils/messages/message-action-client.ts` keeps the request, the read-state cache patch and
+  upstream's undo toast queue (`MessagesUndoToasts`), but not upstream's SWR field store, membership
+  store, pending overlays or tombstones (`field-store`, `membership-store`, `list-membership`,
+  `undo-store`, `executor`). A move refreshes the list from the change event instead of removing the
+  row optimistically, and an open reader is not patched by a pending overlay. Their React tests are
+  dropped with them. Compose notices keep the Nuxt UI toaster's position rather than moving to the
+  bottom left.
+- (upstream 06799fd) The split layout owns the one folder list: `MessagesSplitLayout` renders
+  `MessagesFolderPage` for the folder and its open messages (hidden, not unmounted, while a
+  single-column reader covers it), and the folders' `index.vue` pages render nothing. `FolderPage`
+  keys its `UDashboardPanel` on compact/full, so the resizable width is set up afresh while the
+  component and its loaded rows survive.
+- (upstream 61a3152) Folder-aware row actions are `MessagesRowActions` with `compact` (a pill with the
+  primary action and a `UDropdownMenu`) on desktop rows with a fine pointer. Upstream's JSDOM test is
+  dropped.
+- (upstream e4fff61) Turnstile loader and icon fixes do not apply (`@nuxtjs/turnstile`, Iconify). The
+  takeout import already aborted on unmount and the auto-reply save button already showed when switched
+  off (7a1828c).
+- (upstream 48ed51c, b7eee1f and Resend/SES parts of others) Not ported: Resend and SES are not carried.
+  Upstream's `publishMx` tests are dropped from `domain-mx-restore` for the same reason.
+- `scripts/upstream/port-test.mjs` now also maps `after`/`before`, `@/` ids inside regex filters,
+  `new URL("../", import.meta.url)` roots and `better-sqlite3` (to `node:sqlite` with D1's value codecs
+  via `d1Drizzle` in `tests/unit/helpers/fixtures.mjs`).
 
 ## Following upstream
 
-Last ported upstream commit: `5330fa4` chore(deps): update next, react-server-dom-webpack, zod, nodemailer, MCP SDK (#304) (2026-11-16)
-<!-- upstream-ported: 5330fa4fff72cb0f38564822ff873e8ab854dee8 -->
+Last ported upstream commit: `be81a41` Delete FUNDING.yml (2026-11-19)
+<!-- upstream-ported: be81a41201e8509ee1a16e590ad44e1e33c4f734 -->
 
 The marker above is the last commit of hieunc229/mailflare's `main` whose changes are in `nuxt`. The
 port started from `cee65a5` (v0.5.4, the tree that was `legacy/`). Read upstream's current source from the `upstream` branch or with

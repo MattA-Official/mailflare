@@ -57,7 +57,7 @@ function toggle() {
   expanded.value = shouldExpand
   if (!shouldExpand || locallyRead.value) return
   locallyRead.value = true
-  void runSingleMessageAction(props.message.id, 'read').catch(() => {
+  void runSingleMessageAction(props.message.id, 'read', { undo: false }).catch(() => {
     locallyRead.value = false
   })
 }

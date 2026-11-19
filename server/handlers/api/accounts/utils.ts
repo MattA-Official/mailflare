@@ -108,6 +108,13 @@ export function accountListItemFromUser(user: {
 	};
 }
 
+/** Recovery addresses are personal; the list shows them only to an admin who manages users. */
+export function withoutAccountContacts<T extends { resetEmail?: string | null }>(item: T): Omit<T, "resetEmail"> {
+	const rest = { ...item };
+	delete rest.resetEmail;
+	return rest;
+}
+
 /** Admin session allowed to share inboxes. Upstream gated this on a Team licence; the fork has none. */
 export async function requireTeamSharingAdmin(request: Request) {
 	const access = await requireTeamAdmin(request);

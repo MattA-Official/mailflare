@@ -5,6 +5,7 @@ import { useEventListener } from '@vueuse/core'
 import { getMessagesChangedDetail, MESSAGES_CHANGED_EVENT } from '#lib/messages/change-events'
 import type { Message, MessageFilterOptions, MessageFolder } from '~/types/messages'
 import { clearMessageCountsCache, clearMessageListCache, fetchMessageList, getMessageQueryParams, peekMessageList } from '~/utils/messages/list-cache'
+import { registerMessageRefresh } from '~/utils/messages/message-refresh'
 
 const REFRESH_DEBOUNCE_MS = 150
 
@@ -96,7 +97,10 @@ export function useMessages(
     useEventListener(window, MESSAGES_CHANGED_EVENT, onMessagesChanged)
     useEventListener(window, MESSAGES_CHANGED_EVENT, patchReadState)
   }
+  // The refresh button clears the caches first, so a plain load refetches.
+  const unregisterRefresh = registerMessageRefresh(() => load())
   onScopeDispose(() => {
+    unregisterRefresh()
     requestNumber += 1
     if (refreshTimer) clearTimeout(refreshTimer)
   })

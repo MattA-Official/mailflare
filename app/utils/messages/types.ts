@@ -20,7 +20,7 @@ export type MessageFolderConfig = {
 	showRowBadge?: boolean;
 };
 
-export type RowMessageAction = "archive" | "trash" | "read" | "unread";
+export type RowMessageAction = "archive" | "trash" | "read" | "unread" | "inbox" | "delete";
 
 export type SelectedMessage = Pick<Message, "id" | "read">;
 

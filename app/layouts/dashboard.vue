@@ -90,5 +90,6 @@ watch(() => [countsLoaded.value, allCounts.value.folders.inbox.unread] as const,
 
     <AppShortcuts v-if="user" />
     <ComposeHost />
+    <MessagesUndoToasts />
   </UDashboardGroup>
 </template>

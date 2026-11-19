@@ -24,11 +24,13 @@ export async function PATCH(request: Request) {
 
 	const db = getDb(env);
 	const forwardingEmail = parsed.forwardingEmail === undefined ? user.forwardingEmail : parsed.forwardingEmail;
-	await syncPersonalIdentity(db, {
-		userId: user.id,
-		name: parsed.name,
-		avatarKey: user.avatarKey,
-	});
+	if (parsed.name !== undefined) {
+		await syncPersonalIdentity(db, {
+			userId: user.id,
+			name: parsed.name,
+			avatarKey: user.avatarKey,
+		});
+	}
 	await db
 		.update(users)
 		.set({ resetEmail: parsed.resetEmail, forwardingEmail })
@@ -38,7 +40,7 @@ export async function PATCH(request: Request) {
 		user: {
 			id: user.id,
 			email: user.email,
-			name: parsed.name,
+			name: parsed.name ?? user.name,
 			resetEmail: parsed.resetEmail,
 			forwardingEmail,
 			canForwardEmail: true,

@@ -249,7 +249,9 @@ watch([attachments, bcc, cc, fromAddr, html, loadingDraft, quotedHtml, () => sel
   pendingSave = null
   if (saveTimer) clearTimeout(saveTimer)
   const bodyContent = htmlToPlainText(html.value).trim()
-  const signatureOnly = bodyContent === (selectedMailbox.value?.signature?.trim() ?? '')
+  // Compare text with text: an HTML signature is stored as markup.
+  const signatureContent = htmlToPlainText(applyMailboxSignatureHtml('', '', selectedMailbox.value?.signature)).trim()
+  const signatureOnly = bodyContent === signatureContent
   const hasContent = to.value.length > 0 || cc.value.length > 0 || bcc.value.length > 0 || subject.value.trim() || quotedHtml.value || attachments.value.length > 0 || (bodyContent && !signatureOnly)
   if (!fromAddr.value || !hasContent || loadingDraft.value || reviewInProgress) return
 

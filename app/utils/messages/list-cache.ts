@@ -191,7 +191,7 @@ export async function preloadMailboxPage(href: string, mailboxId?: string, optio
     { query: options.query?.trim() || undefined, read: 'all', limit: 25, offset: 0, group: options.grouped && folder !== 'drafts' ? 'thread' : undefined },
     customFolderMatch?.[1],
   )
-  await fetchMessageList(params)
+  await fetchMessageList(params).catch(() => undefined)
 }
 
 /** Moves messages from a drop on a sidebar folder (upstream dashboard-nav-utils). */

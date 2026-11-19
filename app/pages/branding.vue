@@ -39,6 +39,9 @@ async function submit() {
     await saveBranding(appName.value.trim(), icon.value)
     await branding.refreshBranding()
     icon.value = null
+    // The saved icon now comes from the server, so the local preview can go.
+    if (preview.value) URL.revokeObjectURL(preview.value)
+    preview.value = null
     toast.add({ title: t('branding.updated'), color: 'success' })
   } catch (error) {
     status.value = error instanceof Error ? error.message : t('branding.saveFailed')

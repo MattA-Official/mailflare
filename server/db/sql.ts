@@ -1,13 +1,21 @@
-import { like, sql, type AnyColumn, type SQL } from "drizzle-orm";
+import { sql, type AnyColumn, type SQL } from "drizzle-orm";
 
 /**
  * Small SQL helpers. Upstream keeps the SQL that differs between SQLite, PostgreSQL and MySQL here; this
  * fork runs on D1 only, so each is the SQLite form and the helpers stay so ported callers are unchanged.
  */
 
-/** `LIKE`, which ignores ASCII case on SQLite. */
+/**
+ * `LIKE`, which ignores ASCII case on SQLite. Always has `ESCAPE '!'` (SQLite has no default escape
+ * character) so a pattern built with `escapeLike` matches `%`, `_` and `!` literally.
+ */
 export function insensitiveLike(column: AnyColumn | SQL, pattern: string): SQL {
-	return like(column as AnyColumn, pattern);
+	return sql`${column} like ${pattern} escape ${sql.raw(`'${LIKE_ESCAPE}'`)}`;
+}
+
+/** Case-insensitive "contains `term`" match, with `%`, `_` and `!` in the term taken literally. */
+export function containsLike(column: AnyColumn | SQL, term: string): SQL {
+	return insensitiveLike(column, `%${escapeLike(term)}%`);
 }
 
 /** The value an `ON CONFLICT DO UPDATE` would have inserted. */

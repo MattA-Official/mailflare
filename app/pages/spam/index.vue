@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { spamFolderConfig } from '~/utils/messages/folder-configs'
-
+// The list is rendered by the folder's split layout, so it survives opening a message.
 definePageMeta({ layout: 'dashboard', auth: { requireMailbox: true } })
 </script>
 
 <template>
-  <MessagesFolderPage :config="spamFolderConfig" />
+  <span hidden />
 </template>

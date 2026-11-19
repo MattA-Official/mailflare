@@ -24,6 +24,7 @@ import {
   runBulkMessageAction,
 } from '~/utils/messages/list-utils'
 import { dispatchMessageCountsDelta } from '~/utils/messages/row-actions-utils'
+import { getEmptyPageOffset } from '~/utils/messages/page-offset'
 import type { Message } from '~/types/messages'
 import type { MessageFolderConfig, RowMessageAction, SelectedMessage } from '~/utils/messages/types'
 
@@ -40,6 +41,11 @@ const title = computed(() => (props.config.titleKey ? t(props.config.titleKey) :
 const { selectedMailbox, isLoading: mailboxesLoading } = useSelectedMailbox()
 const { query } = useMailSearch()
 const isMobile = useMediaQuery('(max-width: 767px)')
+const isDesktop = useMediaQuery('(min-width: 1024px)')
+// Coarse touch screens get no hover pill; their rows swipe instead.
+const hasHover = useMediaQuery('(hover: hover) and (pointer: fine)')
+const compactRowActions = computed(() => props.compact && isDesktop.value && hasHover.value)
+const router = useRouter()
 const listState = useMessageListState()
 const usesSharedListState = listState !== null
 const offset = listState?.offset ?? ref(0)
@@ -112,9 +118,11 @@ watch(offset, () => {
   selectedMessages.value = []
 })
 
-if (!props.compact) {
-  useHead({
-    title: () => (mailboxesLoading.value
+// The split layout keeps this list mounted beside the open message, whose page sets the title then.
+useHead({
+  title: () => {
+    if (props.compact) return undefined
+    return mailboxesLoading.value
       ? title.value
       : formatEmailPageTitle({
           location: title.value,
@@ -122,9 +130,9 @@ if (!props.compact) {
           total: titleTotal.value,
           unread: titleUnread.value,
           emailAddress: mailboxAddress.value,
-        })),
-  })
-}
+        })
+  },
+})
 
 watch([messages, isLoading], () => {
   if (isLoading.value) return
@@ -133,8 +141,9 @@ watch([messages, isLoading], () => {
 })
 
 watch([isLoading, offset, () => messages.value.length, total, limit], () => {
-  if (isLoading.value || offset.value === 0 || messages.value.length > 0) return
-  offset.value = total.value > 0 ? Math.floor((total.value - 1) / limit.value) * limit.value : 0
+  if (isLoading.value || messages.value.length > 0) return
+  const nextOffset = getEmptyPageOffset(offset.value, total.value, limit.value)
+  if (nextOffset !== null) offset.value = nextOffset
 })
 
 function isSelectionRead(message: Message) {
@@ -249,10 +258,35 @@ async function runSelectedAction(action: BulkMessageAction, folderId?: string) {
   }
 }
 
+/** Whether the action takes the row out of the folder that is on screen. */
+function removesMessageFromFolder(action: RowMessageAction) {
+  if (action === 'archive' || action === 'trash') return true
+  if (action === 'inbox') return ['archived', 'spam', 'trash'].includes(props.config.folder) || !!props.config.folderId
+  if (action === 'delete') return props.config.folder === 'trash' || props.config.folder === 'spam'
+  return false
+}
+
+// Row actions can resolve after the reader has moved on, so these compare against the message that
+// is open when they finish, not the one that was open when the request began.
+function closeReaderFor(messageIds: string[]) {
+  const openId = props.selectedMessageId
+  if (openId && messageIds.includes(openId)) void router.push(props.config.hrefPrefix)
+}
+
+function onSnoozeChange(messageId: string, snoozed: boolean) {
+  const removesOpenMessage = snoozed
+    ? props.config.folder === 'inbox' && !props.config.folderId
+    : props.config.folder === 'snoozed'
+  if (removesOpenMessage) closeReaderFor([messageId])
+}
+
 async function onRowAction(messageId: string, action: RowMessageAction) {
   actionError.value = null
   try {
-    return await runBulkMessageAction(expandSelectedIds([messageId]), action, action !== 'read' && action !== 'unread')
+    const affectedIds = expandSelectedIds([messageId])
+    const result = await runBulkMessageAction(affectedIds, action, action !== 'read' && action !== 'unread')
+    if (removesMessageFromFolder(action)) closeReaderFor(affectedIds)
+    return result
   }
   catch (error) {
     actionError.value = errorMessage(error)
@@ -266,8 +300,11 @@ function dragIdsFor(messageId: string) {
 </script>
 
 <template>
+  <!-- Keyed so the resizable width is set up afresh when the list switches between full width and
+       beside a message; the list's state lives in this component and survives the switch. -->
   <UDashboardPanel
     :id="compact ? 'message-list' : `folder-${config.folderId ?? config.folder}`"
+    :key="compact ? 'compact' : 'full'"
     :resizable="compact"
     :default-size="compact ? 24 : undefined"
     :min-size="compact ? 16 : undefined"
@@ -294,6 +331,7 @@ function dragIdsFor(messageId: string) {
               @update:model-value="toggleAllVisible($event === true)"
             />
           </UTooltip>
+          <MessagesListRefreshButton v-if="!compact" :disabled="mailboxesLoading" @error="actionError = t('list.refreshFailed')" />
           <MessagesBulkToolbar
             v-if="selectedIds.length > 0 && !compact"
             :selected-count="selectedIds.length"
@@ -307,6 +345,7 @@ function dragIdsFor(messageId: string) {
         </div>
         <div v-if="selectedIds.length === 0 || compact" class="flex items-center gap-1 text-muted">
           <span class="whitespace-nowrap text-xs">{{ t('list.range', { start: pageRange.start, end: pageRange.end, total: pageRange.total }) }}</span>
+          <MessagesListRefreshButton v-if="compact" :disabled="mailboxesLoading" @error="actionError = t('list.refreshFailed')" />
           <UTooltip :text="t('list.previousPage')">
             <UButton
               icon="i-lucide-chevron-left"
@@ -377,6 +416,8 @@ function dragIdsFor(messageId: string) {
           :current-account-name="currentAccountName"
           :drag-message-ids="dragIdsFor(message.id)"
           :on-message-action="onRowAction"
+          :show-compact-row-actions="compactRowActions"
+          @snooze-change="onSnoozeChange"
           @opening="markMessageOpening(message.id)"
           @selected-change="updateSelectedMessage"
         />

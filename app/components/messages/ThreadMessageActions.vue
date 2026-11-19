@@ -58,7 +58,7 @@ async function run(task: () => Promise<void>, fallbackKey: 'message.error.star' 
 }
 
 const onToggleStar = () => run(async () => {
-  starred.value = (await toggleMessageStar(props.message.id)).starred
+  starred.value = (await toggleMessageStar(props.message.id, !starred.value)).starred
 }, 'message.error.star')
 
 const onReply = (mode: ReplyMode) => run(async () => {
@@ -88,7 +88,7 @@ const onMessageAction = (action: Parameters<typeof runSingleMessageAction>[1]) =
 const onBlock = () => run(async () => {
   if (!props.mailboxId) return
   await blockMessageContact({ mailboxId: props.mailboxId, senderAddress: props.message.fromAddr })
-  await runSingleMessageAction(props.message.id, 'trash')
+  await runSingleMessageAction(props.message.id, 'trash', { undo: false })
 }, 'message.error.block')
 
 const menuItems = computed<DropdownMenuItem[][]>(() => {

@@ -1,4 +1,4 @@
-import { and, desc, eq, isNotNull, isNull, or, sql } from "drizzle-orm";
+import { and, desc, eq, isNotNull, isNull, or } from "drizzle-orm";
 import { NextResponse } from "#lib/http/next-compat";
 import { driveItems } from "#db/schema";
 import { newId } from "#lib/ids";
@@ -10,7 +10,7 @@ import { listDriveAttachments } from "#lib/drive/attachments";
 import { getDriveStorageLimitFor, getDriveStorageUsed } from "#lib/drive/storage";
 import { driveRoleForMember, getSharedDrive, getSharedDriveRole, type DriveMemberRole, type SharedDriveActor } from "#lib/drive/shared-drives";
 import type { DriveRole } from "#lib/drive/types";
-import { escapeLike } from "#db/sql";
+import { containsLike } from "#db/sql";
 
 export async function GET(request: Request) {
 	const auth = await authorizeDrive(request);
@@ -80,7 +80,7 @@ export async function GET(request: Request) {
 			return withoutTrashedAncestors(db, rows);
 		}
 		const conditions = [eq(driveItems.ownerId, ownerId), isNull(driveItems.trashedAt), isNull(driveItems.uploadId)];
-		if (query) conditions.push(sql`${driveItems.name} like ${`%${escapeLike(query)}%`} escape '!'`);
+		if (query) conditions.push(containsLike(driveItems.name, query));
 		else conditions.push(isNull(driveItems.parentId));
 		if (typeFilter) conditions.push(typeFilter);
 		return db.select().from(driveItems).where(and(...conditions)).orderBy(desc(driveItems.updatedAt)).limit(query ? 200 : 1000);

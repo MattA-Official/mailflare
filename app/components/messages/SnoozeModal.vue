@@ -6,6 +6,7 @@ import { getSnoozePresets, snoozeMessage } from '~/utils/messages/row-actions-ut
 
 const props = defineProps<{ messageId: string }>()
 const open = defineModel<boolean>('open', { default: false })
+const emit = defineEmits<{ snoozed: [] }>()
 const { t } = useLanguage()
 const presets = ref(getSnoozePresets())
 const snoozedUntil = ref(presets.value[0]!.value)
@@ -24,6 +25,7 @@ async function handleSnooze() {
   try {
     await snoozeMessage(props.messageId, snoozedUntil.value)
     open.value = false
+    emit('snoozed')
   }
   catch (nextError) {
     error.value = nextError instanceof Error ? nextError.message : t('snooze.failed')

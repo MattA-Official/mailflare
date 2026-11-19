@@ -1,7 +1,8 @@
 import type { Message } from "~/types/messages";
 import { authFetch } from "~/utils/auth-client";
 import { dispatchMessagesChanged } from "#lib/messages/change-events";
-import { markMessagesReadInCaches } from "~/utils/messages/list-cache";
+import { isReversibleMessageAction } from "#lib/messages/actions/definitions";
+import { performMessageAction } from "~/utils/messages/message-action-client";
 import { getEmailDisplayName, splitEmailAddressList } from "#lib/email/address";
 import { formatUserDate, getUserTimeZone, zonedDateFields } from "#lib/time/utils";
 import type { MailboxOption } from "~/composables/useSelectedMailbox";
@@ -94,21 +95,28 @@ export function formatEmailPageTitle({ location, total, unread, emailAddress, in
 	return `${location} (${count})${suffix}`;
 }
 
-export async function runBulkMessageAction(messageIds: string[], action: string, notify = true, folderId?: string) {
+/** Reversible actions go through the undoable action endpoint; only permanent delete uses /bulk. */
+export async function runBulkMessageAction(
+	messageIds: string[],
+	action: string,
+	notify = true,
+	folderId?: string,
+	options: { undo?: boolean } = {},
+) {
+	if (isReversibleMessageAction(action)) {
+		await performMessageAction({ action, messageIds, folderId }, { notify, undo: options.undo !== false });
+		return;
+	}
+	if (action !== "delete") throw new Error(defaultTranslator("error.updateSelected"));
+
 	const response = await authFetch("/api/messages/bulk", {
 		method: "POST",
 		headers: { "Content-Type": "application/json" },
-		body: JSON.stringify({ messageIds, action, folderId }),
+		body: JSON.stringify({ messageIds, action }),
 	});
-
 	if (!response.ok) throw new Error(defaultTranslator("error.updateSelected"));
 	await throwIfDeleteSkipped(response, action);
-	const readChanged = action === "read" || action === "unread";
-	if (readChanged) markMessagesReadInCaches(messageIds, action === "read");
-	if (notify) {
-		if (readChanged) dispatchMessagesChanged({ kind: "read", messageIds, read: action === "read" });
-		else dispatchMessagesChanged();
-	}
+	dispatchMessagesChanged({ kind: "removed", action: "delete", messageIds });
 }
 
 /**

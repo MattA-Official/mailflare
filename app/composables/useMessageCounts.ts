@@ -4,6 +4,7 @@ import type { MaybeRefOrGetter } from 'vue'
 import { useEventListener } from '@vueuse/core'
 import type { MessageCounts, MessageCountsDelta } from '~/types/messages'
 import { clearMessageCountsCache, fetchMessageCounts } from '~/utils/messages/list-cache'
+import { registerMessageRefresh } from '~/utils/messages/message-refresh'
 
 const REFRESH_DEBOUNCE_MS = 150
 
@@ -25,20 +26,22 @@ export function useMessageCounts(mailboxId: MaybeRefOrGetter<string | null | und
   let requestNumber = 0
   let refreshTimer: ReturnType<typeof setTimeout> | null = null
 
-  async function load() {
+  /** `explicit` is the refresh button: no loading state, and a failure is reported to it. */
+  async function load(explicit = false) {
     if (!toValue(enabled)) {
       isLoading.value = false
       return
     }
     const current = ++requestNumber
-    isLoading.value = true
+    if (!explicit) isLoading.value = true
     try {
       const next = await fetchMessageCounts(toValue(mailboxId))
       if (current !== requestNumber) return
       counts.value = next ?? emptyMessageCounts()
       loaded.value = !!next
-    } catch {
+    } catch (error) {
       // Counts are decoration; a failed request keeps the last ones.
+      if (explicit) throw error
     } finally {
       if (current === requestNumber) isLoading.value = false
     }
@@ -68,10 +71,12 @@ export function useMessageCounts(mailboxId: MaybeRefOrGetter<string | null | und
     useEventListener(window, 'mailflare:message-counts-changed', onMessagesChanged)
     useEventListener(window, 'mailflare:message-counts-delta', onDelta)
   }
+  const unregisterRefresh = registerMessageRefresh(() => load(true))
   onScopeDispose(() => {
+    unregisterRefresh()
     requestNumber += 1
     if (refreshTimer) clearTimeout(refreshTimer)
   })
 
-  return { counts, isLoading, loaded, refresh: load }
+  return { counts, isLoading, loaded, refresh: () => load() }
 }

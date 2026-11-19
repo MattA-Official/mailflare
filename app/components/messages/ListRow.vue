@@ -28,11 +28,14 @@ const props = withDefaults(defineProps<{
   currentAccountName?: string | null
   dragMessageIds: string[]
   onMessageAction: (messageId: string, action: RowMessageAction) => Promise<unknown>
-}>(), { active: false, opening: false, compact: false, currentAccountName: undefined })
+  /** The hover pill on compact rows beside an open message (desktop with a mouse only). */
+  showCompactRowActions?: boolean
+}>(), { active: false, opening: false, compact: false, currentAccountName: undefined, showCompactRowActions: false })
 
 const emit = defineEmits<{
   selectedChange: [messageId: string, selected: boolean]
   opening: []
+  snoozeChange: [messageId: string, snoozed: boolean]
 }>()
 
 const { t } = useLanguage()
@@ -59,7 +62,7 @@ const isDraft = computed(() => props.config.folder === 'drafts')
 const navigation = useMessageNavigation(() => href.value, () => rowMessage.value)
 const affectsInboxCount = computed(() => props.config.folder === 'inbox' && !props.config.folderId)
 const swipeable = computed(() => props.compact && (props.config.folder === 'inbox' || props.config.folder === 'snoozed') && props.message.direction === 'inbound')
-const showRowActions = computed(() => (props.config.folder === 'inbox' || props.config.folder === 'snoozed') && props.message.direction === 'inbound')
+const showRowActions = computed(() => ['inbox', 'snoozed', 'archived', 'spam', 'trash'].includes(props.config.folder) && props.message.direction === 'inbound')
 const starrable = computed(() => props.config.folder === 'inbox' && props.message.direction === 'inbound')
 const timestamp = computed(() => (props.message.scheduledAt ? formatScheduledSendTime(props.message.scheduledAt, t) : formatMessageListTimestamp(props.message.createdAt)))
 const threadCount = computed(() => props.message.threadCount ?? 1)
@@ -103,7 +106,7 @@ function onMessageNavigate(event: MouseEvent) {
     if (previousThreadUnread !== undefined) threadUnread.value = Math.max(0, previousThreadUnread - 1)
     const counted = affectsInboxCount.value && props.message.direction === 'inbound'
     if (counted) dispatchMessageCountsDelta({ inboxUnreadDelta: -1 })
-    void runBulkMessageAction([props.message.id], 'read', false).catch(() => {
+    void runBulkMessageAction([props.message.id], 'read', false, undefined, { undo: false }).catch(() => {
       read.value = false
       threadUnread.value = previousThreadUnread
       if (counted) dispatchMessageCountsDelta({ inboxUnreadDelta: 1 })
@@ -150,9 +153,9 @@ const swipeEnd = computed(() => ({
   <!-- Compact: split-view sidebar and phones. -->
   <MessagesSwipeableRow v-if="compact && swipeable" role="listitem" :start-action="swipeStart" :end-action="swipeEnd">
     <div
-      class="group grid grid-cols-[20px_minmax(0,1fr)] gap-3 border-l-2 px-4 py-3 transition-colors"
+      class="group relative grid grid-cols-[20px_minmax(0,1fr)] gap-3 border-l-2 px-4 py-3 transition-colors"
       :class="[
-        active || opening ? 'border-l-primary bg-primary/10' : selected ? 'border-l-transparent bg-elevated' : 'border-l-transparent hover:bg-elevated',
+        active || opening ? 'border-l-primary bg-primary/10' : selected ? 'border-l-transparent bg-elevated' : 'border-l-transparent hover:bg-elevated focus-within:bg-elevated',
         draggable && 'cursor-grab active:cursor-grabbing',
       ]"
       :draggable="draggable"
@@ -185,15 +188,25 @@ const swipeEnd = computed(() => ({
         <span class="mt-1 block truncate text-sm" :class="unread ? 'font-semibold text-highlighted' : 'text-toned'">{{ message.subject ?? t('list.noSubject') }}</span>
         <span class="mt-0.5 block truncate text-xs leading-5 text-muted">{{ preview }}</span>
       </NuxtLink>
+      <MessagesRowActions
+        v-if="showCompactRowActions && showRowActions"
+        :message="rowMessage"
+        :folder="config.folder"
+        :folder-id="config.folderId"
+        compact
+        :active="active || opening"
+        @action="(action) => void runRowAction(action).catch(() => undefined)"
+        @snooze-change="(id, snoozed) => emit('snoozeChange', id, snoozed)"
+      />
     </div>
   </MessagesSwipeableRow>
 
   <div
     v-else-if="compact"
     role="listitem"
-    class="group grid grid-cols-[20px_minmax(0,1fr)] gap-3 border-l-2 px-4 py-3 transition-colors"
+    class="group relative grid grid-cols-[20px_minmax(0,1fr)] gap-3 border-l-2 px-4 py-3 transition-colors"
     :class="[
-      active || opening ? 'border-l-primary bg-primary/10' : selected ? 'border-l-transparent bg-elevated' : 'border-l-transparent hover:bg-elevated',
+      active || opening ? 'border-l-primary bg-primary/10' : selected ? 'border-l-transparent bg-elevated' : 'border-l-transparent hover:bg-elevated focus-within:bg-elevated',
       draggable && 'cursor-grab active:cursor-grabbing',
     ]"
     :draggable="draggable"
@@ -226,6 +239,16 @@ const swipeEnd = computed(() => ({
       <span class="mt-1 block truncate text-sm" :class="unread ? 'font-semibold text-highlighted' : 'text-toned'">{{ message.subject ?? t('list.noSubject') }}</span>
       <span class="mt-0.5 block truncate text-xs leading-5 text-muted">{{ preview }}</span>
     </NuxtLink>
+    <MessagesRowActions
+      v-if="showCompactRowActions && showRowActions"
+      :message="rowMessage"
+      :folder="config.folder"
+      :folder-id="config.folderId"
+      compact
+      :active="active || opening"
+      @action="(action) => void runRowAction(action).catch(() => undefined)"
+      @snooze-change="(id, snoozed) => emit('snoozeChange', id, snoozed)"
+    />
   </div>
 
   <!-- Full width. -->
@@ -291,6 +314,13 @@ const swipeEnd = computed(() => ({
       <MessagesOpenedIndicator :count="message.openCount" />
       {{ timestamp }}
     </time>
-    <MessagesRowActions v-if="!isDraft && showRowActions" :message="rowMessage" @action="(action) => void runRowAction(action).catch(() => undefined)" />
+    <MessagesRowActions
+      v-if="!isDraft && showRowActions"
+      :message="rowMessage"
+      :folder="config.folder"
+      :folder-id="config.folderId"
+      @action="(action) => void runRowAction(action).catch(() => undefined)"
+      @snooze-change="(id, snoozed) => emit('snoozeChange', id, snoozed)"
+    />
   </div>
 </template>

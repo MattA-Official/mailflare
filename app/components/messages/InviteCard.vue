@@ -4,20 +4,8 @@
 import { formatUserDate } from '#lib/time/utils'
 import type { TranslationKey } from '#lib/i18n/types'
 import { authFetch } from '~/utils/auth-client'
-
-type InviteView = {
-  title: string
-  description: string
-  location: string
-  startsAt: string
-  endsAt: string
-  allDay: boolean
-  organizer: string | null
-  method: string
-  attendees?: { email: string, status: string }[]
-}
-
-type InviteResponse = 'accepted' | 'tentative' | 'declined'
+import { cacheAnsweredInvite, fetchInviteCard, getCachedInviteCard } from '~/utils/calendar/invite-cache'
+import type { InviteResponse, InviteView } from '~/utils/calendar/invite-types'
 
 const REPLY_KEYS: Record<string, TranslationKey> = {
   ACCEPTED: 'invite.reply.accepted',
@@ -32,24 +20,30 @@ const invite = shallowRef<InviteView | null>(null)
 const eventId = ref<string | null>(null)
 const answered = ref<InviteResponse | null>(null)
 const pending = ref<InviteResponse | null>(null)
+const loading = ref(false)
 
+// A cached card (prefetched on hover or seen before) renders at once; otherwise a skeleton holds
+// its place until the invitation arrives.
 watch(() => [props.messageId, props.hasCalendarAttachment] as const, ([messageId, hasCalendarAttachment], _previous, onCleanup) => {
-  invite.value = null
-  eventId.value = null
-  answered.value = null
-  if (!hasCalendarAttachment) return
+  const cached = hasCalendarAttachment ? getCachedInviteCard(messageId) : null
+  invite.value = cached?.invite ?? null
+  eventId.value = cached?.eventId ?? null
+  answered.value = cached?.response ?? null
+  loading.value = hasCalendarAttachment && cached === undefined
+  if (!loading.value) return
   let active = true
   onCleanup(() => { active = false })
-  void authFetch(`/api/messages/${messageId}/invite`)
-    .then(async response => (response.ok ? await response.json() as { invite: InviteView | null, eventId: string | null, response?: InviteResponse | null } : null))
+  void fetchInviteCard(messageId)
     .then((data) => {
-      if (active && data?.invite) {
-        invite.value = data.invite
-        eventId.value = data.eventId
-        answered.value = data.response ?? null
-      }
+      if (!active) return
+      invite.value = data?.invite ?? null
+      eventId.value = data?.eventId ?? null
+      answered.value = data?.response ?? null
     })
     .catch(() => undefined)
+    .finally(() => {
+      if (active) loading.value = false
+    })
 }, { immediate: true })
 
 const cancelled = computed(() => invite.value?.method === 'CANCEL')
@@ -98,8 +92,17 @@ async function respond(response: InviteResponse) {
     })
     const data = await result.json().catch(() => ({})) as { error?: string, eventId?: string | null }
     if (!result.ok) throw new Error(data.error ?? t('invite.failed'))
+    const current = invite.value
     answered.value = response
     eventId.value = data.eventId ?? null
+    if (current) {
+      cacheAnsweredInvite(props.messageId, {
+        invite: current,
+        eventId: eventId.value,
+        response,
+        canRespond: current.method === 'REQUEST' || current.method === 'PUBLISH',
+      })
+    }
     toast.add({ title: response === 'declined' ? t('invite.declined') : t('invite.added'), color: 'success' })
   }
   catch (error) {
@@ -112,7 +115,22 @@ async function respond(response: InviteResponse) {
 </script>
 
 <template>
-  <section v-if="invite" class="rounded-xl bg-elevated p-4">
+  <section v-if="!invite && loading" aria-busy="true" class="rounded-xl bg-elevated p-4">
+    <div class="flex items-start gap-3">
+      <USkeleton class="mt-0.5 size-5 shrink-0 rounded-md" />
+      <div class="min-w-0 flex-1 space-y-2">
+        <USkeleton class="h-3 w-24" />
+        <USkeleton class="h-4 w-3/4" />
+        <USkeleton class="h-3 w-1/2" />
+        <div class="flex flex-wrap gap-2 pt-1">
+          <USkeleton class="h-8 w-20 rounded-full" />
+          <USkeleton class="h-8 w-20 rounded-full" />
+          <USkeleton class="h-8 w-24 rounded-full" />
+        </div>
+      </div>
+    </div>
+  </section>
+  <section v-else-if="invite" class="rounded-xl bg-elevated p-4">
     <div class="flex items-start gap-3">
       <UIcon name="i-lucide-calendar-days" class="mt-0.5 size-5 shrink-0 text-primary" />
       <div v-if="reply" class="min-w-0 flex-1">

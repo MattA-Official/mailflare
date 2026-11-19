@@ -1,9 +1,52 @@
+import type { MessageStateSnapshot, ReversibleMessageAction } from "./actions/types";
+
+/** Grouped unread count a thread row should show (upstream's field-store type). */
+export type ThreadUnreadTarget = {
+	id: string;
+	threadUnread: number;
+};
+
+/** The fields that decide which folder lists still contain a message (upstream's list-membership type). */
+export type MessageMembershipFields = Pick<MessageStateSnapshot, "status" | "folderId" | "snoozedUntil" | "starred">;
+
 export const MESSAGES_CHANGED_EVENT = "mailflare:messages-changed";
 
+export type MessageFieldPatch = {
+	id: string;
+	read?: boolean;
+	starred?: boolean;
+};
+
+/** Authoritative membership state after the server applied a change. */
+export type MessageMembershipState = MessageMembershipFields & {
+	id: string;
+};
+
 export type MessagesChangedDetail = {
-	kind?: "read";
+	kind?: "read" | "patch" | "removed" | "restored";
 	messageIds?: string[];
 	read?: boolean;
+	/** Per-message field patches, used when a batch has mixed values. */
+	patches?: MessageFieldPatch[];
+	/**
+	 * Absolute grouped unread targets for rows touched by this event. Consumers
+	 * apply the target instead of incrementing a count they may already have
+	 * changed, so a repeated desired value and a second event are both no-ops.
+	 */
+	threadTargets?: ThreadUnreadTarget[];
+	/**
+	 * The membership mutation. Optimistic events carry the action and input so a
+	 * mounted row can derive its own target; committed events carry `states`.
+	 */
+	action?: ReversibleMessageAction | "delete";
+	folderId?: string | null;
+	snoozedUntil?: string | null;
+	/** Applied state per message, only after the server confirmed the change. */
+	states?: MessageMembershipState[];
+	/** Optimistic facts stay in this tab; other tabs wait for the committed event. */
+	localOnly?: boolean;
+	/** Set by the realtime channel on events that did not originate in this tab. */
+	realtime?: boolean;
 };
 
 export function dispatchMessagesChanged(detail?: MessagesChangedDetail): void {
@@ -15,5 +58,8 @@ export function getMessagesChangedDetail(event: Event): MessagesChangedDetail | 
 }
 
 export function isReadOnlyChange(event: Event): boolean {
-	return getMessagesChangedDetail(event)?.kind === "read";
+	const detail = getMessagesChangedDetail(event);
+	if (detail?.kind === "read") return true;
+	if (detail?.kind !== "patch" || !detail.patches?.length) return false;
+	return detail.patches.every((patch) => patch.read !== undefined && patch.starred === undefined);
 }
