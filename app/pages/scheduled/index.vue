@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { scheduledFolderConfig } from '~/utils/messages/folder-configs'
-
+// The list is rendered by the folder's split layout, so it survives opening a message.
 definePageMeta({ layout: 'dashboard', auth: { requireMailbox: true } })
 </script>
 
 <template>
-  <MessagesFolderPage :config="scheduledFolderConfig" />
+  <span hidden />
 </template>

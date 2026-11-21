@@ -1,11 +1,8 @@
 <script setup lang="ts">
-import { useCustomFolderConfig } from '~/composables/messages/useCustomFolderConfig'
-
+// The list is rendered by the folder's split layout, so it survives opening a message.
 definePageMeta({ layout: 'dashboard', auth: { requireMailbox: true } })
-const route = useRoute()
-const config = useCustomFolderConfig(() => String(route.params.folderId))
 </script>
 
 <template>
-  <MessagesFolderPage :config="config" />
+  <span hidden />
 </template>

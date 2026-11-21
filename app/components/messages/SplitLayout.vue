@@ -50,6 +50,7 @@ const selectedMessageId = computed(() => {
 const grouped = computed(() => conversationView.value && props.config.folder !== 'drafts')
 const singleColumn = computed(() => !twoColumnReading.value || !isDesktop.value)
 const listVisible = computed(() => !singleColumn.value && !assistantOpen.value && manualListVisible.value)
+const listShown = computed(() => !selectedMessageId.value || listVisible.value)
 const showBulkBar = computed(() => selectedMessages.value.length > 0 && !singleColumn.value)
 
 // The layout outlives the page that renders the list, so a filter change resets the shared list
@@ -158,9 +159,15 @@ provideMessageDetailNavigation({
 </script>
 
 <template>
-  <template v-if="selectedMessageId">
-    <MessagesFolderPage v-if="listVisible" :config="config" compact :selected-message-id="selectedMessageId" />
-    <NuxtPage />
-  </template>
-  <NuxtPage v-else />
+  <!-- One list for the folder and its open messages, so opening or closing a message (or archiving
+       it) does not remount the list and flash it empty. Hidden, not unmounted, while the reader
+       covers it. The folder's index page renders nothing. -->
+  <MessagesFolderPage
+    v-show="listShown"
+    :config="config"
+    :compact="!!selectedMessageId"
+    :selected-message-id="selectedMessageId"
+    :aria-hidden="listShown ? undefined : 'true'"
+  />
+  <NuxtPage />
 </template>

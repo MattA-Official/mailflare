@@ -27,6 +27,7 @@ import {
 } from "./worker/utils";
 import { runWithD1Session } from "#lib/d1-session-context";
 import { sweepOrphanedRawMail } from "#lib/email/raw-sweeper";
+import { pruneExpiredMessageActionUndoClaims } from "#lib/messages/actions/claims";
 import { processImportJob, sweepImportJobs } from "#lib/import/jobs";
 import { processWebhookRetry, type WebhookRetryMessage } from "#lib/email/webhooks";
 import { resolveIncomingMail, forwardMessage } from "#lib/email/incoming";
@@ -46,6 +47,7 @@ import { runAgentMaintenance } from "#lib/agent/maintenance";
 import { runTrashRetention } from "#lib/email/trash-retention";
 import { runDriveTrashRetention } from "#lib/drive/retention";
 import { runAccountRetention } from "#lib/accounts/deletion";
+import { purgeExpiredAuthRows } from "#lib/auth/purge";
 import { runJmapChangeRetention } from "#lib/jmap/changes";
 import { runFollowUpReminders } from "#lib/follow-ups/service";
 import { runCalendarReminders } from "#lib/calendar/reminders";
@@ -103,6 +105,7 @@ export default {
 			const alreadyForwarded = await isForwardedMarkerValid(env, message.headers.get(MAILFLARE_FORWARDED_HEADER));
 			const decision = await resolveIncomingMail(env, message.from, message.to, {
 				subject: message.headers.get("subject"),
+				from: message.headers.get("from"),
 				alreadyForwarded,
 			});
 
@@ -183,7 +186,9 @@ export default {
 		ctx.waitUntil(runFollowUpReminders(env, new Date(controller.scheduledTime)));
 		ctx.waitUntil(runCalendarReminders(env, new Date(controller.scheduledTime)));
 		ctx.waitUntil(sweepImportJobs(env, new Date(controller.scheduledTime)));
+		ctx.waitUntil(pruneExpiredMessageActionUndoClaims(env, new Date(controller.scheduledTime)));
 		if (controller.cron === "0 2 * * *") ctx.waitUntil(runAccountRetention(env, new Date(controller.scheduledTime)));
+		if (controller.cron === "0 2 * * *") ctx.waitUntil(purgeExpiredAuthRows(env, new Date(controller.scheduledTime)));
 		// Drive trash is emptied once a day, with the 02:00 UTC cron; the 5-minute cron is for queue-like upkeep.
 		if (controller.cron === "0 2 * * *") ctx.waitUntil(runDriveTrashRetention(env, new Date(controller.scheduledTime)));
 		if (controller.cron === "0 2 * * *") ctx.waitUntil(runJmapChangeRetention(env, new Date(controller.scheduledTime)));

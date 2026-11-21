@@ -58,6 +58,10 @@ export const INTERNAL_TABLES = [
 	"oidc_authorization_codes",
 	"oidc_refresh_tokens",
 	"oidc_signing_keys",
+	// Single-use undo-token consumption records. Restoring a stale claim would
+	// let an already-used undo token be replayed, and the table is rewritten by
+	// the installation that owns the tokens.
+	"message_action_undo_claims",
 ];
 
 /**

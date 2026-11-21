@@ -14,14 +14,17 @@ export async function loadAccountSettings(): Promise<AccountSettingsUser> {
   return data.user
 }
 
-/** Saves the account's recovery address. The name is sent unchanged because the endpoint requires it. */
-export async function updateProfile(name: string, resetEmail: string): Promise<string> {
+/**
+ * Saves the account's recovery address. The name is left out so a rename made elsewhere since the
+ * page opened is not reverted.
+ */
+export async function updateProfile(resetEmail: string): Promise<string> {
   const res = await authFetch('/api/settings/profile', {
     method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ name, resetEmail }),
+    body: JSON.stringify({ resetEmail }),
   })
-  const data = (await res.json()) as ProfileFormResponse
+  const data = (await res.json().catch(() => ({}))) as ProfileFormResponse
   if (!res.ok) throw new Error(errorText(data, 'Failed to update profile'))
   return data.user?.resetEmail ?? ''
 }

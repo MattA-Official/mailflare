@@ -11,11 +11,14 @@ const followUp = shallowRef<MessageFollowUp | null | undefined>(undefined)
 const failed = ref(false)
 const DATE_FORMAT: Intl.DateTimeFormatOptions = { weekday: 'short', month: 'short', day: '2-digit', hour: '2-digit', minute: '2-digit' }
 
+// Only the newest request may set state, so a slow response for another message is dropped.
+let latestRequest = 0
 function load() {
+  const request = ++latestRequest
   void fetchMessageFollowUp(props.messageId).then((value) => {
-    followUp.value = value
+    if (request === latestRequest) followUp.value = value
   }).catch(() => {
-    followUp.value = null
+    if (request === latestRequest) followUp.value = null
   })
 }
 watch(() => props.messageId, load, { immediate: true })

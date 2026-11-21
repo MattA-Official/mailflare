@@ -40,7 +40,8 @@ watch(() => props.item?.id, async (id) => {
     availableGroups.value = data.availableGroups ?? []
     linkToken.value = data.linkToken
   } catch {
-    toast.add({ title: t('drive.shareFailed'), color: 'error' })
+    // A slow failure for an earlier item says nothing about the item shown now.
+    if (props.item?.id === id) toast.add({ title: t('drive.shareFailed'), color: 'error' })
   }
 }, { immediate: true })
 

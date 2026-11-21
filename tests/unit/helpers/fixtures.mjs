@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { pathToFileURL } from "node:url";
 import { DatabaseSync } from "node:sqlite";
 import { drizzle } from "drizzle-orm/sqlite-proxy";
+import { d1Codecs } from "drizzle-orm/d1";
 import { build } from "esbuild";
 import { aliasPlugin, root } from "./paths.mjs";
 
@@ -52,6 +53,12 @@ export function sqliteExecutors(sqlite, { beforeQuery, afterQuery } = {}) {
 			return { success: true, results: [], meta: { changes: Number(changes), last_row_id: Number(lastInsertRowid) } };
 		}),
 	};
+}
+
+// drizzle over a node:sqlite database, decoding values the way the D1 driver does
+// (booleans, timestamps, JSON). Stands in for upstream's drizzle(betterSqlite3).
+export function d1Drizzle(sqlite, hooks) {
+	return drizzle(sqliteExecutors(sqlite, hooks), { codecs: d1Codecs });
 }
 
 // An in-memory SQLite database behind drizzle's sqlite-proxy driver.

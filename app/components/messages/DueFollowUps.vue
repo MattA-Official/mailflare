@@ -11,9 +11,12 @@ const items = shallowRef<DueFollowUp[]>([])
 const failed = ref(false)
 const DATE_FORMAT: Intl.DateTimeFormatOptions = { month: 'short', day: '2-digit' }
 
+// Only the newest request may set state, so a slow response for a previous mailbox is dropped.
+let latestRequest = 0
 function load() {
+  const request = ++latestRequest
   void fetchDueFollowUps(props.mailboxId).then((value) => {
-    items.value = value
+    if (request === latestRequest) items.value = value
   }).catch(() => undefined)
 }
 watch(() => props.mailboxId, load, { immediate: true })

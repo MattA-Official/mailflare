@@ -75,11 +75,11 @@ const snoozeOpen = ref(false)
 const listHref = computed(() => visibility.value.backHref)
 const autoAdvance = useAutoAdvance(() => props.messageId)
 
-async function runAction(action: BulkMessageAction) {
+async function runAction(action: BulkMessageAction, options: { undo?: boolean } = {}) {
   pendingAction.value = action
   error.value = null
   try {
-    await runSingleMessageAction(props.messageId, action)
+    await runSingleMessageAction(props.messageId, action, options)
     const redirect = getMessageActionRedirect(action, listHref.value)
     if (redirect) await router.push(autoAdvance() ?? redirect)
   }
@@ -201,7 +201,7 @@ async function onUnsubscribe() {
   }
   try {
     await createTrashSenderRule({ mailboxId: props.mailboxId, senderAddress: props.senderAddress })
-    await runAction('trash')
+    await runAction('trash', { undo: false })
   }
   catch {
     error.value = t('actions.error.trashRule')
@@ -218,7 +218,7 @@ async function onBlockContact() {
   pendingAction.value = 'block'
   try {
     await blockMessageContact({ mailboxId: props.mailboxId, senderAddress: props.senderAddress })
-    await runSingleMessageAction(props.messageId, 'trash')
+    await runSingleMessageAction(props.messageId, 'trash', { undo: false })
     await router.push(autoAdvance() ?? listHref.value)
   }
   catch (blockError) {

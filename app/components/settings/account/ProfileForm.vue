@@ -5,7 +5,7 @@ import { dispatchProfileNameChanged } from '#lib/profile/name-client'
 import { updateProfile } from '~/utils/settings/account/account'
 import { getMailboxAddress, updateCurrentMailboxName } from '~/utils/settings/account/mailbox'
 
-const props = defineProps<{ accountName: string, initialResetEmail: string }>()
+const props = defineProps<{ initialResetEmail: string }>()
 const { t } = useLanguage()
 const toast = useToast()
 const { selectedMailbox, setSelectedMailbox, isLoading } = useSelectedMailbox()
@@ -55,7 +55,7 @@ async function submitRecovery() {
   savingRecovery.value = true
   recoveryStatus.value = null
   try {
-    const saved = await updateProfile(props.accountName, resetEmail.value)
+    const saved = await updateProfile(resetEmail.value)
     resetEmail.value = saved
     savedResetEmail.value = saved
     toast.add({ title: t('common.saved'), color: 'success' })

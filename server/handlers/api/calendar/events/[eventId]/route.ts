@@ -14,6 +14,7 @@ import { newId } from "#lib/ids";
 import { getRequestTimeZone, normalizeTimeZone } from "#lib/time/utils";
 import { authorizeCalendarRequest, calendarKeyCanSendInvitations } from "#lib/calendar/api-auth";
 import { isAllDayEvent, setAllDayEvent } from "#lib/calendar/all-day";
+import { readJsonObject } from "#lib/http/request";
 
 export async function PATCH(request: Request, { params }: CalendarEventRouteParams) {
 	const env = getEnv();
@@ -21,7 +22,8 @@ export async function PATCH(request: Request, { params }: CalendarEventRoutePara
 	if (error) return error;
 	const { eventId } = await params;
 	const occurrence = parseCalendarOccurrenceId(eventId);
-	const input = await request.json() as CalendarEventInput;
+	const input = await readJsonObject<CalendarEventInput>(request);
+	if (!input) return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
 	const startsAt = new Date(input.startsAt);
 	const endsAt = new Date(input.endsAt);
 	const effectiveFrom = input.effectiveFrom ? new Date(input.effectiveFrom) : occurrence?.startsAt;

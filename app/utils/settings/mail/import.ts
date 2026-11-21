@@ -184,18 +184,26 @@ export function importMessageFiles(
       if (event.lengthComputable) onProgress?.(Math.round((event.loaded / event.total) * 100))
     }
     request.onerror = () => reject(new Error('Import upload failed'))
+    request.onabort = () => reject(new Error('Import upload cancelled'))
+    request.ontimeout = () => reject(new Error('Import upload timed out'))
     request.onload = () => {
-      let data: { job?: ImportJobSummary, error?: string }
-      try {
-        data = JSON.parse(request.responseText || '{}')
-      } catch {
-        data = { error: `HTTP ${request.status}` }
-      }
+      // A proxy can answer with an HTML error page; fall through to the status check.
+      const data = parseImportResponse(request.responseText)
       if (request.status < 200 || request.status >= 300) reject(new Error(data.error ?? 'Import failed'))
       else resolve(data)
     }
     request.send(form)
   })
+}
+
+function parseImportResponse(text: string): { job?: ImportJobSummary, error?: string } {
+  try {
+    const data: unknown = JSON.parse(text || '{}')
+    return data && typeof data === 'object' ? data as { job?: ImportJobSummary, error?: string } : {}
+  }
+  catch {
+    return {}
+  }
 }
 
 function findFolderMatch(folders: string[], aliases: string[]): string | null {

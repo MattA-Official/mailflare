@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "64d7936e-d92a-49b6-8be0-e03b9b6e9531",
+  "id": "5aa8501a-a8ae-4653-ab7a-26edd873226e",
   "prevIds": [
     "c80be8bd-d235-4361-851c-b2dcb06998da"
   ],
@@ -188,6 +188,10 @@
     },
     {
       "name": "mcp_key_mailboxes",
+      "entityType": "tables"
+    },
+    {
+      "name": "message_action_undo_claims",
       "entityType": "tables"
     },
     {
@@ -4030,6 +4034,36 @@
       "table": "mcp_key_mailboxes",
       "name": "mailbox_id",
       "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "message_action_undo_claims",
+      "name": "nonce",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "message_action_undo_claims",
+      "name": "user_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "message_action_undo_claims",
+      "name": "expires_at",
+      "type": "integer",
       "notNull": true,
       "autoincrement": false,
       "default": null,
@@ -8247,6 +8281,20 @@
       "entityType": "indexes"
     },
     {
+      "table": "message_action_undo_claims",
+      "name": "message_action_undo_claims_expires_idx",
+      "columns": [
+        {
+          "value": "expires_at",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
       "table": "message_attachments",
       "name": "message_attachments_message_idx",
       "columns": [
@@ -11448,6 +11496,15 @@
       "name": "mailboxes_pk",
       "columns": [
         "id"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "message_action_undo_claims",
+      "name": "message_action_undo_claims_pk",
+      "columns": [
+        "nonce"
       ],
       "nameExplicit": false,
       "entityType": "pks"

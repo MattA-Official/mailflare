@@ -40,6 +40,11 @@ watch(skipDns, () => {
   error.value = null
 })
 
+// A dropped connection must not leave the button spinning; show it like any other failure.
+function unreachable() {
+  return { ok: false as const, error: t('auth.serverUnreachable') } as { ok: false, error: string, domain?: undefined, code?: undefined }
+}
+
 async function addDomain(replaceMxRecords = false) {
   loading.value = true
   error.value = null
@@ -48,7 +53,7 @@ async function addDomain(replaceMxRecords = false) {
   if (skipDns.value) {
     checked = { hostname: normalized.value, zone: { id: 'manual', name: normalized.value } }
   } else if (checked?.hostname !== normalized.value) {
-    const result = await checkDomain(normalized.value)
+    const result = await checkDomain(normalized.value).catch(() => unreachable())
     if (!result.ok || !result.domain) {
       loading.value = false
       error.value = result.error ?? t('onboarding.domainCheckFailed')
@@ -66,6 +71,7 @@ async function addDomain(replaceMxRecords = false) {
   }
 
   const { ok, data } = await createDomain(checked.hostname, skipDns.value ? true : sendingRequested, replaceMxRecords, skipDns.value)
+    .catch(() => ({ ok: false, data: unreachable() }))
   loading.value = false
   if (!ok || !data.domain) {
     if (data.code === 'MX_RECORDS_CONFLICT') {
@@ -86,7 +92,7 @@ async function inspectDomain() {
   domainChecking.value = true
   error.value = null
   mxConflict.value = false
-  const result = await checkDomain(normalized.value)
+  const result = await checkDomain(normalized.value).catch(() => unreachable())
   domainChecking.value = false
   if (!result.ok || !result.domain) {
     domainCheck.value = null
@@ -101,7 +107,7 @@ async function inspectDomain() {
 async function addMailbox() {
   loading.value = true
   error.value = null
-  const { ok, data } = await createMailbox(domainId.value, localPart.value)
+  const { ok, data } = await createMailbox(domainId.value, localPart.value).catch(() => ({ ok: false, data: unreachable() }))
   loading.value = false
   if (!ok) {
     error.value = data.error ?? t('onboarding.createMailboxFailed')

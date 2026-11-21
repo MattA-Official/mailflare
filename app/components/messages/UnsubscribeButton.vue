@@ -5,7 +5,7 @@
 import { openUnsubscribeUrl } from '~/utils/messages/message-actions-utils'
 import { isMessageUnsubscribed, markMessageUnsubscribed, requestUnsubscribe } from '~/utils/messages/unsubscribe-utils'
 
-const props = withDefaults(defineProps<{ messageId: string, variant?: 'header' | 'row' }>(), { variant: 'header' })
+const props = withDefaults(defineProps<{ messageId: string, variant?: 'header' | 'row', iconOnly?: boolean }>(), { variant: 'header', iconOnly: false })
 const { t } = useLanguage()
 const { showNotice } = useCompose()
 const pending = ref(false)
@@ -42,12 +42,30 @@ async function onUnsubscribe() {
 </script>
 
 <template>
-  <span v-if="done" role="status" class="flex items-center gap-1 px-1 text-xs font-medium text-success">
+  <UTooltip v-if="done && iconOnly" :text="t('actions.unsubscribed')">
+    <span role="status" :aria-label="t('actions.unsubscribed')" class="flex size-6 items-center justify-center text-success">
+      <UIcon name="i-lucide-mail-check" class="size-4" aria-hidden="true" />
+    </span>
+  </UTooltip>
+  <span v-else-if="done" role="status" class="flex items-center gap-1 px-1 text-xs font-medium text-success">
     <UIcon name="i-lucide-mail-check" class="size-3.5" aria-hidden="true" />
     {{ t('actions.unsubscribed') }}
   </span>
   <template v-else>
+    <UTooltip v-if="iconOnly" :text="t('actions.unsubscribe')">
+      <UButton
+        icon="i-lucide-bell-off"
+        color="neutral"
+        variant="ghost"
+        size="xs"
+        square
+        :disabled="pending"
+        :aria-label="t('actions.unsubscribe')"
+        @click.prevent.stop="confirmOpen = true"
+      />
+    </UTooltip>
     <UButton
+      v-else
       size="xs"
       :variant="variant === 'row' ? 'outline' : 'link'"
       :color="variant === 'row' ? 'neutral' : 'primary'"

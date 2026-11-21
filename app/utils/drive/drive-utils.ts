@@ -2,6 +2,7 @@
 // helpers of drive-nav.tsx and drive-bulk-actions.tsx. Icons are Lucide names for UIcon.
 import type { DriveItemDto } from '#lib/drive/types'
 import type { DriveFolderNode, DriveListing } from '~/types/drive/drive'
+import { AUTH_SESSION_CHANGED_EVENT } from '~/utils/auth-client'
 
 export const DRIVE_UPLOAD_EVENT = 'mailflare:drive-upload'
 export const DRIVE_NEW_FOLDER_EVENT = 'mailflare:drive-new-folder'
@@ -115,6 +116,11 @@ export function saveDriveListing(key: string, listing: DriveListing) {
 /** After a change, other cached listings may be out of date (a moved file, an upload elsewhere). */
 export function clearDriveListings() {
   listings.clear()
+}
+
+// A listing belongs to the account that fetched it; sign-out and account switches do not reload the page.
+if (typeof window !== 'undefined') {
+  window.addEventListener(AUTH_SESSION_CHANGED_EVENT, clearDriveListings)
 }
 
 /** POSTs a JSON action and returns the affected count, or throws with the server's message. */

@@ -5,12 +5,13 @@ import { createUserAccountSchema } from "#lib/validators";
 import { canManageUsers, isPrimaryAdmin } from "#lib/auth/admin";
 import { deleteAccounts } from "#lib/accounts/deletion";
 import { createAccountResponse } from "./create";
-import { accountListItemFromUser, countUsedAccountSeats, listAccountsForAdmin, requireTeamAdmin } from "./utils";
+import { accountListItemFromUser, countUsedAccountSeats, listAccountsForAdmin, requireTeamAdmin, withoutAccountContacts } from "./utils";
 
 export async function GET(request: Request) {
 	const access = await requireTeamAdmin(request);
 	if (access.error) return access.error;
 	const db = getDb(access.env);
+	const includeContacts = canManageUsers(access.user!);
 	const rows = await listAccountsForAdmin(db);
 	const seatsUsed = await countUsedAccountSeats(access.env);
 	// Fork-only: the domains each account owns, so the delete dialog can say they must be handed over.
@@ -19,7 +20,10 @@ export async function GET(request: Request) {
 		owned.set(domain.userId, [...(owned.get(domain.userId) ?? []), domain.hostname].sort());
 	}
 	return NextResponse.json({
-		accounts: rows.map((row) => ({ ...accountListItemFromUser(row), ownedDomains: owned.get(row.id) ?? [] })),
+		accounts: rows.map((row) => {
+			const item = { ...accountListItemFromUser(row), ownedDomains: owned.get(row.id) ?? [] };
+			return includeContacts ? item : withoutAccountContacts(item);
+		}),
 		// Seats are unlimited; the shape is kept for the accounts page and API clients.
 		seats: { limit: null, used: seatsUsed },
 	});

@@ -4,6 +4,7 @@
 import { useMessageDetailNavigationContext } from '~/composables/messages/useMessageListContext'
 import { fetchCachedMessageDetail, getCachedMessageDetail } from '~/utils/messages/detail-cache'
 import { getMessageDetailNavigationState } from '~/utils/messages/detail-navigation-utils'
+import { warmMessageInvite } from '~/utils/calendar/invite-cache'
 
 const props = defineProps<{ messageId: string, unread: boolean }>()
 const { t } = useLanguage()
@@ -17,9 +18,18 @@ const navigation = computed(() => (context ? getMessageDetailNavigationState(con
 const previousId = computed(() => navigation.value?.previousId ?? null)
 const nextId = computed(() => navigation.value?.nextId ?? null)
 
-function warm(id: string | null) {
-  if (!id || getCachedMessageDetail(id)?.body) return
-  void fetchCachedMessageDetail(id, true).catch(() => {})
+/** `immediateInvite`: a click or tap is about to open the message, so the invitation starts now. */
+function warm(id: string | null, immediateInvite = false) {
+  if (!id) return
+  const cached = getCachedMessageDetail(id)
+  if (immediateInvite) warmMessageInvite(id, cached)
+  if (cached?.body) {
+    warmMessageInvite(id, cached)
+    return
+  }
+  void fetchCachedMessageDetail(id, true)
+    .then(detail => warmMessageInvite(id, detail))
+    .catch(() => {})
 }
 
 watch([previousId, nextId], ([previous, next], _old, onCleanup) => {
@@ -38,7 +48,7 @@ watch([previousId, nextId], ([previous, next], _old, onCleanup) => {
 }, { immediate: true })
 
 function go(id: string | null) {
-  warm(id)
+  warm(id, true)
   if (id && context) void navigateTo(`${context.hrefPrefix.value}/${id}`)
 }
 </script>
@@ -59,6 +69,7 @@ function go(id: string | null) {
         :disabled="!previousId"
         @pointerenter="warm(previousId)"
         @focus="warm(previousId)"
+        @touchstart.passive="warm(previousId, true)"
         @click="go(previousId)"
       />
     </UTooltip>
@@ -73,6 +84,7 @@ function go(id: string | null) {
         :disabled="!nextId"
         @pointerenter="warm(nextId)"
         @focus="warm(nextId)"
+        @touchstart.passive="warm(nextId, true)"
         @click="go(nextId)"
       />
     </UTooltip>
