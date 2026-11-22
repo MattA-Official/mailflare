@@ -12,10 +12,12 @@ useHead({
   // putting back the static default from nuxt.config.
   htmlAttrs: { lang: locale, dir },
   titleTemplate: title => (title ? `${title} - ${appName.value}` : appName.value),
-  link: [{ rel: 'icon', href: () => iconUrl.value }, { rel: 'apple-touch-icon', href: '/icon-192.png' }, { rel: 'manifest', href: '/manifest.webmanifest' }],
+  link: [{ rel: 'icon', href: () => iconUrl.value }, { rel: 'apple-touch-icon', href: '/apple-touch-icon.png' }, { rel: 'manifest', href: '/manifest.webmanifest' }],
   meta: [
     { name: 'robots', content: 'noindex, nofollow, noarchive, nosnippet, noimageindex' },
     { name: 'apple-mobile-web-app-capable', content: 'yes' },
+    // viewport-fit=cover lets the shell reach the notch and home indicator; the safe-area padding keeps content clear of them.
+    { name: 'viewport', content: 'width=device-width, initial-scale=1, viewport-fit=cover' },
     { name: 'apple-mobile-web-app-title', content: () => appName.value },
   ],
 })

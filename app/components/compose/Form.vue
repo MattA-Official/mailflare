@@ -35,6 +35,8 @@ const { showNotice, openDraftComposer, isCurrentNotice } = useCompose()
 const { selectedMailbox, setSelectedMailbox, mailboxes } = useSelectedMailbox()
 
 const draftId = ref<string | null>(null)
+// The last autosave failed: the title stops claiming the draft is saved until one succeeds.
+const saveFailed = ref(false)
 const agentRevision = ref<number | null>(null)
 const agentReview = shallowRef<{ approvalId: string, snapshot: ReviewSnapshot } | null>(null)
 // Recipients handed in by the caller (Contacts "Send email", etc.) seed a fresh composer.
@@ -266,7 +268,11 @@ watch([attachments, bcc, cc, fromAddr, html, loadingDraft, quotedHtml, () => sel
         body: JSON.stringify(draftPayload(joinQuotedHtml(html.value, quotedHtml.value))),
       })
       const data = (await res.json()) as { draft?: { id: string } }
-      if (!res.ok || !data.draft?.id) return
+      if (!res.ok || !data.draft?.id) {
+        saveFailed.value = true
+        return
+      }
+      saveFailed.value = false
       if (generation !== draftGeneration) {
         if (!existingId) void authFetch(`/api/drafts/${data.draft.id}`, { method: 'DELETE' })
         return
@@ -287,7 +293,9 @@ watch([attachments, bcc, cc, fromAddr, html, loadingDraft, quotedHtml, () => sel
       for (const attachment of pending) uploadedFiles.add(attachment.file)
       storedAttachments.value = [...storedAttachments.value, ...(result.attachments ?? [])]
       attachments.value = attachments.value.filter(attachment => !uploadedFiles.has(attachment.file))
-    }).catch(() => {})
+    }).catch(() => {
+      saveFailed.value = true
+    })
     saveQueue = run
     return run
   }
@@ -623,7 +631,7 @@ function applyTemplate({ title, html: templateHtml }: { title: string, html: str
 }
 
 function onKeydown(event: KeyboardEvent) {
-  if (modalMode.value && !minimized.value && event.key === 'Escape') {
+  if (modalMode.value && !minimized.value && event.key === 'Escape' && !event.defaultPrevented) {
     event.preventDefault()
     modalMode.value = false
   }
@@ -644,7 +652,7 @@ const title = computed(() => {
   if (loadingDraft.value) return t('compose.title.loading')
   if (threading.value?.inReplyTo) return t('compose.title.reply')
   if (isForward.value) return t('compose.title.forward')
-  return draftId.value ? t('compose.title.saved') : t('compose.title.new')
+  return draftId.value && !saveFailed.value ? t('compose.title.saved') : t('compose.title.new')
 })
 const sendLabel = computed(() => loading.value
   ? t('compose.preparing')

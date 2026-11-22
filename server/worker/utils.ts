@@ -1,4 +1,5 @@
 import { withD1Session } from "#lib/d1-session-context";
+import { isMissingColumnError, isMissingTableError } from "#lib/database-errors";
 import type { InboundQueueMessage } from "#lib/email/inbound";
 import type { WebhookRetryMessage } from "#lib/email/webhooks";
 import type { ImportJobMessage } from "#lib/import/jobs-types";
@@ -116,4 +117,19 @@ export function withD1BookmarkCookie(request: Request, response: Response, sessi
 	const copy = new Response(response.body, response);
 	copy.headers.append("Set-Cookie", `${D1_SESSION_COOKIE}=${encodeURIComponent(bookmark)}; HttpOnly; SameSite=Lax; Path=/`);
 	return copy;
+}
+
+/** Retries inbound mail waits this long when the schema is behind the code. */
+export const INBOUND_SCHEMA_RETRY_DELAY_SECONDS = 300;
+
+/**
+ * After a failed inbound delivery: a missing column or table means the new code is live but its
+ * migration is not applied yet, so retry slowly (the queue's max_retries then spans about an
+ * hour, long enough for an admin to apply it) instead of burning quick retries and dropping the
+ * mail. Any other error retries every 10 s until the queue's max_retries gives up; that is safe
+ * because inbound processing skips an already-stored `rawR2Key`, so a retry never duplicates mail.
+ */
+export function settleFailedInboundMessage(msg: { retry(options: { delaySeconds: number }): void }, error: unknown): void {
+	if (isMissingColumnError(error) || isMissingTableError(error)) msg.retry({ delaySeconds: INBOUND_SCHEMA_RETRY_DELAY_SECONDS });
+	else msg.retry({ delaySeconds: 10 });
 }

@@ -12,8 +12,10 @@ import {
   getRuleOperatorLabel,
   updateInboxRule,
 } from '~/utils/settings/mail/inbox-rules'
+import { needsStepUp, useSecurityStatus } from '~/utils/settings/account/security-status'
 
 const { t } = useLanguage()
+const toast = useToast()
 const { selectedMailbox } = useSelectedMailbox()
 const mailboxId = computed(() => selectedMailbox.value?.id ?? '')
 
@@ -42,6 +44,8 @@ const saving = ref(false)
 const saveError = ref<string | null>(null)
 const removing = ref(false)
 const isForward = computed(() => form.destination === 'forward')
+const confirmingForward = ref(false)
+const { status: securityStatus } = useSecurityStatus()
 
 // Forwarding happens before the body is read, so it cannot match on content.
 watch(() => form.matchField, (field) => {
@@ -103,8 +107,8 @@ function openEdit(rule: InboxRule) {
   dialogOpen.value = true
 }
 
-async function save() {
-  if (!canSubmit.value) return
+async function save(stepUpToken?: string) {
+  if (!canSubmit.value && !stepUpToken) return
   const input: InboxRuleInput = {
     mailboxId: mailboxId.value,
     matchField: form.matchField,
@@ -113,17 +117,21 @@ async function save() {
     destination: form.destination,
     ...(isForward.value ? { forwardTo: form.forwardTo.trim(), keepCopy: form.keepCopy } : {}),
     priority: editingRule.value?.priority ?? 10,
+    ...(stepUpToken ? { stepUpToken } : {}),
   }
   saving.value = true
   saveError.value = null
   try {
     if (editingRule.value) await updateInboxRule(editingRule.value.id, input)
     else await createInboxRule(input)
+    confirmingForward.value = false
     dialogOpen.value = false
     editingRule.value = null
     await refreshRules()
   } catch (cause) {
-    saveError.value = cause instanceof Error ? cause.message : String(cause)
+    // A forward to an outside address asks the user to confirm it is them, then retries.
+    if (needsStepUp(cause)) confirmingForward.value = true
+    else saveError.value = cause instanceof Error ? cause.message : String(cause)
   } finally {
     saving.value = false
   }
@@ -134,6 +142,8 @@ async function remove(rule: InboxRule) {
   try {
     await deleteInboxRule(rule.id)
     await refreshRules()
+  } catch (cause) {
+    toast.add({ title: cause instanceof Error ? cause.message : t('domains.requestFailed'), color: 'error' })
   } finally {
     removing.value = false
   }
@@ -194,7 +204,7 @@ async function remove(rule: InboxRule) {
       :ui="{ content: 'sm:max-w-[560px]' }"
     >
       <template #body>
-        <UForm id="inbox-rule-form" :state="form" class="space-y-4" @submit="save">
+        <UForm id="inbox-rule-form" :state="form" class="space-y-4" @submit="save()">
           <div class="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <UFormField :label="t('rules.fieldLabel')" name="matchField">
               <USelect v-model="form.matchField" :items="fieldItems" />
@@ -234,5 +244,14 @@ async function remove(rule: InboxRule) {
         />
       </template>
     </UModal>
+    <SettingsAccountStepUpDialog
+      v-model:open="confirmingForward"
+      :has-password="securityStatus?.passwordSet ?? true"
+      :has-passkey="(securityStatus?.passkeys.length ?? 0) > 0"
+      :require-second-factor="securityStatus?.requireSecondFactor ?? false"
+      :totp-enabled="securityStatus?.totpEnabled ?? false"
+      action="routing.forward"
+      :on-authorized="save"
+    />
   </section>
 </template>

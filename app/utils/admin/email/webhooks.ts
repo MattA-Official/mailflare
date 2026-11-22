@@ -35,11 +35,12 @@ export async function fetchDeliveries(webhookId: string): Promise<WebhookDeliver
 }
 
 export function createWebhook(input: CreateWebhookInput) {
-  return api<{ id: string, secret: string }>('/api/webhooks', { method: 'POST', body: input })
+  // A 401 means "confirm it is you", not "signed out": the page opens the step-up dialog.
+  return api<{ id: string, secret: string }>('/api/webhooks', { method: 'POST', body: input, redirectOnUnauthorized: false })
 }
 
 export function updateWebhook(id: string, input: UpdateWebhookInput) {
-  return api<{ ok: boolean, secret?: string }>(`/api/webhooks/${id}`, { method: 'PATCH', body: input })
+  return api<{ ok: boolean, secret?: string }>(`/api/webhooks/${id}`, { method: 'PATCH', body: input, redirectOnUnauthorized: false })
 }
 
 export function deleteWebhook(id: string) {

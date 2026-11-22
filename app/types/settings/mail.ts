@@ -32,6 +32,8 @@ export interface InboxRuleInput {
   forwardTo?: string
   keepCopy?: boolean
   priority: number
+  /** Step-up grant, sent when the server asks to confirm a forward to an outside address. */
+  stepUpToken?: string
 }
 
 export interface ImapFormState {

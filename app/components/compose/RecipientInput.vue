@@ -56,6 +56,8 @@ watch([draft, () => props.disabled, () => props.mailboxId], ([value, disabled, m
 })
 
 function closeSuggestions() {
+  // Drop any lookup in flight so it cannot reopen the list under an empty field.
+  request++
   suggestionsOpen.value = false
   activeIndex.value = -1
 }

@@ -3,6 +3,8 @@
 // share one key, so they share one request and one result. An account switch clears it through
 // clearNuxtData (plugins/session-reset.client.ts).
 import { useEventListener } from '@vueuse/core'
+import { ClientRequestError } from '#lib/http/client-error'
+import { ApiError } from '~/utils/auth-client'
 import type { SecurityStatus } from '~/types/settings/account'
 
 const KEY = 'settings-security-status'
@@ -45,4 +47,13 @@ export function useSecurityStatus() {
       return refresh()
     },
   }
+}
+
+/**
+ * True when a request was refused for want of fresh proof (`code: "verification_failed"`, a 401 that
+ * does not mean the session ended): the screen opens the step-up dialog and retries with its token.
+ */
+export function needsStepUp(error: unknown): boolean {
+  if (error instanceof ApiError) return error.status === 401 && (error.data as { code?: unknown } | null)?.code === 'verification_failed'
+  return error instanceof ClientRequestError && error.code === 'verification_failed'
 }

@@ -16,6 +16,11 @@ export interface CalendarEvent {
   repeatDays: string
   repeatAnchorDay: number | null
   repeatUntil: string | null
+  /** Step between recurrences: every N days/weeks/months/years. */
+  repeatInterval?: number | null
+  /** Weekday (0-6) and week (1-5, -1 = last) of an nth-weekday monthly repeat. */
+  repeatWeekday?: number | null
+  repeatWeek?: number | null
   excludedOccurrences: string
   reminderMinutes?: number | null
   timeZone?: string | null

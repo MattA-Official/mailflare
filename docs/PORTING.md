@@ -539,11 +539,45 @@ Tick in the PR that lands it. Add rows for anything discovered.
 - `scripts/upstream/port-test.mjs` now also maps `after`/`before`, `@/` ids inside regex filters,
   `new URL("../", import.meta.url)` roots and `better-sqlite3` (to `node:sqlite` with D1's value codecs
   via `d1Drizzle` in `tests/unit/helpers/fixtures.mjs`).
+- (upstream be81a41..dd5df0d, ported 22 Nov 2026) Auto update (cec33ee and follow-ups: `/api/admin/update`,
+  `#lib/update`, the admin update card's install button, migration `0089_auto_update`'s use) is not ported:
+  Workers Builds deploys every push to `nuxt`. The migration is kept so the schema and ledger stay in step
+  with upstream.
+- (upstream be81a41..dd5df0d) `expectedRequestOrigin` (`#lib/auth/origin`) is Workers only: the origin is
+  `new URL(request.url).origin`. Upstream's `APP_URL` and Host/`x-forwarded-proto` handling serves its
+  Node server; those tests are dropped from `mutation-origin`.
+- (upstream be81a41..dd5df0d) `listMailboxSenders` (`#lib/mailboxes/access`) is the fork's own: owner plus
+  delegates from `listSharedMailboxUserIds`, enabled users only, ignoring standalone inbox principals,
+  filtered by `getMailboxAccessLevel(...).canSendOnBehalf`.
+- (upstream bbaf92b) Calendar overrides, tombstones and per-occurrence replies are read through
+  `readOptionalTable` (`#lib/database-errors`), so the calendar keeps loading before migration
+  `0092_calendar_invite_complete` is applied. Invitations keep the fork's all-day events: the outbound ICS
+  writes `VALUE=DATE` for DTSTART/DTEND, RECURRENCE-ID and EXDATE when the event is all-day.
+- (upstream bbaf92b) The invite card's delayed send and Undo use a Nuxt UI toast. A waiting answer is sent
+  when the card unmounts or the message changes, and with `keepalive` on `pagehide`; upstream's
+  sessionStorage resume after a reload is not carried.
+- (upstream e666bc1) PWA: the maskable and apple-touch icons are drawn from the Flytower mark (full-bleed
+  `#1B2231`), `public/offline.html` carries the Flytower name and mark, and the manifest stays the static
+  `public/manifest.webmanifest` with the fork's colours. Safe areas: `viewport-fit=cover` in `app.vue`,
+  the `safe-area` utility on `body` (pages that scroll) and on the fixed `UDashboardGroup` and its mobile
+  sidebar drawer, rather than on each layout.
+- (upstream e809c01) The shared hotkey sequence lives in `app/utils/shortcuts/hotkeys.ts`
+  (`createSequenceState`; `useHotkeys` passes one module-level state). The template dialog submit and
+  dialog Tab-trap fixes do not apply (Vue teleports do not bubble events to the composer form; `UModal`
+  manages focus). Their React DOM tests (`compose-ui-behavior`, `dialog-focus`,
+  `hotkey-shared-sequence`, the composer Escape test) are dropped; the shared sequence is tested in
+  `tests/unit/app/shell.test.ts`.
+- (upstream be81a41..dd5df0d) Inbound mail that fails because the schema is behind (a migration not yet
+  applied) is retried slowly (`settleFailedInboundMessage`, 300 s delay, `max_retries: 12` on the inbound
+  queue), so a deploy that lands before its migration does not lose mail.
+- (upstream be81a41..dd5df0d) Dropped with the Node runtime, Resend/SES, B2/S3, relay and the licence gate:
+  44c8750, 174e66b, b960a5b, d195d13, 8e500d9, 2307005, fa2175a, 257d955, 69a9c7c, and their tests. The
+  reauth UI tests read the Vue pages and `api()` utils instead of upstream's React files.
 
 ## Following upstream
 
-Last ported upstream commit: `be81a41` Delete FUNDING.yml (2026-11-19)
-<!-- upstream-ported: be81a41201e8509ee1a16e590ad44e1e33c4f734 -->
+Last ported upstream commit: `dd5df0d` fix(messages): keep list lookups under D1's 100 bound parameters (#375) (2026-11-21)
+<!-- upstream-ported: dd5df0d148b90f8a46995ca5d8ef98a3a49c04b1 -->
 
 The marker above is the last commit of hieunc229/mailflare's `main` whose changes are in `nuxt`. The
 port started from `cee65a5` (v0.5.4, the tree that was `legacy/`). Read upstream's current source from the `upstream` branch or with

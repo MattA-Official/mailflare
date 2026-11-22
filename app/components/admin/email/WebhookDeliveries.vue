@@ -9,7 +9,7 @@ const props = defineProps<{ webhookId: string }>()
 const emit = defineEmits<{ changed: [] }>()
 const { t } = useLanguage()
 const toast = useToast()
-const { data: deliveries, status, refresh } = useAsyncData(() => `webhook-deliveries-${props.webhookId}`, () => fetchDeliveries(props.webhookId))
+const { data: deliveries, status, error: loadError, refresh } = useAsyncData(() => `webhook-deliveries-${props.webhookId}`, () => fetchDeliveries(props.webhookId))
 
 // Retries land asynchronously from the queue, so keep the table fresh while it is open.
 const timer = setInterval(() => void refresh(), 15_000)
@@ -40,7 +40,10 @@ async function retry(deliveryId: string) {
 </script>
 
 <template>
-  <p v-if="status === 'pending' && !deliveries" class="text-sm text-muted">
+  <p v-if="loadError && !deliveries" role="alert" class="text-sm text-error">
+    {{ errorMessage(loadError, t('domains.requestFailed')) }}
+  </p>
+  <p v-else-if="status === 'pending' && !deliveries" class="text-sm text-muted">
     {{ t('webhooks.loadingDeliveries') }}
   </p>
   <p v-else-if="!deliveries?.length" class="text-sm text-muted">

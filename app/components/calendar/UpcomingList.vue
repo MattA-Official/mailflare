@@ -3,7 +3,8 @@
 // Ported from legacy/src/app/(calendar)/upcoming-sidebar.tsx.
 import { normalizeCalendarColor } from '#lib/calendar/colors'
 import type { CalendarEvent } from '~/types/calendar'
-import { addDays, expandCalendarEvents, formatEventRange, groupUpcomingEvents, isAllDay, startOfDay, takeUpcomingGroups, UPCOMING_BATCH_SIZE } from '~/utils/calendar/calendar'
+import { addDays, expandCalendarEvents, formatEventRange, groupUpcomingEvents, isAllDay, startOfDay, takeUpcomingGroups, toCalendarOverrides, UPCOMING_BATCH_SIZE } from '~/utils/calendar/calendar'
+import type { CalendarOverridesInput } from '~/utils/calendar/calendar'
 
 const props = defineProps<{
   /** Events the page already loaded. Without them the list loads the next 90 days itself. */
@@ -32,8 +33,8 @@ async function load() {
   if (props.events !== undefined) return
   const end = addDays(today, 90)
   try {
-    const data = await api<{ events?: CalendarEvent[] }>(`/api/calendar/events?start=${today.toISOString()}&end=${end.toISOString()}`)
-    loadedEvents.value = expandCalendarEvents(data.events ?? [], today, end)
+    const data = await api<{ events?: CalendarEvent[], overrides?: CalendarOverridesInput }>(`/api/calendar/events?start=${today.toISOString()}&end=${end.toISOString()}`)
+    loadedEvents.value = expandCalendarEvents(data.events ?? [], today, end, toCalendarOverrides(data.overrides))
     loadError.value = false
     loaded.value = true
   } catch {

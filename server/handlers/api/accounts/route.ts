@@ -6,6 +6,7 @@ import { canManageUsers, isPrimaryAdmin } from "#lib/auth/admin";
 import { deleteAccounts } from "#lib/accounts/deletion";
 import { createAccountResponse } from "./create";
 import { accountListItemFromUser, countUsedAccountSeats, listAccountsForAdmin, requireTeamAdmin, withoutAccountContacts } from "./utils";
+import { hasValidSessionMutationOrigin } from "#lib/auth/origin";
 
 export async function GET(request: Request) {
 	const access = await requireTeamAdmin(request);
@@ -32,6 +33,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
 	const access = await requireTeamAdmin(request);
 	if (access.error) return access.error;
+	if (!hasValidSessionMutationOrigin(request)) return NextResponse.json({ error: "Invalid origin" }, { status: 403 });
 	const parsed = createUserAccountSchema.safeParse(await request.json().catch(() => null));
 	if (!parsed.success) {
 		return NextResponse.json({ error: parsed.error.flatten() }, { status: 400 });
@@ -49,6 +51,7 @@ export async function POST(request: Request) {
 export async function DELETE(request: Request) {
 	const access = await requireTeamAdmin(request);
 	if (access.error) return access.error;
+	if (!hasValidSessionMutationOrigin(request)) return NextResponse.json({ error: "Invalid origin" }, { status: 403 });
 	const body = (await request.json().catch(() => null)) as { ids?: unknown; transferToId?: unknown } | null;
 	const ids = Array.isArray(body?.ids) ? body.ids.filter((id): id is string => typeof id === "string" && !!id) : [];
 	const transferToId = typeof body?.transferToId === "string" ? body.transferToId : null;

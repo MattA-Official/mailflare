@@ -35,7 +35,7 @@ watch(() => [countsLoaded.value, allCounts.value.folders.inbox.unread] as const,
 </script>
 
 <template>
-  <UDashboardGroup unit="rem" storage="local" storage-key="mailflare-sidebar">
+  <UDashboardGroup unit="rem" storage="local" storage-key="mailflare-sidebar" class="safe-area">
     <AppSkipLink target="main-content" />
     <!-- A landmark, so the sidebar's header, links and account menu are not loose page content. -->
     <UDashboardSidebar
@@ -47,7 +47,7 @@ watch(() => [countsLoaded.value, allCounts.value.folders.inbox.unread] as const,
       :min-size="13"
       :default-size="16"
       :max-size="30"
-      :ui="{ footer: 'flex-col items-stretch gap-2 border-t border-default lg:border-t-0' }"
+      :ui="{ footer: 'flex-col items-stretch gap-2 border-t border-default lg:border-t-0', content: 'safe-area' }"
     >
       <template #header="{ collapsed }">
         <NuxtLink :to="homeLink" class="flex min-w-0 items-center gap-2.5 font-semibold text-highlighted">

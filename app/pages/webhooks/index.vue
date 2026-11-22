@@ -2,7 +2,9 @@
 // Webhooks admin. Ported from legacy/src/app/(admin)/webhooks/page.tsx.
 import type { Webhook, WebhookEvent } from '~/types/admin/email/webhooks'
 import { errorMessage } from '~/utils/admin/email/domains'
+import { confirmDestructive } from '~/utils/confirm-dialog'
 import { useAdminConfirm } from '~/utils/admin/email/confirm'
+import { needsStepUp, useSecurityStatus } from '~/utils/settings/account/security-status'
 import { WEBHOOK_EVENTS, createWebhook, deleteWebhook, fetchWebhooks, testWebhook, updateWebhook } from '~/utils/admin/email/webhooks'
 
 definePageMeta({ layout: 'dashboard', nav: 'admin', auth: { role: 'admin', primary: true, requireMailbox: true } })
@@ -23,6 +25,8 @@ const expanded = ref<string | null>(null)
 const testResult = ref<Record<string, string>>({})
 const creating = ref(false)
 const busy = ref<string | null>(null)
+const confirming = ref(false)
+const { status: securityStatus } = useSecurityStatus()
 
 const secretHint = computed(() => t('webhooks.secretHint', { header: '\u0001' }).split('\u0001'))
 
@@ -33,28 +37,41 @@ function openDialog() {
 
 const eventItems = computed(() => WEBHOOK_EVENTS.map(event => ({ value: event.value, label: t(event.labelKey), description: t(event.hintKey) })))
 
-async function create() {
+async function create(stepUpToken?: string) {
   creating.value = true
   error.value = null
   try {
-    const result = await createWebhook({ url: url.value, description: description.value || undefined, events: events.value, maxAttempts: maxAttempts.value })
+    const result = await createWebhook({ url: url.value, description: description.value || undefined, events: events.value, maxAttempts: maxAttempts.value, ...(stepUpToken ? { stepUpToken } : {}) })
+    confirming.value = false
     secret.value = result.secret
     url.value = ''
     description.value = ''
     dialogOpen.value = false
     await refresh()
   } catch (err) {
-    error.value = errorMessage(err, t('domains.requestFailed'))
+    // Sending message content to an outside URL asks the user to confirm it is them, then retries.
+    if (needsStepUp(err)) confirming.value = true
+    else error.value = errorMessage(err, t('domains.requestFailed'))
   } finally {
     creating.value = false
   }
 }
 
-async function toggle(hook: Webhook) {
+// Switching a disabled webhook back on needs the same proof as creating one.
+const enabling = ref<Webhook | null>(null)
+const enablingOpen = computed({
+  get: () => !!enabling.value,
+  set: (open: boolean) => {
+    if (!open) enabling.value = null
+  },
+})
+async function toggle(hook: Webhook, stepUpToken?: string) {
   try {
-    await updateWebhook(hook.id, { enabled: !hook.enabled })
+    await updateWebhook(hook.id, { enabled: !hook.enabled, ...(stepUpToken ? { stepUpToken } : {}) })
+    enabling.value = null
   } catch (err) {
-    toast.add({ title: errorMessage(err, t('domains.requestFailed')), color: 'error' })
+    if (needsStepUp(err)) enabling.value = hook
+    else toast.add({ title: errorMessage(err, t('domains.requestFailed')), color: 'error' })
   }
   await refresh()
 }
@@ -73,6 +90,7 @@ async function rotate(id: string) {
 }
 
 async function remove(id: string) {
+  if (!(await confirmDestructive(t('webhooks.deleteConfirm')))) return
   try {
     await deleteWebhook(id)
   } catch (err) {
@@ -180,7 +198,7 @@ async function runTest(id: string) {
 
     <UModal v-model:open="dialogOpen" :title="t('webhooks.add')" :description="t('webhooks.addDescription')">
       <template #body>
-        <form class="space-y-4" @submit.prevent="create">
+        <form class="space-y-4" @submit.prevent="create()">
           <UFormField :label="t('webhooks.endpointUrl')" required>
             <UInput v-model="url" type="url" required />
           </UFormField>
@@ -201,5 +219,23 @@ async function runTest(id: string) {
         </form>
       </template>
     </UModal>
+    <SettingsAccountStepUpDialog
+      v-model:open="confirming"
+      :has-password="securityStatus?.passwordSet ?? true"
+      :has-passkey="(securityStatus?.passkeys.length ?? 0) > 0"
+      :require-second-factor="securityStatus?.requireSecondFactor ?? false"
+      :totp-enabled="securityStatus?.totpEnabled ?? false"
+      action="webhook.change"
+      :on-authorized="create"
+    />
+    <SettingsAccountStepUpDialog
+      v-model:open="enablingOpen"
+      :has-password="securityStatus?.passwordSet ?? true"
+      :has-passkey="(securityStatus?.passkeys.length ?? 0) > 0"
+      :require-second-factor="securityStatus?.requireSecondFactor ?? false"
+      :totp-enabled="securityStatus?.totpEnabled ?? false"
+      action="webhook.change"
+      :on-authorized="token => enabling && toggle(enabling, token)"
+    />
   </AppPage>
 </template>

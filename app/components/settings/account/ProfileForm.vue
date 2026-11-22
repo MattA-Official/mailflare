@@ -4,6 +4,7 @@
 import { dispatchProfileNameChanged } from '#lib/profile/name-client'
 import { updateProfile } from '~/utils/settings/account/account'
 import { getMailboxAddress, updateCurrentMailboxName } from '~/utils/settings/account/mailbox'
+import { useSecurityStatus } from '~/utils/settings/account/security-status'
 
 const props = defineProps<{ initialResetEmail: string }>()
 const { t } = useLanguage()
@@ -18,6 +19,8 @@ const profileStatus = ref<string | null>(null)
 const recoveryStatus = ref<string | null>(null)
 const savingProfile = ref(false)
 const savingRecovery = ref(false)
+const confirmingRecovery = ref(false)
+const { status: securityStatus } = useSecurityStatus()
 
 watch(() => [selectedMailbox.value?.id, selectedMailbox.value?.displayName] as const, ([, displayName]) => {
   name.value = displayName ?? ''
@@ -51,11 +54,17 @@ async function submitProfile() {
   }
 }
 
-async function submitRecovery() {
+// Changing where password-reset mail goes asks for the password or a passkey first.
+function submitRecovery() {
+  recoveryStatus.value = null
+  confirmingRecovery.value = true
+}
+
+async function saveRecovery(stepUpToken: string) {
   savingRecovery.value = true
   recoveryStatus.value = null
   try {
-    const saved = await updateProfile(resetEmail.value)
+    const saved = await updateProfile(resetEmail.value, stepUpToken)
     resetEmail.value = saved
     savedResetEmail.value = saved
     toast.add({ title: t('common.saved'), color: 'success' })
@@ -140,5 +149,14 @@ async function submitRecovery() {
         </div>
       </form>
     </UCard>
+    <SettingsAccountStepUpDialog
+      v-model:open="confirmingRecovery"
+      :has-password="securityStatus?.passwordSet ?? true"
+      :has-passkey="(securityStatus?.passkeys.length ?? 0) > 0"
+      :require-second-factor="securityStatus?.requireSecondFactor ?? false"
+      :totp-enabled="securityStatus?.totpEnabled ?? false"
+      action="profile.recovery_email"
+      :on-authorized="saveRecovery"
+    />
   </template>
 </template>

@@ -14,11 +14,12 @@ export async function fetchMailboxFolders(mailboxId: string): Promise<RuleFolder
 }
 
 export function createInboxRule(input: InboxRuleInput) {
-  return api('/api/routing-rules', { method: 'POST', body: input })
+  // A 401 here means "confirm it is you", not "signed out": the rule screen opens the step-up dialog.
+  return api('/api/routing-rules', { method: 'POST', body: input, redirectOnUnauthorized: false })
 }
 
 export function updateInboxRule(ruleId: string, input: InboxRuleInput) {
-  return api(`/api/routing-rules/${ruleId}`, { method: 'PATCH', body: input })
+  return api(`/api/routing-rules/${ruleId}`, { method: 'PATCH', body: input, redirectOnUnauthorized: false })
 }
 
 export function deleteInboxRule(ruleId: string) {

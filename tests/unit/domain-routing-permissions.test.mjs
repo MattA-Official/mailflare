@@ -15,11 +15,12 @@ import { sqliteExecutors } from "./helpers/fixtures.mjs";
 const temporary = mkdtempSync(join(project, "node_modules", "permission-test-"));
 after(() => rmSync(temporary, { recursive: true, force: true }));
 const mocks = {
+	"next/server": "export const NextResponse={json:(data,init)=>Response.json(data,init)};",
 	"#db": "export function getDb(){return globalThis.permissionDb}",
 	"#lib/cloudflare": "export function getEnv(){return {}}",
 	"#lib/auth/cookies": "export async function requireUser(){return globalThis.permissionUser}",
 	"#lib/api/auth": "export async function requireSessionUser(){return globalThis.permissionUser?{user:globalThis.permissionUser,error:null}:{user:null,error:Response.json({error:'Unauthorized'},{status:401})}}",
-	"#lib/mailboxes/access": "export async function getMailboxAccessLevel(db,user,id){return globalThis.managedMailboxes.includes(id)?{canManage:true,mailbox:{id,domainId:'d-owner'}}:null} export async function listAccessibleMailboxes(){return []}",
+	"#lib/mailboxes/access": "export async function getMailboxAccessLevel(db,user,id){return globalThis.managedMailboxes.includes(id)?{canManage:true,mailbox:{id,domainId:'d-owner'}}:null} export async function listAccessibleMailboxes(){return []} export async function listAccessibleMailboxIds(){return []}",
 };
 await build({ stdin: { contents: `export * as domain from './server/handlers/api/routing-rules/domain/route';export * as domainItem from './server/handlers/api/routing-rules/domain/[id]/route';export * as mailbox from './server/handlers/api/routing-rules/route';export * as mailboxItem from './server/handlers/api/routing-rules/[id]/route';export * as schema from './server/db/schema';export {emptyRuleInput} from './app/utils/admin/email/routing';`, resolveDir: project, loader: "ts" }, outfile: join(temporary, "routes.mjs"), bundle: true, platform: "node", format: "esm", packages: "external", plugins: [{ name: "test-auth-and-db", setup(builder) { builder.onResolve({ filter: /^(#db|#lib\/(cloudflare|auth\/cookies|api\/auth|mailboxes\/access))$/ }, args => ({ path: args.path, namespace: "mock" })); builder.onLoad({ filter: /.*/, namespace: "mock" }, args => ({ contents: mocks[args.path], loader: "js" })); } }], logLevel: "silent" });
 const { domain, domainItem, mailbox, mailboxItem, schema, emptyRuleInput } = await import(pathToFileURL(join(temporary, "routes.mjs")).href);

@@ -27,6 +27,8 @@ export function isTypingInInput(target: EventTarget | null): boolean {
   if (!target || typeof HTMLElement === 'undefined' || !(target instanceof HTMLElement)) return false
   const tagName = target.tagName.toUpperCase()
   return tagName === 'INPUT' || tagName === 'TEXTAREA' || tagName === 'SELECT'
+    // A focused select trigger: typing there picks an option, it is not a shortcut.
+    || target.closest('[role="combobox"]') !== null
     || target.isContentEditable || target.getAttribute('contenteditable') === 'true'
 }
 
@@ -51,20 +53,46 @@ export function matchModifiers(e: Pick<KeyboardEvent, 'ctrlKey' | 'metaKey' | 'a
 }
 
 /**
+ * Key buffer shared by every listening handler, so a multi-key sequence such as "g !" is matched
+ * against all registered shortcuts by whichever handler sees the key first, and the others skip
+ * that event (upstream's hotkey-sequence.ts).
+ */
+export interface SequenceState {
+  buffer: string[]
+  sources: Set<() => ShortcutDefinition[]>
+  lastEvent: object | null
+  consumed: WeakSet<object>
+  timer: ReturnType<typeof setTimeout> | null
+}
+
+export function createSequenceState(): SequenceState {
+  return { buffer: [], sources: new Set(), lastEvent: null, consumed: new WeakSet(), timer: null }
+}
+
+/**
  * A keydown handler over a live list of shortcuts. Returns the handler and a reset for the sequence
  * buffer. Cmd/Ctrl+K always works; inside inputs only Escape does; inside dialogs and menus nothing.
  */
-export function createHotkeyHandler(getShortcuts: () => ShortcutDefinition[]) {
-  let buffer: string[] = []
-  let timer: ReturnType<typeof setTimeout> | null = null
+export function createHotkeyHandler(getShortcuts: () => ShortcutDefinition[], state: SequenceState = createSequenceState()) {
+  state.sources.add(getShortcuts)
 
   function reset() {
-    buffer = []
-    if (timer) clearTimeout(timer)
-    timer = null
+    state.buffer = []
+    if (state.timer) clearTimeout(state.timer)
+    state.timer = null
+  }
+
+  function dispose() {
+    state.sources.delete(getShortcuts)
+  }
+
+  function consume(e: KeyboardEvent) {
+    state.consumed.add(e)
+    state.buffer = []
   }
 
   function handle(e: KeyboardEvent) {
+    if (state.consumed.has(e)) return
     const shortcuts = getShortcuts()
     const key = e.key.toLowerCase()
 
@@ -87,16 +115,22 @@ export function createHotkeyHandler(getShortcuts: () => ShortcutDefinition[]) {
     if (hasCommandModifier(e)) return
     if (typeof Element !== 'undefined' && e.target instanceof Element && e.target.closest('[role="dialog"], [role="menu"], [role="listbox"]')) return
 
-    buffer.push(key)
-    if (timer) clearTimeout(timer)
-    timer = setTimeout(() => {
-      buffer = []
-    }, SEQUENCE_TIMEOUT_MS)
+    // Each key goes into the shared buffer once, whichever handler sees the event first.
+    if (state.lastEvent !== e) {
+      state.lastEvent = e
+      state.buffer.push(key)
+      if (state.timer) clearTimeout(state.timer)
+      state.timer = setTimeout(() => {
+        state.buffer = []
+      }, SEQUENCE_TIMEOUT_MS)
+    }
 
-    const sequenceMatch = findSequenceMatch(buffer, shortcuts)
+    // Sequences are matched across all registered shortcuts; a single key only against this handler's own.
+    const candidates = state.buffer.length > 1 ? [...state.sources].flatMap(source => source()) : shortcuts
+    const sequenceMatch = findSequenceMatch(state.buffer, candidates)
     if (sequenceMatch) {
       e.preventDefault()
-      buffer = []
+      consume(e)
       sequenceMatch.action()
       return
     }
@@ -108,12 +142,12 @@ export function createHotkeyHandler(getShortcuts: () => ShortcutDefinition[]) {
     })
     if (singleMatch) {
       e.preventDefault()
-      buffer = []
+      consume(e)
       singleMatch.action()
     }
   }
 
-  return { handle, reset }
+  return { handle, reset, dispose }
 }
 
 /** The keys to show for a shortcut in the help dialog, one entry per key cap. */

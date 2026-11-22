@@ -9,7 +9,7 @@ import { build } from "./helpers/esbuild.mjs";
 const root = join(dirname(fileURLToPath(import.meta.url)), "..", "..");
 const dir = mkdtempSync(join(tmpdir(), "mailflare-calendar-confirm-"));
 after(() => rmSync(dir, { recursive: true, force: true }));
-await build({ entryPoints: [join(root, "server/lib/calendar/confirmation.ts")], outfile: join(dir, "c.mjs"), bundle: true, platform: "node", format: "esm", logLevel: "silent", alias: { "@": join(root, "src") } });
+await build({ entryPoints: [join(root, "server/lib/calendar/confirmation.ts")], outfile: join(dir, "c.mjs"), bundle: true, platform: "node", format: "esm", logLevel: "silent", alias: { } });
 const { createCalendarConfirmation, readCalendarConfirmation } = await import(pathToFileURL(join(dir, "c.mjs")).href);
 
 const env = { CF_TOKEN: "test-secret" };
@@ -32,4 +32,12 @@ test("a confirmation token binds user, action, input and lifetime", async () => 
 test("a read-only tool cannot be confirmed into existence", async () => {
 	const token = await createCalendarConfirmation(env, "usr_1", "get_schedule", {}, Date.now());
 	assert.equal(await readCalendarConfirmation(env, token, "usr_1"), null);
+});
+
+test("a very large proposal still round-trips through a token", async () => {
+	const now = 1_900_000_000_000;
+	const big = { updates: Array.from({ length: 20 }, (_, i) => ({ id: `evt_${i}`, description: "é".repeat(10_000) })) };
+	const token = await createCalendarConfirmation(env, "usr_1", "update_events", big, now);
+	const read = await readCalendarConfirmation(env, token, "usr_1", now + 1000);
+	assert.deepEqual(read.input, big);
 });

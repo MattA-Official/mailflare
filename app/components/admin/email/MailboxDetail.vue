@@ -6,7 +6,7 @@ import type { MailboxDetail } from '~/types/admin/email/mailboxes'
 import { errorMessage } from '~/utils/admin/email/domains'
 import { useAdminConfirm } from '~/utils/admin/email/confirm'
 import {
-  createMailboxAlias, deleteMailbox, deleteMailboxAlias, fetchMailbox, fetchMailboxAliases, fetchSharedInboxAccess,
+  createMailboxAlias, updateMailboxAlias, deleteMailbox, deleteMailboxAlias, fetchMailbox, fetchMailboxAliases, fetchSharedInboxAccess,
   getMailboxAddress, getMailboxesBase, grantSharedInboxAccess, revokeSharedInboxAccess, updateMailboxSettings,
 } from '~/utils/admin/email/mailboxes'
 import type { AccessRoute, AccessSummaryPerson } from '~/utils/admin/system/groups'
@@ -29,6 +29,8 @@ const heldByInbox = computed(() => mailbox.value?.type === 'shared' && mailbox.v
 const displayName = ref('')
 const useAllDomains = ref(true)
 const aliasLocalPart = ref('')
+const aliasLabel = ref('')
+const copiedAliasId = ref<string | null>(null)
 const aliasDomainId = ref<string | undefined>()
 const selectedUserId = ref<string | undefined>()
 
@@ -59,15 +61,16 @@ async function save() {
 // Aliases
 const { data: aliases, status: aliasesStatus, error: aliasesError, refresh: refreshAliases } = useAsyncData(() => `mailbox-${props.mailboxId}-aliases`, () => fetchMailboxAliases(props.mailboxId))
 const aliasDomainItems = computed(() => (aliases.value?.availableDomains ?? []).map(domain => ({ label: `@${domain.hostname}`, value: domain.id })))
-const aliasBusy = ref<'add' | 'remove' | null>(null)
+const aliasBusy = ref<'add' | 'generate' | 'update' | 'remove' | null>(null)
 const aliasError = ref<string | null>(null)
 async function addAlias() {
   if (!aliasLocalPart.value.trim() || !aliasDomainId.value) return
   aliasBusy.value = 'add'
   aliasError.value = null
   try {
-    await createMailboxAlias(props.mailboxId, { domainId: aliasDomainId.value, localPart: aliasLocalPart.value.trim() })
+    await createMailboxAlias(props.mailboxId, { domainId: aliasDomainId.value, localPart: aliasLocalPart.value.trim(), label: aliasLabel.value.trim() || undefined })
     aliasLocalPart.value = ''
+    aliasLabel.value = ''
     await refreshAliases()
   } catch (error) {
     aliasError.value = errorMessage(error, t('mailbox.aliasAddFailed'))
@@ -75,6 +78,44 @@ async function addAlias() {
     aliasBusy.value = null
   }
 }
+async function generateAlias() {
+  if (!aliasDomainId.value) return
+  aliasBusy.value = 'generate'
+  aliasError.value = null
+  try {
+    await createMailboxAlias(props.mailboxId, { domainId: aliasDomainId.value, generate: true, label: aliasLabel.value.trim() || undefined })
+    aliasLabel.value = ''
+    await refreshAliases()
+  } catch (error) {
+    aliasError.value = errorMessage(error, t('mailbox.aliasAddFailed'))
+  } finally {
+    aliasBusy.value = null
+  }
+}
+
+async function setAliasEnabled(aliasId: string, enabled: boolean) {
+  aliasBusy.value = 'update'
+  aliasError.value = null
+  try {
+    await updateMailboxAlias(props.mailboxId, { aliasId, enabled })
+    await refreshAliases()
+  } catch (error) {
+    aliasError.value = errorMessage(error, t('mailbox.aliasUpdateFailed'))
+  } finally {
+    aliasBusy.value = null
+  }
+}
+
+let copiedTimer: ReturnType<typeof setTimeout> | undefined
+function copyAlias(aliasId: string, address: string) {
+  void navigator.clipboard?.writeText(address)
+  copiedAliasId.value = aliasId
+  clearTimeout(copiedTimer)
+  copiedTimer = setTimeout(() => {
+    if (copiedAliasId.value === aliasId) copiedAliasId.value = null
+  }, 1500)
+}
+
 async function removeAlias(aliasId: string) {
   aliasBusy.value = 'remove'
   aliasError.value = null
@@ -270,18 +311,35 @@ async function remove() {
         <div v-for="alias in aliases?.aliases ?? []" :key="alias.id" class="flex items-center justify-between gap-3 rounded-lg bg-elevated/60 px-4 py-3">
           <div class="flex min-w-0 items-center gap-2">
             <UIcon name="i-lucide-at-sign" class="size-4 shrink-0 text-dimmed" />
-            <p class="truncate text-sm font-medium text-highlighted">
+            <p class="truncate text-sm font-medium" :class="alias.enabled ? 'text-highlighted' : 'text-dimmed line-through'">
               {{ alias.localPart }}@{{ alias.hostname }}
             </p>
+            <UBadge v-if="alias.masked" color="neutral" variant="subtle" :label="t('mailbox.masked')" />
+            <span v-if="alias.label" class="truncate text-sm text-muted">{{ alias.label }}</span>
           </div>
-          <UButton
-            icon="i-lucide-trash-2"
-            color="error"
-            variant="ghost"
-            :aria-label="t('mailbox.removeAddress', { address: `${alias.localPart}@${alias.hostname}` })"
-            :disabled="aliasBusy === 'remove'"
-            @click="removeAlias(alias.id)"
-          />
+          <div class="flex shrink-0 items-center gap-1">
+            <UButton
+              :icon="copiedAliasId === alias.id ? 'i-lucide-check' : 'i-lucide-copy'"
+              :color="copiedAliasId === alias.id ? 'success' : 'neutral'"
+              variant="ghost"
+              :aria-label="t('mailbox.copyAddress', { address: `${alias.localPart}@${alias.hostname}` })"
+              @click="copyAlias(alias.id, `${alias.localPart}@${alias.hostname}`)"
+            />
+            <USwitch
+              :model-value="alias.enabled"
+              :disabled="aliasBusy === 'update'"
+              :aria-label="t(alias.enabled ? 'mailbox.disableAlias' : 'mailbox.enableAlias', { address: `${alias.localPart}@${alias.hostname}` })"
+              @update:model-value="value => setAliasEnabled(alias.id, value)"
+            />
+            <UButton
+              icon="i-lucide-trash-2"
+              color="error"
+              variant="ghost"
+              :aria-label="t('mailbox.removeAddress', { address: `${alias.localPart}@${alias.hostname}` })"
+              :disabled="aliasBusy === 'remove'"
+              @click="removeAlias(alias.id)"
+            />
+          </div>
         </div>
         <p v-if="aliases && aliases.aliases.length === 0" class="rounded-lg bg-elevated/60 px-4 py-3 text-sm text-muted">
           {{ t('mailbox.noAliases') }}
@@ -292,6 +350,17 @@ async function remove() {
           <USelect v-model="aliasDomainId" :items="aliasDomainItems" class="min-w-0 flex-1" :disabled="aliasBusy === 'add'" />
           <UButton type="submit" icon="i-lucide-at-sign" :disabled="!aliasLocalPart.trim() || !aliasDomainId || aliasBusy === 'add'" :label="aliasBusy === 'add' ? t('account.mailboxes.adding') : t('mailbox.addAlias')" />
         </form>
+        <div class="flex flex-wrap gap-2 sm:flex-nowrap">
+          <UInput v-model="aliasLabel" :placeholder="t('mailbox.aliasLabelPlaceholder')" class="min-w-0 flex-1" :disabled="aliasBusy === 'add' || aliasBusy === 'generate'" autocomplete="off" />
+          <UButton
+            color="neutral"
+            variant="subtle"
+            icon="i-lucide-sparkles"
+            :disabled="!aliasDomainId || aliasBusy === 'generate' || aliasBusy === 'add'"
+            :label="aliasBusy === 'generate' ? t('account.mailboxes.adding') : t('mailbox.generateMasked')"
+            @click="generateAlias"
+          />
+        </div>
         <UAlert v-if="aliasError" role="alert" color="error" variant="subtle" :title="aliasError" />
       </div>
     </UCard>

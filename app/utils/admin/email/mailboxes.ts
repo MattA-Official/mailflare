@@ -59,8 +59,13 @@ export function fetchMailboxAliases(id: string) {
   return api<MailboxAliasesResponse>(`/api/mailboxes/${id}/aliases`)
 }
 
-export async function createMailboxAlias(id: string, input: { domainId: string, localPart: string }) {
+export async function createMailboxAlias(id: string, input: { domainId: string, localPart?: string, label?: string, masked?: boolean, generate?: boolean }) {
   await api(`/api/mailboxes/${id}/aliases`, { method: 'POST', body: input })
+  notifyMailboxesChanged()
+}
+
+export async function updateMailboxAlias(id: string, input: { aliasId: string, label?: string | null, enabled?: boolean }) {
+  await api(`/api/mailboxes/${id}/aliases`, { method: 'PATCH', body: input })
   notifyMailboxesChanged()
 }
 
