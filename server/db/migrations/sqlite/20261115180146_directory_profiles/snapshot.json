@@ -1,7 +1,7 @@
 {
   "version": "7",
   "dialect": "sqlite",
-  "id": "5aa8501a-a8ae-4653-ab7a-26edd873226e",
+  "id": "5bb3831a-01b7-43e4-a3bb-eb62d2c1686b",
   "prevIds": [
     "c80be8bd-d235-4361-851c-b2dcb06998da"
   ],
@@ -71,7 +71,19 @@
       "entityType": "tables"
     },
     {
+      "name": "calendar_event_overrides",
+      "entityType": "tables"
+    },
+    {
       "name": "calendar_events",
+      "entityType": "tables"
+    },
+    {
+      "name": "calendar_invite_tombstones",
+      "entityType": "tables"
+    },
+    {
+      "name": "calendar_occurrence_responses",
       "entityType": "tables"
     },
     {
@@ -1142,6 +1154,36 @@
     },
     {
       "table": "app_settings",
+      "name": "auto_update",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "false",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "app_settings",
+      "name": "auto_update_channel",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "'release'",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "app_settings",
+      "name": "auto_update_dispatched_version",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "app_settings",
       "name": "updated_at",
       "type": "integer",
       "notNull": true,
@@ -1791,6 +1833,106 @@
       "entityType": "columns"
     },
     {
+      "table": "calendar_event_overrides",
+      "name": "id",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "calendar_event_overrides",
+      "name": "event_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "calendar_event_overrides",
+      "name": "occurrence_ms",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "calendar_event_overrides",
+      "name": "starts_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "calendar_event_overrides",
+      "name": "ends_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "calendar_event_overrides",
+      "name": "title",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "calendar_event_overrides",
+      "name": "description",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "calendar_event_overrides",
+      "name": "location",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "calendar_event_overrides",
+      "name": "created_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "calendar_event_overrides",
+      "name": "updated_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
       "table": "calendar_events",
       "name": "id",
       "type": "text",
@@ -1912,6 +2054,36 @@
     },
     {
       "table": "calendar_events",
+      "name": "repeat_interval",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "1",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "calendar_events",
+      "name": "repeat_weekday",
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "calendar_events",
+      "name": "repeat_week",
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "calendar_events",
       "name": "excluded_occurrences",
       "type": "text",
       "notNull": true,
@@ -2012,6 +2184,16 @@
     },
     {
       "table": "calendar_events",
+      "name": "event_sequence",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "calendar_events",
       "name": "attendee_responses",
       "type": "text",
       "notNull": false,
@@ -2032,6 +2214,116 @@
     },
     {
       "table": "calendar_events",
+      "name": "updated_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "calendar_invite_tombstones",
+      "name": "id",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "calendar_invite_tombstones",
+      "name": "user_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "calendar_invite_tombstones",
+      "name": "invite_sequence",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "0",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "calendar_invite_tombstones",
+      "name": "invite_sender",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "''",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "calendar_invite_tombstones",
+      "name": "cancelled_at",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "calendar_occurrence_responses",
+      "name": "id",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "calendar_occurrence_responses",
+      "name": "event_id",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "calendar_occurrence_responses",
+      "name": "occurrence_ms",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "calendar_occurrence_responses",
+      "name": "guest",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "calendar_occurrence_responses",
+      "name": "status",
+      "type": "text",
+      "notNull": true,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "calendar_occurrence_responses",
       "name": "updated_at",
       "type": "integer",
       "notNull": true,
@@ -3772,6 +4064,36 @@
     },
     {
       "table": "mailbox_aliases",
+      "name": "label",
+      "type": "text",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "mailbox_aliases",
+      "name": "enabled",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "true",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "mailbox_aliases",
+      "name": "masked",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "false",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "mailbox_aliases",
       "name": "created_at",
       "type": "integer",
       "notNull": true,
@@ -4493,6 +4815,16 @@
     {
       "table": "messages",
       "name": "starred",
+      "type": "integer",
+      "notNull": true,
+      "autoincrement": false,
+      "default": "false",
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "messages",
+      "name": "private_draft",
       "type": "integer",
       "notNull": true,
       "autoincrement": false,
@@ -6672,6 +7004,16 @@
     },
     {
       "table": "users",
+      "name": "totp_last_step",
+      "type": "integer",
+      "notNull": false,
+      "autoincrement": false,
+      "default": null,
+      "generated": null,
+      "entityType": "columns"
+    },
+    {
+      "table": "users",
       "name": "require_second_factor",
       "type": "integer",
       "notNull": true,
@@ -7507,6 +7849,38 @@
       "entityType": "indexes"
     },
     {
+      "table": "calendar_event_overrides",
+      "name": "calendar_event_overrides_event_occurrence_idx",
+      "columns": [
+        {
+          "value": "event_id",
+          "isExpression": false
+        },
+        {
+          "value": "occurrence_ms",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "calendar_event_overrides",
+      "name": "calendar_event_overrides_event_idx",
+      "columns": [
+        {
+          "value": "event_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
       "table": "calendar_events",
       "name": "calendar_events_user_starts_idx",
       "columns": [
@@ -7530,6 +7904,56 @@
       "columns": [
         {
           "value": "mailbox_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "calendar_invite_tombstones",
+      "name": "calendar_invite_tombstones_user_idx",
+      "columns": [
+        {
+          "value": "user_id",
+          "isExpression": false
+        }
+      ],
+      "isUnique": false,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "calendar_occurrence_responses",
+      "name": "calendar_occurrence_responses_event_occurrence_guest_idx",
+      "columns": [
+        {
+          "value": "event_id",
+          "isExpression": false
+        },
+        {
+          "value": "occurrence_ms",
+          "isExpression": false
+        },
+        {
+          "value": "guest",
+          "isExpression": false
+        }
+      ],
+      "isUnique": true,
+      "where": null,
+      "origin": "manual",
+      "entityType": "indexes"
+    },
+    {
+      "table": "calendar_occurrence_responses",
+      "name": "calendar_occurrence_responses_event_idx",
+      "columns": [
+        {
+          "value": "event_id",
           "isExpression": false
         }
       ],
@@ -8567,6 +8991,14 @@
         {
           "value": "snoozed_until",
           "isExpression": false
+        },
+        {
+          "value": "user_id",
+          "isExpression": false
+        },
+        {
+          "value": "private_draft",
+          "isExpression": false
         }
       ],
       "isUnique": false,
@@ -8604,6 +9036,14 @@
         },
         {
           "value": "snoozed_until",
+          "isExpression": false
+        },
+        {
+          "value": "user_id",
+          "isExpression": false
+        },
+        {
+          "value": "private_draft",
           "isExpression": false
         }
       ],
@@ -9618,6 +10058,21 @@
       "entityType": "fks"
     },
     {
+      "table": "calendar_event_overrides",
+      "name": "fk_calendar_event_overrides_event_id_calendar_events_id_fk",
+      "columns": [
+        "event_id"
+      ],
+      "tableTo": "calendar_events",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
       "table": "calendar_events",
       "name": "fk_calendar_events_user_id_users_id_fk",
       "columns": [
@@ -9644,6 +10099,36 @@
       ],
       "onUpdate": "NO ACTION",
       "onDelete": "SET NULL",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "calendar_invite_tombstones",
+      "name": "fk_calendar_invite_tombstones_user_id_users_id_fk",
+      "columns": [
+        "user_id"
+      ],
+      "tableTo": "users",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
+      "nameExplicit": false,
+      "entityType": "fks"
+    },
+    {
+      "table": "calendar_occurrence_responses",
+      "name": "fk_calendar_occurrence_responses_event_id_calendar_events_id_fk",
+      "columns": [
+        "event_id"
+      ],
+      "tableTo": "calendar_events",
+      "columnsTo": [
+        "id"
+      ],
+      "onUpdate": "NO ACTION",
+      "onDelete": "CASCADE",
       "nameExplicit": false,
       "entityType": "fks"
     },
@@ -11267,8 +11752,35 @@
       "entityType": "pks"
     },
     {
+      "table": "calendar_event_overrides",
+      "name": "calendar_event_overrides_pk",
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
       "table": "calendar_events",
       "name": "calendar_events_pk",
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "calendar_invite_tombstones",
+      "name": "calendar_invite_tombstones_pk",
+      "columns": [
+        "id"
+      ],
+      "nameExplicit": false,
+      "entityType": "pks"
+    },
+    {
+      "table": "calendar_occurrence_responses",
+      "name": "calendar_occurrence_responses_pk",
       "columns": [
         "id"
       ],

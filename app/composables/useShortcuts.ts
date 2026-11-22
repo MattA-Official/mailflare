@@ -4,7 +4,10 @@
 // pages add theirs with registerShortcut/registerCommand.
 import type { MaybeRefOrGetter, ShallowRef } from 'vue'
 import type { CommandItem, ShortcutDefinition } from '~/types/shortcuts'
-import { createHotkeyHandler } from '~/utils/shortcuts/hotkeys'
+import { createHotkeyHandler, createSequenceState } from '~/utils/shortcuts/hotkeys'
+
+// One sequence buffer for every useHotkeys on the page.
+const sharedSequence = createSequenceState()
 
 interface ShortcutsSettingsResponse { enabled?: boolean, error?: unknown }
 
@@ -139,16 +142,16 @@ export function useShortcuts() {
  */
 export function useHotkeys(shortcuts: MaybeRefOrGetter<ShortcutDefinition[]>, options: { enabled?: MaybeRefOrGetter<boolean> } = {}) {
   if (!import.meta.client) return
-  const { handle, reset } = createHotkeyHandler(() => toValue(shortcuts))
   const listening = computed(() => toValue(options.enabled ?? true))
+  // A disabled listener's keys drop out of the shared sequence matching too.
+  const { handle, dispose } = createHotkeyHandler(() => (listening.value ? toValue(shortcuts) : []), sharedSequence)
   const listener = (event: KeyboardEvent) => handle(event)
   watch(listening, (on) => {
     window.removeEventListener('keydown', listener)
-    reset()
     if (on) window.addEventListener('keydown', listener)
   }, { immediate: true })
   onScopeDispose(() => {
     window.removeEventListener('keydown', listener)
-    reset()
+    dispose()
   })
 }

@@ -5,6 +5,7 @@ import { getAccountStatus } from "#lib/accounts/deletion-utils";
 import { effectiveGroupIds, mailboxReachedGroupIds } from "#lib/groups/hierarchy";
 import type { SessionUser } from "#lib/auth/types";
 import type { MailboxAccessLevel, MailboxPermission } from "./types";
+import { inboxPrincipalId } from "./principals";
 
 const permissionRank: Record<MailboxPermission, number> = {
 	read_only: 1,
@@ -54,6 +55,26 @@ export function highestPermission(permissions: MailboxPermission[]): MailboxPerm
 		if (!highest || permissionRank[permission] > permissionRank[highest]) highest = permission;
 	}
 	return highest;
+}
+
+/**
+ * Enabled users who may send for the mailbox: its owner plus, on a shared mailbox, anyone granted send_on_behalf or more.
+ * (fork) Grants through groups count, and a standalone shared inbox's hidden owner account is never listed.
+ */
+export async function listMailboxSenders(db: AppDatabase, mailbox: Pick<MailboxAccessLevel["mailbox"], "id" | "userId" | "type">) {
+	const ids = new Set([mailbox.userId]);
+	if (mailbox.type === "shared") for (const userId of await listSharedMailboxUserIds(db, mailbox.id)) ids.add(userId);
+	const all = [...ids];
+	const senders: { id: string; name: string; email: string }[] = [];
+	// D1 allows at most 100 bound parameters per statement.
+	for (let index = 0; index < all.length; index += 90) {
+		const rows = await db.select({ id: users.id, name: users.name, email: users.email, disabled: users.disabled }).from(users).where(inArray(users.id, all.slice(index, index + 90)));
+		for (const { id, name, email, disabled } of rows) {
+			if (disabled || id === inboxPrincipalId(mailbox.id)) continue;
+			if (id === mailbox.userId || (await getMailboxAccessLevel(db, { id, role: "user" }, mailbox.id))?.canSendOnBehalf) senders.push({ id, name, email });
+		}
+	}
+	return senders;
 }
 
 export async function listAccessibleMailboxes(db: AppDatabase, user: Pick<SessionUser, "id" | "email" | "role">) {

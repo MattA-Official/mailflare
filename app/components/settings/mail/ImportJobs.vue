@@ -14,6 +14,7 @@ import {
 
 const props = defineProps<{ refreshKey: number }>()
 const { t } = useLanguage()
+const toast = useToast()
 
 const STATUS_COLOR: Record<ImportJobSummary['status'], 'neutral' | 'info' | 'success' | 'error' | 'warning'> = {
   queued: 'neutral',
@@ -62,6 +63,8 @@ onBeforeUnmount(() => clearInterval(timer))
 async function remove(job: ImportJobSummary) {
   try {
     await removeImportJob(job.id)
+  } catch (cause) {
+    toast.add({ title: cause instanceof Error ? cause.message : t('domains.requestFailed'), color: 'error' })
   } finally {
     await load()
   }

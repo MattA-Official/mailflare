@@ -2,7 +2,7 @@
 // payload parsing and the settings sidebar filter.
 import { describe, expect, it, vi } from 'vitest'
 import type { ShortcutDefinition } from '../../../app/types/shortcuts'
-import { createHotkeyHandler, findSequenceMatch, formatShortcutKeys, hasCommandModifier, isModifierKey } from '../../../app/utils/shortcuts/hotkeys'
+import { createHotkeyHandler, createSequenceState, findSequenceMatch, formatShortcutKeys, hasCommandModifier, isModifierKey } from '../../../app/utils/shortcuts/hotkeys'
 import { getReconnectDelay, getRealtimeWebSocketUrl, parseNewMessageEvent } from '../../../app/utils/realtime/client'
 import { visibleSettingsNavSections } from '../../../app/utils/settings/nav'
 
@@ -56,6 +56,25 @@ describe('hotkey handler', () => {
     handle(key('k', { ctrlKey: true }))
     expect(palette.action).toHaveBeenCalledOnce()
     reset()
+  })
+
+  it('shares one sequence buffer, so "g !" on one listener does not also fire "!" on another', () => {
+    const state = createSequenceState()
+    const goSpam = shortcut('g !')
+    const reportSpam = shortcut('!')
+    const layout = createHotkeyHandler(() => [goSpam], state)
+    const message = createHotkeyHandler(() => [reportSpam], state)
+    const g = key('g')
+    layout.handle(g)
+    message.handle(g)
+    const bang = key('!')
+    message.handle(bang)
+    layout.handle(bang)
+    expect(goSpam.action).toHaveBeenCalledOnce()
+    expect(reportSpam.action).not.toHaveBeenCalled()
+    layout.reset()
+    layout.dispose()
+    message.dispose()
   })
 
   it('formats key caps for the cheat sheet', () => {

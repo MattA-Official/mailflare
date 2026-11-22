@@ -38,6 +38,8 @@ export interface WebhookDelivery {
 }
 
 export interface CreateWebhookInput {
+  /** Step-up grant, sent when the server asks to confirm the webhook. */
+  stepUpToken?: string
   url: string
   description?: string
   events: WebhookEvent[]
@@ -45,6 +47,7 @@ export interface CreateWebhookInput {
 }
 
 export interface UpdateWebhookInput {
+  stepUpToken?: string
   url?: string
   description?: string | null
   events?: WebhookEvent[]

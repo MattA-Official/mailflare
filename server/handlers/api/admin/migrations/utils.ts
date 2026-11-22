@@ -1,4 +1,5 @@
 import { NextResponse } from "#lib/http/next-compat";
+import { hasValidSessionMutationOrigin } from "#lib/auth/origin";
 import { assertPrimaryAdmin } from "#lib/auth/admin";
 import { requireUser } from "#lib/auth/cookies";
 import { getEnv } from "#lib/cloudflare";
@@ -25,7 +26,7 @@ export async function authorizeAdminRequest(request: Request) {
 export async function authorizeMigrationRequest(request: Request) {
 	const authorization = await authorizeAdminRequest(request);
 	if ("error" in authorization) return authorization;
-	if (request.method !== "GET" && request.headers.get("Origin") !== new URL(request.url).origin) {
+	if (request.method !== "GET" && !hasValidSessionMutationOrigin(request)) {
 		return { error: NextResponse.json({ error: "Invalid request origin" }, { status: 403 }) };
 	}
 	return authorization;

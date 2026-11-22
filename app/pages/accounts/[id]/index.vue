@@ -2,6 +2,12 @@
 // Ported from legacy/src/app/(admin)/accounts/[id]/page.tsx.
 import { getManagedAccountAvatarUrl, saveManagedAccount, uploadManagedAccountAvatar } from '~/utils/admin/system/accounts'
 import { useManagedAccountDraft } from '~/utils/admin/system/use-managed-account'
+import { useSecurityStatus } from '~/utils/settings/account/security-status'
+
+/** The server stores a blank address as none, so "" and null are the same saved value. */
+function normalizeForwarding(value: string | null | undefined): string | null {
+  return value?.trim() || null
+}
 
 const { t } = useLanguage()
 const toast = useToast()
@@ -13,13 +19,22 @@ const saving = ref(false)
 const message = ref<string | null>(null)
 const avatarVersion = ref(0)
 const fileInput = ref<HTMLInputElement | null>(null)
+// Changing the forwarding address asks the administrator to confirm it is them.
+const confirmingForwarding = ref(false)
+const { status: securityStatus } = useSecurityStatus()
 
-async function saveDetails() {
+function onSave() {
+  if (!account.value) return
+  if (account.value.canForwardEmail && normalizeForwarding(account.value.forwardingEmail) !== normalizeForwarding(data.value?.forwardingEmail)) confirmingForwarding.value = true
+  else void saveDetails()
+}
+
+async function saveDetails(stepUpToken?: string) {
   if (!account.value) return
   saving.value = true
   message.value = null
   try {
-    await saveManagedAccount(account.value)
+    await saveManagedAccount(account.value, stepUpToken)
     data.value = { ...account.value }
     toast.add({ title: t('account.updated'), color: 'success' })
   } catch (error) {
@@ -58,7 +73,7 @@ async function uploadAvatar(event: Event) {
       </p>
     </div>
     <UCard>
-      <form class="space-y-5" @submit.prevent="saveDetails">
+      <form class="space-y-5" @submit.prevent="onSave">
         <UAlert v-if="!account.editable" color="neutral" variant="subtle" :description="t('account.noPermission')" />
         <div class="flex items-center gap-4">
           <AdminSystemAvatar size="xl" :name="account.name" :email="account.email" :src="account.hasAvatar ? getManagedAccountAvatarUrl(id, avatarVersion) : null" />
@@ -101,6 +116,16 @@ async function uploadAvatar(event: Event) {
         <UButton v-if="account.editable" type="submit" :loading="saving" :disabled="!account.name.trim()" :label="saving ? t('common.saving') : t('account.saveDetails')" />
       </form>
     </UCard>
+    <SettingsAccountStepUpDialog
+      v-model:open="confirmingForwarding"
+      :has-password="securityStatus?.passwordSet ?? true"
+      :has-passkey="(securityStatus?.passkeys.length ?? 0) > 0"
+      :require-second-factor="securityStatus?.requireSecondFactor ?? false"
+      :totp-enabled="securityStatus?.totpEnabled ?? false"
+      action="admin.forwarding_email"
+      :target-user-id="id"
+      :on-authorized="saveDetails"
+    />
     <UAlert v-if="message" role="alert" color="error" variant="subtle" :title="message" />
   </div>
 </template>

@@ -101,7 +101,8 @@ async function readError(response: Response, fallback: string) {
   return data.error || fallback
 }
 
-async function refresh() {
+// Background refreshes must not overwrite unsaved edits while the settings form is open.
+async function refresh(replaceSettings = false) {
   const id = mailboxId.value
   if (!id) return
   const query = `mailboxId=${encodeURIComponent(id)}`
@@ -115,7 +116,7 @@ async function refresh() {
     return
   }
   const data = await settingsResponse.json() as AgentSettingsResponse
-  settings.value = data.settings
+  if (replaceSettings || view.value !== 'settings') settings.value = data.settings
   availableModels.value = data.models ?? []
   canManage.value = data.canManage
   providerConfigured.value = data.providerConfigured
@@ -168,7 +169,7 @@ watch([mailboxId, () => props.open], async ([id, open]) => {
   view.value = 'chat'
   menuOpen.value = false
   error.value = null
-  refresh().catch(() => {
+  refresh(true).catch(() => {
     if (generation === openGeneration) error.value = t('agent.panel.settingsLoadFailed')
   })
   const savedId = readAgentConversationId(id)
@@ -374,7 +375,7 @@ async function saveSettings() {
   try {
     const response = await authFetch('/api/agent/settings', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settings.value) })
     if (!response.ok) throw new Error(await readError(response, t('agent.panel.saveFailed')))
-    await refresh()
+    await refresh(true)
   } catch (cause) {
     error.value = cause instanceof Error ? cause.message : t('agent.panel.saveFailed')
   } finally {

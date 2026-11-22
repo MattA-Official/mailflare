@@ -7,6 +7,7 @@ import type { DomainRule, DomainRuleInput } from '~/types/admin/email/routing'
 import { canManageDomains } from '#lib/auth/admin'
 import { errorMessage } from '~/utils/admin/email/domains'
 import { validationMessage, ACTION_LABELS, MATCH_FIELD_LABELS, MATCH_OPERATOR_LABELS, createDomainRule, deleteDomainRule, emptyRuleInput, fetchDomainRules, ruleToInput, updateDomainRule } from '~/utils/admin/email/routing'
+import { needsStepUp, useSecurityStatus } from '~/utils/settings/account/security-status'
 
 const props = defineProps<{ domain: { id: string, hostname: string } }>()
 const { t } = useLanguage()
@@ -29,6 +30,8 @@ const editing = ref<DomainRule | null>(null)
 const form = ref<DomainRuleInput>(emptyRuleInput(''))
 const formError = ref<string | null>(null)
 const saving = ref(false)
+const confirmingForward = ref(false)
+const { status: securityStatus } = useSecurityStatus()
 
 const actionItems = computed(() => Object.entries(ACTION_LABELS).map(([value, label]) => ({ value, label: t(label) })))
 const fieldItems = computed(() => Object.entries(MATCH_FIELD_LABELS).map(([value, label]) => ({ value, label: t(label) })))
@@ -49,18 +52,21 @@ function openEdit(rule: DomainRule) {
   dialogOpen.value = true
 }
 
-async function save() {
+async function save(stepUpToken?: string) {
   saving.value = true
   formError.value = null
   try {
-    const payload: DomainRuleInput = { ...form.value, domainId: props.domain.id }
+    const payload: DomainRuleInput = { ...form.value, domainId: props.domain.id, ...(stepUpToken ? { stepUpToken } : {}) }
     if (editing.value) await updateDomainRule(editing.value.id, payload)
     else await createDomainRule(payload)
+    confirmingForward.value = false
     dialogOpen.value = false
     editing.value = null
     await refresh()
   } catch (error) {
-    formError.value = validationMessage(error) ?? errorMessage(error, t('routing.requestFailed'))
+    // A forward to an outside address asks the user to confirm it is them, then retries.
+    if (needsStepUp(error)) confirmingForward.value = true
+    else formError.value = validationMessage(error) ?? errorMessage(error, t('routing.requestFailed'))
   } finally {
     saving.value = false
   }
@@ -75,7 +81,24 @@ async function run(action: () => Promise<unknown>) {
   await refresh()
 }
 const remove = (id: string) => run(() => deleteDomainRule(id))
-const toggle = (rule: DomainRule) => run(() => updateDomainRule(rule.id, { ...ruleToInput(rule), enabled: !rule.enabled }))
+// Switching an outside forward back on needs the same proof as creating it.
+const togglingRule = ref<DomainRule | null>(null)
+async function toggle(rule: DomainRule, stepUpToken?: string) {
+  try {
+    await updateDomainRule(rule.id, { ...ruleToInput(rule), enabled: !rule.enabled, ...(stepUpToken ? { stepUpToken } : {}) })
+    togglingRule.value = null
+  } catch (error) {
+    if (needsStepUp(error)) togglingRule.value = rule
+    else toast.add({ title: errorMessage(error, t('routing.requestFailed')), color: 'error' })
+  }
+  await refresh()
+}
+const toggleOpen = computed({
+  get: () => !!togglingRule.value,
+  set: (open: boolean) => {
+    if (!open) togglingRule.value = null
+  },
+})
 </script>
 
 <template>
@@ -125,7 +148,7 @@ const toggle = (rule: DomainRule) => run(() => updateDomainRule(rule.id, { ...ru
 
     <UModal v-model:open="dialogOpen" :title="editing ? t('routing.editRule') : t('routing.addRule')" :description="t('routing.dialogDescription')" :ui="{ content: 'sm:max-w-xl' }">
       <template #body>
-        <form class="space-y-4" @submit.prevent="save">
+        <form class="space-y-4" @submit.prevent="save()">
           <div class="grid grid-cols-1 items-end gap-4 sm:grid-cols-2">
             <UFormField :label="t('common.name')">
               <UInput v-model="form.name" :placeholder="t('routing.optionalLabel')" />
@@ -200,5 +223,23 @@ const toggle = (rule: DomainRule) => run(() => updateDomainRule(rule.id, { ...ru
         </form>
       </template>
     </UModal>
+    <SettingsAccountStepUpDialog
+      v-model:open="confirmingForward"
+      :has-password="securityStatus?.passwordSet ?? true"
+      :has-passkey="(securityStatus?.passkeys.length ?? 0) > 0"
+      :require-second-factor="securityStatus?.requireSecondFactor ?? false"
+      :totp-enabled="securityStatus?.totpEnabled ?? false"
+      action="routing.forward"
+      :on-authorized="save"
+    />
+    <SettingsAccountStepUpDialog
+      v-model:open="toggleOpen"
+      :has-password="securityStatus?.passwordSet ?? true"
+      :has-passkey="(securityStatus?.passkeys.length ?? 0) > 0"
+      :require-second-factor="securityStatus?.requireSecondFactor ?? false"
+      :totp-enabled="securityStatus?.totpEnabled ?? false"
+      action="routing.forward"
+      :on-authorized="token => togglingRule && toggle(togglingRule, token)"
+    />
   </div>
 </template>

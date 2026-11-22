@@ -49,11 +49,12 @@ function domainRuleUrl(id: string | null, mailboxId?: string): string {
 }
 
 export function createDomainRule(input: DomainRuleInput, mailboxId?: string) {
-  return api(domainRuleUrl(null, mailboxId), { method: 'POST', body: input })
+  // A 401 means "confirm it is you", not "signed out": the screen opens the step-up dialog.
+  return api(domainRuleUrl(null, mailboxId), { method: 'POST', body: input, redirectOnUnauthorized: false })
 }
 
 export function updateDomainRule(id: string, input: DomainRuleInput, mailboxId?: string) {
-  return api(domainRuleUrl(id, mailboxId), { method: 'PATCH', body: input })
+  return api(domainRuleUrl(id, mailboxId), { method: 'PATCH', body: input, redirectOnUnauthorized: false })
 }
 
 export function deleteDomainRule(id: string, mailboxId?: string) {

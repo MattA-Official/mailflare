@@ -50,7 +50,7 @@ function onDrop(event: DragEvent) {
       :variant="active ? 'soft' : 'ghost'"
       :square="collapsed"
       block
-      :aria-label="collapsed ? label : undefined"
+      :aria-label="collapsed ? (countLabel ? `${label}, ${countLabel}` : label) : undefined"
       :aria-current="active ? 'page' : undefined"
       class="relative justify-start"
       :class="[active && 'text-primary font-semibold', dragOver && 'ring-1 ring-primary bg-primary/10', countLabel && 'font-semibold']"

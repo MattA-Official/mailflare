@@ -9,8 +9,9 @@ import type { CalendarEvent, CalendarMailbox, CalendarView, EventDragPreview, Ev
 import {
   addDays, addMonths, calendarAnchorDay, eventDayKeys, isAllDay, PENDING_EVENT_CLASSES, CALENDAR_END_HOUR, CALENDAR_HOUR_HEIGHT, CALENDAR_START_HOUR,
   currentTimePosition, dateKey, dropStartForPosition, EVENT_COLOR_CLASSES, eventPosition, expandCalendarEvents,
-  formatEventRange, formatHour, isPendingInvite, monthGridDates, PAST_EVENT_COLOR_CLASSES, rescheduleCalendarOccurrence, resizeEventTimes, shiftEventByDays, slotMinutesForPosition, slotSelectionTimes, startOfDay, startOfWeek,
+  formatEventRange, formatHour, isPendingInvite, monthGridDates, PAST_EVENT_COLOR_CLASSES, rescheduleCalendarOccurrence, resizeEventTimes, toCalendarOverrides, shiftEventByDays, slotMinutesForPosition, slotSelectionTimes, startOfDay, startOfWeek,
 } from '~/utils/calendar/calendar'
+import type { CalendarOccurrenceOverride, CalendarOccurrenceResponse, CalendarOverridesInput } from '~/utils/calendar/calendar'
 import { useMediaQuery, useSwipe } from '@vueuse/core'
 import { loadSelectedMailbox } from '~/utils/calendar/mailbox'
 
@@ -36,7 +37,7 @@ const dragPreview = shallowRef<EventDragPreview | null>(null)
 const pendingId = ref<string | null>(null)
 const mailbox = shallowRef<CalendarMailbox | null>(null)
 const editorOpen = ref(false)
-const editor = useTemplateRef<{ openNew: (day: Date, startAt?: Date, endAt?: Date, allDay?: boolean) => void, openEdit: (event: CalendarEvent) => void, remove: (event?: CalendarEvent | null) => Promise<void> }>('editor')
+const editor = useTemplateRef<{ openNew: (day: Date, startAt?: Date, endAt?: Date, allDay?: boolean) => void, openEdit: (event: CalendarEvent) => void, remove: (event?: CalendarEvent | null) => Promise<void>, overridesFor: (event: CalendarEvent) => CalendarOccurrenceOverride[] | undefined }>('editor')
 // The highlighted range on the hour grid: shown while dragging out a new event and while its editor is open.
 const slotSelection = shallowRef<{ day: Date, startsAt: Date, endsAt: Date } | null>(null)
 let dragOffsetPixels = 0
@@ -270,12 +271,20 @@ const range = computed(() => {
   }
 })
 
+const calendarOverrides = shallowRef<Map<string, CalendarOccurrenceOverride[]> | undefined>()
+const occurrenceResponses = shallowRef<Record<string, CalendarOccurrenceResponse[]>>({})
+
 // Events for the visible range. One key for the page, so the calendar keeps showing what it has while
 // another range loads, and a failed load leaves it in place.
 const { data: loadedEvents, status: eventsStatus, error: eventsError } = useAsyncData('calendar-events', () => {
   const { start, end } = range.value
-  return api<{ events?: CalendarEvent[] }>(`/api/calendar/events?start=${start.toISOString()}&end=${end.toISOString()}`)
-    .then(data => expandCalendarEvents(data.events ?? [], start, end))
+  return api<{ events?: CalendarEvent[], overrides?: CalendarOverridesInput, occurrenceResponses?: Record<string, CalendarOccurrenceResponse[]> }>(`/api/calendar/events?start=${start.toISOString()}&end=${end.toISOString()}`)
+    .then((data) => {
+      const overrides = toCalendarOverrides(data.overrides)
+      calendarOverrides.value = overrides
+      occurrenceResponses.value = data.occurrenceResponses ?? {}
+      return expandCalendarEvents(data.events ?? [], start, end, overrides)
+    })
 }, { watch: [() => range.value.start.getTime(), () => range.value.end.getTime(), eventsVersion] })
 const loading = computed(() => eventsStatus.value === 'pending')
 watch(loadedEvents, (value) => {
@@ -368,7 +377,7 @@ async function saveEventTimes(event: CalendarEvent, startsAt: Date, endsAt: Date
     let savedStart = startsAt
     let savedEnd = endsAt
     if (effectiveFrom) {
-      const next = rescheduleCalendarOccurrence(event, startsAt, endsAt, effectiveFrom)
+      const next = rescheduleCalendarOccurrence(event, startsAt, endsAt, effectiveFrom, editor.value?.overridesFor(event))
       if (!next) {
         toast.add({ title: t('calendar.noFuture'), color: 'error' })
         return
@@ -388,6 +397,9 @@ async function saveEventTimes(event: CalendarEvent, startsAt: Date, endsAt: Date
         color: event.color,
         repeat: event.repeat,
         repeatDays: parseCalendarRepeatDays(event.repeatDays),
+        repeatInterval: event.repeatInterval ?? 1,
+        repeatWeekday: event.repeatWeekday ?? null,
+        repeatWeek: event.repeatWeek ?? null,
         timeZone: getUserTimeZone(),
         repeatAnchorDay: event.repeat === 'monthly' && dateKey(startsAt) === dateKey(new Date(event.startsAt))
           ? event.repeatAnchorDay ?? calendarAnchorDay(event, new Date(event.seriesStartsAt ?? event.startsAt))
@@ -682,7 +694,7 @@ function previewClass(event: CalendarEvent) {
     </template>
   </UDashboardPanel>
 
-  <CalendarEventEditor ref="editor" v-model:open="editorOpen" :mailbox="mailbox" @saved="onSaved" />
+  <CalendarEventEditor ref="editor" v-model:open="editorOpen" :mailbox="mailbox" :overrides="calendarOverrides" :occurrence-responses="occurrenceResponses" @saved="onSaved" />
   <CalendarEventPopover v-model:open="popoverOpen" :event="popoverEvent" :reference="popoverReference" @edit="editEvent" @delete="deleteEvent" />
   <CalendarSubscribeDialog v-model:open="subscribeOpen" />
   <CalendarInviteResponseDialog :event="pendingInvite" @close="pendingInvite = null" @answered="onSaved" />

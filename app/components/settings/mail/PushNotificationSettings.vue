@@ -1,9 +1,9 @@
 <script setup lang="ts">
 // Web Push alerts when the app is closed. Ported from
-// legacy/src/components/settings/push-notification-settings.tsx. Upstream never translated these
-// strings, and every catalogue must carry every key, so they stay in English until upstream adds them.
+// legacy/src/components/settings/push-notification-settings.tsx.
 import { disablePushNotifications, enablePushNotifications, getPushState, type PushState } from '~/utils/settings/mail/push'
 
+const { t } = useLanguage()
 const state = ref<PushState>({ supported: false, configured: false, permission: 'unsupported', subscribed: false })
 const loading = ref(true)
 const error = ref<string | null>(null)
@@ -12,7 +12,7 @@ onMounted(async () => {
   try {
     state.value = await getPushState()
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : 'Failed to load notification settings'
+    error.value = cause instanceof Error ? cause.message : t('settings.push.loadFailed')
   } finally {
     loading.value = false
   }
@@ -24,10 +24,10 @@ const disabled = computed(() => loading.value
   || (state.value.permission === 'denied' && !state.value.subscribed))
 
 const description = computed(() => {
-  if (!state.value.supported) return 'This browser does not support Web Push for Mailflare.'
-  if (!state.value.configured) return 'Web Push has not been configured on this Mailflare server.'
-  if (state.value.permission === 'denied') return 'Notifications are blocked in your browser settings.'
-  return 'Get new mail alerts even when Mailflare is closed.'
+  if (!state.value.supported) return t('settings.push.unsupported')
+  if (!state.value.configured) return t('settings.push.notConfigured')
+  if (state.value.permission === 'denied') return t('settings.push.blocked')
+  return t('settings.push.description')
 })
 
 async function update(enabled: boolean) {
@@ -37,7 +37,7 @@ async function update(enabled: boolean) {
     await (enabled ? enablePushNotifications() : disablePushNotifications())
     state.value = await getPushState()
   } catch (cause) {
-    error.value = cause instanceof Error ? cause.message : 'Failed to update notifications'
+    error.value = cause instanceof Error ? cause.message : t('settings.push.updateFailed')
   } finally {
     loading.value = false
   }
@@ -45,7 +45,7 @@ async function update(enabled: boolean) {
 </script>
 
 <template>
-  <SettingsMailSettingRow title="Browser push notifications" :description="description" :error="error">
-    <USwitch :model-value="state.subscribed" :disabled="disabled" aria-label="Enable browser push notifications" @update:model-value="update" />
+  <SettingsMailSettingRow :title="t('settings.push.title')" :description="description" :error="error">
+    <USwitch :model-value="state.subscribed" :disabled="disabled" :aria-label="t('settings.push.toggleLabel')" @update:model-value="update" />
   </SettingsMailSettingRow>
 </template>

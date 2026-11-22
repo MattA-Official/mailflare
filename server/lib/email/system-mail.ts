@@ -61,6 +61,18 @@ export async function pickSystemSender(
 	// Cloudflare sending only works once the zone's sending subdomain is enabled.
 	const usable = rows.filter((row) => row.cloudflareSending);
 	const chosen = usable.find((row) => row.role === "admin") ?? usable[0];
-	if (!chosen) return null;
-	return { address: `${chosen.localPart}@${chosen.hostname}`, name: chosen.displayName ?? "Mailflare" };
+	if (chosen) return { address: `${chosen.localPart}@${chosen.hostname}`, name: chosen.displayName ?? "Mailflare" };
+
+	// No enabled mailbox on a sending domain: system mail does not need one, so
+	// send from no-reply@ on any domain whose provider can send.
+	const sendingDomains = await db
+		.select({ hostname: domains.hostname, provider: domains.sendingProvider, cloudflareSending: domains.sendingEnabled })
+		.from(domains)
+		.where(and(
+			ne(domains.sendingProvider, "none"),
+			...(hostname ? [eq(domains.hostname, hostname.toLowerCase())] : []),
+		))
+		.limit(50);
+	const domain = sendingDomains.find((row) => row.provider !== "cloudflare" || row.cloudflareSending);
+	return domain ? { address: `no-reply@${domain.hostname}`, name: "Mailflare" } : null;
 }

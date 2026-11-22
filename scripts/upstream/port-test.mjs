@@ -11,6 +11,7 @@ const rules = [
 	[/^import test, \{ after \} from "node:test";$/m, 'import { afterAll as after, test, onTestFinished } from "vitest";'],
 	[/^import test, \{ ([^}]+) \} from "node:test";$/m, (_, names) => `import { test, onTestFinished, ${names.replace(/\bafter\b(?! as)/, "afterAll as after").replace(/\bbefore\b(?! as)/, "beforeAll as before")} } from "vitest";`],
 	[/^import test from "node:test";$/m, 'import { test, onTestFinished } from "vitest";'],
+	[/^import \{ after, test \} from "node:test";$/m, 'import { afterAll as after, test } from "vitest";'],
 	[/\bt\.after\(/g, "onTestFinished("],
 	// node:test's t.mock.method(object, "name", impl) -> vi.spyOn; vitest.config restores mocks between tests
 	[/\b(?:t|context)\.mock\.method\(([^,]+), (["'][^"']+["']), /g, "vi.spyOn($1, $2).mockImplementation("],
@@ -21,6 +22,8 @@ const rules = [
 	[/(const \w+ = join\(dirname\(fileURLToPath\(import\.meta\.url\)\), "\.\.")\)/g, '$1, "..")'],
 	[/(const \w+ = fileURLToPath\(new URL\(")\.\.\/(", import\.meta\.url\)\))/g, '$1../../$2'],
 	[/(const \w+ = new URL\(")\.\.\/(", import\.meta\.url\))/g, '$1../../$2'],
+	[/(new URL\(["`])\.\.\/(?!\.\.\/)/g, "$1../../"],
+	[/(from ")\.\.\/(src|server)\//g, "$1../../$2/"],
 	// upstream layout -> this repo's
 	[/(["'`(/.])src\/app\/api\//g, "$1server/handlers/api/"],
 	[/(["'`(/.])src\/app\/jmap\//g, "$1server/handlers/jmap/"],

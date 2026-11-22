@@ -2,7 +2,7 @@
 // Create/edit dialog for a calendar event, including the save and delete requests.
 // Ported from the editor half of legacy/src/app/(calendar)/calendar/page.tsx.
 import { confirmDestructive } from '~/utils/confirm-dialog'
-import { getUserTimeZone, parseUserDateTimeLocal } from '#lib/time/utils'
+import { formatUserDate, getUserTimeZone, parseUserDateTimeLocal } from '#lib/time/utils'
 import { normalizeCalendarColor } from '#lib/calendar/colors'
 import { REMINDER_MINUTE_OPTIONS } from '#lib/calendar/reminder-utils'
 import { DEFAULT_REPEAT_DAYS, parseCalendarRepeatDays } from '#lib/calendar/recurrence'
@@ -12,8 +12,15 @@ import type { TranslationKey } from '#lib/i18n/types'
 import type { CalendarRepeat } from '#lib/calendar/types'
 import type { CalendarEvent, CalendarMailbox } from '~/types/calendar'
 import { addDays, calendarAnchorDay, defaultCalendarStart, isAllDay, eventEndAfterMinutes, formatLocalDateTime, rescheduleCalendarOccurrence, WEEKDAY_OPTIONS } from '~/utils/calendar/calendar'
+import type { CalendarOccurrenceOverride, CalendarOccurrenceResponse } from '~/utils/calendar/calendar'
 
-const props = defineProps<{ mailbox: CalendarMailbox | null }>()
+const props = defineProps<{
+  mailbox: CalendarMailbox | null
+  /** Moved occurrences by series id, from the events response. */
+  overrides?: Map<string, CalendarOccurrenceOverride[]>
+  /** Per-occurrence guest replies by series or occurrence id. */
+  occurrenceResponses?: Record<string, CalendarOccurrenceResponse[]>
+}>()
 const emit = defineEmits<{ saved: [] }>()
 
 const open = defineModel<boolean>('open', { default: false })
@@ -25,6 +32,10 @@ const title = ref('')
 const color = ref<string>(DEFAULT_FOLDER_COLOR)
 const repeat = ref<CalendarRepeat>('none')
 const repeatDays = ref<number[]>([...DEFAULT_REPEAT_DAYS])
+const repeatInterval = ref(1)
+const repeatWeekday = ref<number | null>(null)
+const repeatWeek = ref<number | null>(null)
+const monthlyMode = ref<'day' | 'weekday'>('day')
 const reminderMinutes = ref<number | null>(null)
 const startsAt = ref('')
 // For an all-day event, both fields hold dates (with T00:00), and the end is the last day, inclusive.
@@ -46,6 +57,27 @@ const guestReplies = computed(() => {
   }
 })
 
+// Replies to single occurrences of a recurring invitation; for an occurrence, only its own.
+const occurrenceReplies = computed(() => {
+  const event = editing.value
+  if (!event) return ''
+  const separator = event.id.lastIndexOf('@')
+  const seriesId = separator > 0 ? event.id.slice(0, separator) : event.id
+  const list = [...(props.occurrenceResponses?.[seriesId] ?? []), ...(separator < 0 ? [] : props.occurrenceResponses?.[event.id] ?? [])]
+  const occurrenceMs = separator > 0 ? Number(event.id.slice(separator + 1)) : null
+  const relevant = occurrenceMs != null && Number.isSafeInteger(occurrenceMs) ? list.filter(item => item.occurrenceMs === occurrenceMs) : list
+  return relevant.map((item) => {
+    const day = formatUserDate(new Date(item.occurrenceMs), { month: 'short', day: 'numeric' })
+    return `${day}: ${item.guest} ${t(`calendar.guestResponse.${item.status}` as TranslationKey)}`
+  }).join(', ')
+})
+
+function overridesFor(event: CalendarEvent) {
+  const seriesId = event.id.includes('@') ? event.id.slice(0, event.id.lastIndexOf('@')) : event.id
+  return props.overrides?.get(seriesId) ?? props.overrides?.get(event.id)
+}
+defineExpose({ openNew, openEdit, remove, overridesFor })
+
 const NO_REMINDER = 'none'
 const reminderItems = computed(() => [
   { label: t('calendar.reminder.none'), value: NO_REMINDER },
@@ -55,7 +87,27 @@ const reminderValue = computed({
   get: () => reminderMinutes.value === null ? NO_REMINDER : String(reminderMinutes.value),
   set: (value: string) => { reminderMinutes.value = value === NO_REMINDER ? null : Number(value) },
 })
-const repeatItems = computed(() => (['none', 'daily', 'weekly', 'monthly', 'weekdays'] as const).map(value => ({ label: t(`calendar.repeat.${value}`), value })))
+const repeatItems = computed(() => (['none', 'daily', 'weekly', 'monthly', 'yearly', 'weekdays'] as const).map(value => ({ label: t(`calendar.repeat.${value}`), value })))
+const monthlyModeItems = computed(() => (['day', 'weekday'] as const).map(value => ({ label: t(`calendar.monthlyMode.${value}`), value })))
+const repeatWeekItems = computed(() => (['1', '2', '3', '4', '5', 'last'] as const).map(value => ({ label: t(`calendar.repeatWeek.${value}`), value: value === 'last' ? -1 : Number(value) })))
+const repeatWeekdayItems = computed(() => WEEKDAY_OPTIONS.map(day => ({ label: t(`weekday.${day}` as TranslationKey), value: day as number })))
+const repeatWeekValue = computed({
+  get: () => repeatWeek.value ?? undefined,
+  set: (value?: number) => { repeatWeek.value = value ?? null },
+})
+const repeatWeekdayValue = computed({
+  get: () => repeatWeekday.value ?? undefined,
+  set: (value?: number) => { repeatWeekday.value = value ?? null },
+})
+const nthWeekday = computed(() => repeat.value === 'monthly' && monthlyMode.value === 'weekday')
+
+function setMonthlyMode(value: 'day' | 'weekday') {
+  monthlyMode.value = value
+  if (value !== 'weekday') return
+  if (repeatWeekday.value == null) repeatWeekday.value = parsedStart.value?.getDay() ?? 1
+  if (repeatWeek.value == null) repeatWeek.value = 1
+}
+
 const durationPresets = [15, 30, 60, 1440] as const
 
 const atMidnight = (value: string) => `${value.slice(0, 10)}T00:00`
@@ -66,7 +118,7 @@ const parsedEnd = computed(() => {
   const lastDay = parseUserDateTimeLocal(atMidnight(endsAt.value))
   return lastDay ? addDays(lastDay, 1) : null
 })
-const canSave = computed(() => Boolean(title.value.trim() && parsedStart.value && parsedEnd.value && parsedEnd.value > parsedStart.value && !(repeat.value === 'weekdays' && repeatDays.value.length === 0) && pending.value !== 'save'))
+const canSave = computed(() => Boolean(title.value.trim() && parsedStart.value && parsedEnd.value && parsedEnd.value > parsedStart.value && !(repeat.value === 'weekdays' && repeatDays.value.length === 0) && !(nthWeekday.value && (repeatWeekday.value == null || repeatWeek.value == null)) && pending.value !== 'save'))
 
 function senderAddress() {
   const mailbox = props.mailbox
@@ -83,6 +135,10 @@ function openNew(day: Date, startAt?: Date, endAt?: Date, wholeDays = false) {
   color.value = DEFAULT_FOLDER_COLOR
   repeat.value = 'none'
   repeatDays.value = [...DEFAULT_REPEAT_DAYS]
+  repeatInterval.value = 1
+  repeatWeekday.value = null
+  repeatWeek.value = null
+  monthlyMode.value = 'day'
   reminderMinutes.value = null
   guests.value = []
   location.value = ''
@@ -100,6 +156,12 @@ function openEdit(event: CalendarEvent) {
   repeat.value = event.repeat
   reminderMinutes.value = event.reminderMinutes ?? null
   repeatDays.value = event.repeat === 'weekdays' ? parseCalendarRepeatDays(event.repeatDays) : [...DEFAULT_REPEAT_DAYS]
+  const interval = event.repeatInterval
+  repeatInterval.value = typeof interval === 'number' && Number.isInteger(interval) && interval >= 1 && interval <= 999 ? interval : 1
+  const hasNth = event.repeat === 'monthly' && event.repeatWeekday != null && event.repeatWeek != null
+  monthlyMode.value = hasNth ? 'weekday' : 'day'
+  repeatWeekday.value = hasNth ? event.repeatWeekday ?? null : null
+  repeatWeek.value = hasNth ? event.repeatWeek ?? null : null
   location.value = event.location ?? ''
   description.value = event.description ?? ''
   allDay.value = isAllDay(event)
@@ -112,8 +174,6 @@ function openEdit(event: CalendarEvent) {
   guests.value = attendees.map(entry => entry.trim()).filter(Boolean)
   open.value = true
 }
-
-defineExpose({ openNew, openEdit, remove })
 
 // Turning all-day on keeps the dates; turning it off gives the first day the usual hour-long slot.
 function setAllDay(value: boolean) {
@@ -151,7 +211,7 @@ async function save() {
     let savedStart = editedStart
     let savedEnd = editedEnd
     if (event && effectiveFrom) {
-      const next = rescheduleCalendarOccurrence(event, editedStart, editedEnd, effectiveFrom)
+      const next = rescheduleCalendarOccurrence(event, editedStart, editedEnd, effectiveFrom, overridesFor(event))
       if (!next) {
         toast.add({ title: t('calendar.noFuture'), color: 'error' })
         return
@@ -159,10 +219,18 @@ async function save() {
       savedStart = next.startsAt
       savedEnd = next.endsAt
     }
+    const interval = Number.isInteger(repeatInterval.value) ? Math.min(999, Math.max(1, repeatInterval.value)) : 1
+    // Mirrors the server: nth-weekday fields are monthly-only and both-or-null.
+    const weekday = nthWeekday.value ? repeatWeekday.value : null
+    const week = nthWeekday.value ? repeatWeek.value : null
+    if (nthWeekday.value && (weekday == null || week == null)) {
+      toast.add({ title: t('calendar.saveFailed'), color: 'error' })
+      return
+    }
     const repeatAnchorDay = event?.repeat === 'monthly' && startsAt.value.slice(0, 10) === formatLocalDateTime(new Date(event.startsAt)).slice(0, 10)
       ? event.repeatAnchorDay ?? calendarAnchorDay(event, new Date(event.seriesStartsAt ?? event.startsAt))
       : calendarAnchorDay(event, editedStart)
-    await api(event ? `/api/calendar/events/${event.id}` : '/api/calendar/events', {
+    const result = await api<{ inviteErrors?: string[] }>(event ? `/api/calendar/events/${event.id}` : '/api/calendar/events', {
       method: event ? 'PATCH' : 'POST',
       body: {
         title: title.value,
@@ -172,6 +240,9 @@ async function save() {
         repeat: repeat.value,
         repeatDays: repeatDays.value,
         repeatAnchorDay,
+        repeatInterval: interval,
+        repeatWeekday: weekday,
+        repeatWeek: week,
         reminderMinutes: reminderMinutes.value,
         allDay: allDay.value,
         effectiveFrom: effectiveFrom?.toISOString(),
@@ -184,6 +255,7 @@ async function save() {
         from: senderAddress(),
       },
     })
+    if (result?.inviteErrors?.length) toast.add({ title: t('calendar.inviteFailed'), color: 'error' })
     emit('saved')
     open.value = false
     toast.add({ title: event ? t('calendar.eventSaved') : t('calendar.eventCreated'), color: 'success' })
@@ -201,7 +273,7 @@ async function remove(event: CalendarEvent | null = editing.value) {
   if (!(await confirmDestructive(recurring ? t('calendar.deleteFuture') : t('calendar.deleteEvent')))) return
   pending.value = 'delete'
   try {
-    await api(`/api/calendar/events/${event.id}`, { method: 'DELETE', body: recurring ? { effectiveFrom: new Date().toISOString() } : undefined })
+    await api(`/api/calendar/events/${event.id}`, { method: 'DELETE', body: { effectiveFrom: recurring ? new Date().toISOString() : undefined, from: senderAddress() } })
     emit('saved')
     open.value = false
     toast.add({ title: t('calendar.eventDeleted'), color: 'success' })
@@ -294,6 +366,18 @@ function showDurations(event: FocusEvent) {
                 @click="toggleRepeatDay(day)"
               />
             </div>
+            <div v-if="repeat !== 'none'" class="flex items-center gap-2 px-2 pt-1 text-xs text-muted">
+              <span>{{ t('calendar.repeatInterval') }}</span>
+              <UInputNumber v-model="repeatInterval" :min="1" :max="999" size="xs" class="w-24" :aria-label="t('calendar.repeatInterval')" />
+              <span>{{ t(`calendar.intervalUnit.${repeat}` as TranslationKey) }}</span>
+            </div>
+            <div v-if="repeat === 'monthly'" class="px-2 pt-1">
+              <UTabs :model-value="monthlyMode" :items="monthlyModeItems" :content="false" size="xs" variant="pill" :aria-label="t('calendar.repeat')" @update:model-value="value => setMonthlyMode(value as 'day' | 'weekday')" />
+            </div>
+            <div v-if="nthWeekday" class="flex flex-wrap items-center gap-2 px-2 pt-1">
+              <USelect v-model="repeatWeekValue" :items="repeatWeekItems" size="xs" :aria-label="t('calendar.repeatWeek')" class="w-28" />
+              <USelect v-model="repeatWeekdayValue" :items="repeatWeekdayItems" size="xs" :aria-label="t('calendar.repeatWeekday')" class="w-36" />
+            </div>
           </div>
         </div>
 
@@ -302,6 +386,9 @@ function showDurations(event: FocusEvent) {
           <CalendarGuestInput v-model="guests" :mailbox-id="mailbox?.id" :placeholder="t('calendar.addGuests')" :aria-label="t('calendar.guestsLabel')" />
           <p v-if="guestReplies" class="col-start-2 mt-1 px-2 text-xs text-muted">
             {{ t('calendar.guestResponses', { list: guestReplies }) }}
+          </p>
+          <p v-if="occurrenceReplies" class="col-start-2 mt-1 px-2 text-xs text-muted">
+            {{ t('calendar.occurrenceResponses', { list: occurrenceReplies }) }}
           </p>
         </div>
 

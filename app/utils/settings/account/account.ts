@@ -18,11 +18,13 @@ export async function loadAccountSettings(): Promise<AccountSettingsUser> {
  * Saves the account's recovery address. The name is left out so a rename made elsewhere since the
  * page opened is not reverted.
  */
-export async function updateProfile(resetEmail: string): Promise<string> {
+export async function updateProfile(resetEmail: string, stepUpToken?: string): Promise<string> {
   const res = await authFetch('/api/settings/profile', {
     method: 'PATCH',
+    // With a proof attached, a 401 means the proof was refused, not that the session ended.
+    redirectOnUnauthorized: !stepUpToken,
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ resetEmail }),
+    body: JSON.stringify({ resetEmail, stepUpToken }),
   })
   const data = (await res.json().catch(() => ({}))) as ProfileFormResponse
   if (!res.ok) throw new Error(errorText(data, 'Failed to update profile'))

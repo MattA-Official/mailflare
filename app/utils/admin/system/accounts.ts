@@ -49,6 +49,8 @@ export async function saveManagedAccount(account: ManagedAccount, stepUpToken?: 
   try {
     await api(`/api/accounts/${account.id}`, {
       method: 'PATCH',
+      // With a proof attached, a 401 means the proof was refused, not that the session ended.
+      redirectOnUnauthorized: !stepUpToken,
       body: {
         name: account.name,
         role: account.role,
